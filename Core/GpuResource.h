@@ -6,6 +6,7 @@ namespace MyDirectX
 {
 	class GpuResource
 	{
+	public:
 		GpuResource()
 			: m_GpuVirtualAddress(D3D12_GPU_VIRTUAL_ADDRESS_NULL),
 			m_UserAllocatedMemory(nullptr),

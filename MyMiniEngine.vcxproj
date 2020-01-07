@@ -19,31 +19,51 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\Common\d3dx12.h" />
-    <ClInclude Include="..\Common\DeviceResources.h" />
-    <ClInclude Include="..\Common\GameTimer.h" />
-    <ClInclude Include="..\Common\MyApp.h" />
-    <ClInclude Include="..\Common\MyBaseApp.h" />
-    <ClInclude Include="..\Common\MyBasicGeometry.h" />
-    <ClInclude Include="..\Common\MyCamera.h" />
-    <ClInclude Include="..\Common\MyLight.h" />
-    <ClInclude Include="..\Common\MyUtils.h" />
-    <ClInclude Include="..\Common\MyWindow.h" />
-    <ClInclude Include="..\Common\pch.h" />
-    <ClInclude Include="..\Common\resource.h" />
+    <ClInclude Include="Common\d3dx12.h" />
+    <ClInclude Include="Common\DeviceResources.h" />
+    <ClInclude Include="Common\GameTimer.h" />
+    <ClInclude Include="Common\MyApp.h" />
+    <ClInclude Include="Common\MyBaseApp.h" />
+    <ClInclude Include="Common\MyBasicGeometry.h" />
+    <ClInclude Include="Common\MyCamera.h" />
+    <ClInclude Include="Common\MyLight.h" />
+    <ClInclude Include="Common\MyUtils.h" />
+    <ClInclude Include="Common\MyWindow.h" />
+    <ClInclude Include="Common\pch.h" />
+    <ClInclude Include="Common\resource.h" />
+    <ClInclude Include="Core\Camera.h" />
     <ClInclude Include="Core\GpuResource.h" />
+    <ClInclude Include="Core\GpuBuffer.h" />
+    <ClInclude Include="Core\Math\BoundingPlane.h" />
+    <ClInclude Include="Core\Math\BoundingSphere.h" />
+    <ClInclude Include="Core\Math\Common.h" />
+    <ClInclude Include="Core\Math\Frustum.h" />
+    <ClInclude Include="Core\Math\Matrix3.h" />
+    <ClInclude Include="Core\Math\Matrix4.h" />
+    <ClInclude Include="Core\Math\Quaternion.h" />
+    <ClInclude Include="Core\Math\Random.h" />
+    <ClInclude Include="Core\Math\Scalar.h" />
+    <ClInclude Include="Core\Math\Transform.h" />
+    <ClInclude Include="Core\Math\Vector.h" />
+    <ClInclude Include="Core\Utility.h" />
+    <ClInclude Include="Core\VectorMath.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\Common\DeviceResources.cpp" />
-    <ClCompile Include="..\Common\GameTimer.cpp" />
-    <ClCompile Include="..\Common\MyApp.cpp" />
-    <ClCompile Include="..\Common\MyBaseApp.cpp" />
-    <ClCompile Include="..\Common\MyBasicGeometry.cpp" />
-    <ClCompile Include="..\Common\MyCamera.cpp" />
-    <ClCompile Include="..\Common\MyLight.cpp" />
-    <ClCompile Include="..\Common\MyUtils.cpp" />
-    <ClCompile Include="..\Common\MyWindow.cpp" />
+    <ClCompile Include="Common\DeviceResources.cpp" />
+    <ClCompile Include="Common\GameTimer.cpp" />
+    <ClCompile Include="Common\MyApp.cpp" />
+    <ClCompile Include="Common\MyBaseApp.cpp" />
+    <ClCompile Include="Common\MyBasicGeometry.cpp" />
+    <ClCompile Include="Common\MyCamera.cpp" />
+    <ClCompile Include="Common\MyLight.cpp" />
+    <ClCompile Include="Common\MyUtils.cpp" />
+    <ClCompile Include="Common\MyWindow.cpp" />
+    <ClCompile Include="Core\Camera.cpp" />
+    <ClCompile Include="Core\GpuBuffer.cpp" />
+    <ClCompile Include="Core\Math\Frustum.cpp" />
+    <ClCompile Include="Core\Math\Random.cpp" />
+    <ClCompile Include="Core\Utility.cpp" />
     <ClCompile Include="WinMain.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -51,6 +71,9 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\Common\hinata.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Core\Math\Functions.inl" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -111,7 +134,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(SolutionDir)..\Common;$(SolutionDir)..\MyDirectXTK\Include;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)\Core;$(SolutionDir)\Common;$(SolutionDir)..\MyDirectXTK\Include;$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)..\MyDirectXTK\Lib\x64\Debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -136,11 +159,12 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
