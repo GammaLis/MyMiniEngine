@@ -121,6 +121,9 @@
     <ClInclude Include="Core\CommandAllocatorPool.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="Core\CommandListManager.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -181,6 +184,9 @@
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="Core\CommandAllocatorPool.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\CommandListManager.cpp">
       <Filter>Core</Filter>
     </ClCompile>
   </ItemGroup>
