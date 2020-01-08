@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CommandSignature.h" />
     <ClInclude Include="Common\d3dx12.h" />
     <ClInclude Include="Common\DeviceResources.h" />
     <ClInclude Include="Common\GameTimer.h" />
@@ -48,10 +49,12 @@
     <ClInclude Include="Core\Math\Vector.h" />
     <ClInclude Include="Core\Utility.h" />
     <ClInclude Include="Core\VectorMath.h" />
-    <ClInclude Include="PipelineState.h" />
-    <ClInclude Include="RootSignature.h" />
+    <ClInclude Include="Core\PipelineState.h" />
+    <ClInclude Include="Core\RootSignature.h" />
+    <ClInclude Include="Core\DynamicUploadBuffer.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CommandSignature.cpp" />
     <ClCompile Include="Common\DeviceResources.cpp" />
     <ClCompile Include="Common\GameTimer.cpp" />
     <ClCompile Include="Common\MyApp.cpp" />
@@ -66,8 +69,9 @@
     <ClCompile Include="Core\Math\Frustum.cpp" />
     <ClCompile Include="Core\Math\Random.cpp" />
     <ClCompile Include="Core\Utility.cpp" />
-    <ClCompile Include="PipelineState.cpp" />
-    <ClCompile Include="RootSignature.cpp" />
+    <ClCompile Include="Core\PipelineState.cpp" />
+    <ClCompile Include="Core\RootSignature.cpp" />
+    <ClCompile Include="Core\DynamicUploadBuffer.cpp" />
     <ClCompile Include="WinMain.cpp" />
   </ItemGroup>
   <ItemGroup>

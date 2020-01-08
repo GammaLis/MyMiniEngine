@@ -106,12 +106,16 @@
     <ClInclude Include="Core\Hash.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="PipelineState.h">
+    <ClInclude Include="Core\RootSignature.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="RootSignature.h">
+    <ClInclude Include="Core\PipelineState.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="Core\DynamicUploadBuffer.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="CommandSignature.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -159,12 +163,16 @@
     <ClCompile Include="WinMain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PipelineState.cpp">
+    <ClCompile Include="Core\RootSignature.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="RootSignature.cpp">
+    <ClCompile Include="Core\PipelineState.cpp">
       <Filter>Core</Filter>
     </ClCompile>
+    <ClCompile Include="Core\DynamicUploadBuffer.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="CommandSignature.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MyMiniEngine.rc">
