@@ -115,7 +115,12 @@
     <ClInclude Include="Core\DynamicUploadBuffer.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="CommandSignature.h" />
+    <ClInclude Include="Core\CommandSignature.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\CommandAllocatorPool.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -172,7 +177,12 @@
     <ClCompile Include="Core\DynamicUploadBuffer.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="CommandSignature.cpp" />
+    <ClCompile Include="Core\CommandSignature.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\CommandAllocatorPool.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MyMiniEngine.rc">

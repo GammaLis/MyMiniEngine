@@ -19,7 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="CommandSignature.h" />
+    <ClInclude Include="Core\CommandAllocatorPool.h" />
+    <ClInclude Include="Core\CommandSignature.h" />
     <ClInclude Include="Common\d3dx12.h" />
     <ClInclude Include="Common\DeviceResources.h" />
     <ClInclude Include="Common\GameTimer.h" />
@@ -54,7 +55,8 @@
     <ClInclude Include="Core\DynamicUploadBuffer.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="CommandSignature.cpp" />
+    <ClCompile Include="Core\CommandAllocatorPool.cpp" />
+    <ClCompile Include="Core\CommandSignature.cpp" />
     <ClCompile Include="Common\DeviceResources.cpp" />
     <ClCompile Include="Common\GameTimer.cpp" />
     <ClCompile Include="Common\MyApp.cpp" />
