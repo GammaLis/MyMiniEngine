@@ -14,9 +14,11 @@
     <Filter Include="Core\Math">
       <UniqueIdentifier>{bd48d843-4e41-42dc-a95f-76d23a2d8a73}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{d8d3bc0d-091b-421a-8961-7c5326c69f55}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="resource.h" />
     <ClInclude Include="Core\GpuResource.h">
       <Filter>Core</Filter>
     </ClInclude>
@@ -101,9 +103,17 @@
     <ClInclude Include="Core\Camera.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="Core\Hash.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="PipelineState.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="RootSignature.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="WinMain.cpp" />
     <ClCompile Include="Common\DeviceResources.cpp">
       <Filter>Common</Filter>
     </ClCompile>
@@ -144,6 +154,15 @@
       <Filter>Core\Math</Filter>
     </ClCompile>
     <ClCompile Include="Core\Camera.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="WinMain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PipelineState.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="RootSignature.cpp">
       <Filter>Core</Filter>
     </ClCompile>
   </ItemGroup>

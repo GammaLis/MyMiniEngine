@@ -24,7 +24,7 @@
 
 int main(int argc, const char* argv[])
 {
-	
+	// RoInitializer
 	Microsoft::WRL::Wrappers::RoInitializeWrapper InitializeWinRT(RO_INIT_MULTITHREADED);
 	ASSERT_SUCCEEDED(InitializeWinRT);
 

@@ -125,20 +125,20 @@ namespace MyDirectX
 
 		RootParameter& operator[](size_t entryIndex)
 		{
-			assert(entryIndex < m_NumParameters);
+			ASSERT(entryIndex < m_NumParameters);
 			return m_ParamArray[entryIndex];
 		}
 
 		const RootParameter& operator[](size_t entryIndex) const
 		{
-			assert(entryIndex < m_NumParameters);
+			ASSERT(entryIndex < m_NumParameters);
 			return m_ParamArray[entryIndex];
 		}
 
 		void InitStaticSampler(UINT reg, const D3D12_SAMPLER_DESC& nonStaticSamplerDesc,
 			D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL);
 
-		void Finalize(const std::wstring& name, D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE);
+		void Finalize(ID3D12Device* pDevice, const std::wstring& name, D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE);
 
 		ID3D12RootSignature* GetSignature() const { return m_Signature; }
 

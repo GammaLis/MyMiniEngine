@@ -34,6 +34,7 @@
     <ClInclude Include="Core\Camera.h" />
     <ClInclude Include="Core\GpuResource.h" />
     <ClInclude Include="Core\GpuBuffer.h" />
+    <ClInclude Include="Core\Hash.h" />
     <ClInclude Include="Core\Math\BoundingPlane.h" />
     <ClInclude Include="Core\Math\BoundingSphere.h" />
     <ClInclude Include="Core\Math\Common.h" />
@@ -47,7 +48,8 @@
     <ClInclude Include="Core\Math\Vector.h" />
     <ClInclude Include="Core\Utility.h" />
     <ClInclude Include="Core\VectorMath.h" />
-    <ClInclude Include="resource.h" />
+    <ClInclude Include="PipelineState.h" />
+    <ClInclude Include="RootSignature.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp" />
@@ -64,6 +66,8 @@
     <ClCompile Include="Core\Math\Frustum.cpp" />
     <ClCompile Include="Core\Math\Random.cpp" />
     <ClCompile Include="Core\Utility.cpp" />
+    <ClCompile Include="PipelineState.cpp" />
+    <ClCompile Include="RootSignature.cpp" />
     <ClCompile Include="WinMain.cpp" />
   </ItemGroup>
   <ItemGroup>
