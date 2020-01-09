@@ -57,6 +57,7 @@
     <ClInclude Include="Core\DynamicUploadBuffer.h" />
     <ClInclude Include="Core\Graphics.h" />
     <ClInclude Include="Core\DescriptorHeap.h" />
+    <ClInclude Include="Core\LinearAllocator.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Core\Color.cpp" />
@@ -82,6 +83,7 @@
     <ClCompile Include="Core\DynamicUploadBuffer.cpp" />
     <ClCompile Include="Core\Graphics.cpp" />
     <ClCompile Include="Core\DescriptorHeap.cpp" />
+    <ClCompile Include="Core\LinearAllocator.cpp" />
     <ClCompile Include="WinMain.cpp" />
   </ItemGroup>
   <ItemGroup>

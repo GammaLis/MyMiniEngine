@@ -156,14 +156,14 @@ namespace Test
 		// 虽然它们是命名空间A的成员
 		// 需要加上声明 
 		class Z;	// 不加出错
-		Z* pz;	// Error: 未定义标识符
+		extern Z* pz;	// Error: 未定义标识符
 
-		X x;
-		void g() {
+		extern X x;
+		inline void g() {
 			f(x);	// A::x::f 通过ADL找到
 		}
-		void f(X) { }	// A::f 定义
-		void h(int) { }	// A::h 定义
+		inline void f(X) { }	// A::f 定义
+		inline void h(int) { }	// A::h 定义
 		// A::f, A::g, A::h现在在命名空间作用域可见
 		// 而且它们也是A::X A::X::Y 的友元
 	}

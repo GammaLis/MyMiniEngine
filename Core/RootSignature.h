@@ -108,12 +108,12 @@ namespace MyDirectX
 
 		static void DestroyAll();
 
-		void Reset(UINT numRootRarams, UINT numStaticSamplers = 0)
+		void Reset(UINT numRootParams, UINT numStaticSamplers = 0)
 		{
-			if (numRootRarams > 0)
-				m_ParamArray.reset(new RootParameter[numRootRarams]);
+			if (numRootParams > 0)
+				m_ParamArray.reset(new RootParameter[numRootParams]);
 			m_ParamArray = nullptr;
-			m_NumParameters = numRootRarams;
+			m_NumParameters = numRootParams;
 
 			if (numStaticSamplers > 0)
 				m_SamplerArray.reset(new D3D12_STATIC_SAMPLER_DESC[numStaticSamplers]);

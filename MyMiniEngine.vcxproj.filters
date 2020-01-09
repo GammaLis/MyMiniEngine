@@ -133,6 +133,9 @@
     <ClInclude Include="Core\DescriptorHeap.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="Core\LinearAllocator.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -205,6 +208,9 @@
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="Core\DescriptorHeap.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\LinearAllocator.cpp">
       <Filter>Core</Filter>
     </ClCompile>
   </ItemGroup>

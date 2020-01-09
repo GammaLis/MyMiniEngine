@@ -87,7 +87,9 @@ D3D12_CPU_DESCRIPTOR_HANDLE GpuBuffer::CreateConstantBufferView(uint32_t offset,
 	cbvDesc.BufferLocation = m_GpuVirtualAddress + (size_t)offset;
 	cbvDesc.SizeInBytes = size;
 
-	// D3D12_GPU_DESCRIPTOR_HANDLE hCBV = alloca
+	D3D12_CPU_DESCRIPTOR_HANDLE hCBV;
+
+	return D3D12_CPU_DESCRIPTOR_HANDLE();
 }
 
 D3D12_RESOURCE_DESC GpuBuffer::DescribeBuffer()
