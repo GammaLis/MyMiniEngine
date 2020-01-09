@@ -13,12 +13,12 @@ namespace MyDirectX
 
 		// create a buffer. If initial data is provided, it will be copied into the buffer using the default 
 		// command context
-		void Create(const std::wstring& name, uint32_t numElements, uint32_t elementSize,
+		void Create(ID3D12Device *pDevice, const std::wstring& name, uint32_t numElements, uint32_t elementSize,
 			const void* initialData = nullptr);
 
 		// sub-allocate a buffer out of a pre-allocated heap. If initial data is provided, it will be copied into
 		// the buffer
-		void CreatePlaced(const std::wstring& name, ID3D12Heap* pBackingHeap, uint32_t heapOffset, uint32_t numElements,
+		void CreatePlaced(ID3D12Device* pDevice, const std::wstring& name, ID3D12Heap* pBackingHeap, uint32_t heapOffset, uint32_t numElements,
 			uint32_t elementSize, const void* initialData = nullptr);
 
 		const D3D12_CPU_DESCRIPTOR_HANDLE GetUAV() const { return m_UAV; }
@@ -39,12 +39,12 @@ namespace MyDirectX
 		D3D12_INDEX_BUFFER_VIEW IndexBufferView(size_t startIndex = 0) const
 		{
 			size_t offset = startIndex * m_ElementSize;
-			return IndexBufferView(offset, (uint32_t)(m_BufferSize - offset), m_ElementSize);
+			return IndexBufferView(offset, (uint32_t)(m_BufferSize - offset), m_ElementSize == 4);
 		}
 
-		size_t GetBufferSize() const {}
-		uint32_t GetElementCount() const {}
-		uint32_t GetElementSize() const {}
+		size_t GetBufferSize() const { return m_BufferSize; }
+		uint32_t GetElementCount() const { return m_ElementCount; }
+		uint32_t GetElementSize() const { return m_ElementSize; }
 
 	protected:
 		GpuBuffer() : m_BufferSize(0), m_ElementCount(0), m_ElementSize(0)

@@ -25,6 +25,14 @@ MyApp* MyApp::GetApp()
 	return m_App;
 }
 
+// 暂时这样，后面调整 -20-1-9
+UINT MyApp::GetDescriptorIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type)
+{
+	ASSERT(m_App != nullptr && m_App->pDevice != nullptr);
+	
+	return m_App->pDevice->GetDescriptorHandleIncrementSize(type);
+}
+
 MyApp::MyApp(HINSTANCE hInstance, const wchar_t* title, UINT width, UINT height)
 	: m_HInstance{hInstance}, m_Title{title}, m_Width{width}, m_Height{height}
 {

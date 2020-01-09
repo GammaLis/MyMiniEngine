@@ -124,6 +124,15 @@
     <ClInclude Include="Core\CommandListManager.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="Core\Graphics.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Color.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\DescriptorHeap.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -187,6 +196,15 @@
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="Core\CommandListManager.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Graphics.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Color.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\DescriptorHeap.cpp">
       <Filter>Core</Filter>
     </ClCompile>
   </ItemGroup>

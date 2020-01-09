@@ -15,6 +15,7 @@ namespace MyDirectX
 	{
 	public:
 		static MyApp* GetApp();
+		static UINT GetDescriptorIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type);
 
 		MyApp(HINSTANCE hInstance, const wchar_t *title = L"Hello, World!", UINT width = SCR_WIDTH, UINT height = SCR_HEIGHT);
 		virtual ~MyApp();
