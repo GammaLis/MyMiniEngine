@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "PipelineState.h"
 #include "RootSignature.h"
+#include "DescriptorHeap.h"
 
 namespace MyDirectX
 {
@@ -13,9 +14,17 @@ namespace MyDirectX
 	class Graphics
 	{
 	public:
+		static ID3D12Device* s_Device;
 		static CommandListManager s_CommandManager;
 		static ContextManager s_ContextManager;
 
+		// 
+		static DescriptorAllocator s_DescriptorAllocator[];
+
+		inline static D3D12_CPU_DESCRIPTOR_HANDLE AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE type, UINT count = 1)
+		{
+			return s_DescriptorAllocator[type].Allocate(s_Device, count);
+		}
 
 	};
 

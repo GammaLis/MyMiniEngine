@@ -1,4 +1,5 @@
 #include "ColorBuffer.h"
+#include "Graphics.h"
 
 using namespace MyDirectX;
 
@@ -9,7 +10,7 @@ void ColorBuffer::CreateFromSwapChain(ID3D12Device* pDevice, const std::wstring&
 	// m_UAVHandle[0] = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	// pDevice->CreateUnorderedAccessView(m_pResource.Get(), nullptr, nullptr, m_UAVHandle[0]);
 
-	// m_RTVHandle = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	m_RTVHandle = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	pDevice->CreateRenderTargetView(pResource, nullptr, m_RTVHandle);
 }
 
@@ -102,9 +103,8 @@ void ColorBuffer::CreateDerivedViews(ID3D12Device* pDevice, DXGI_FORMAT format, 
 
 	if (m_SRVHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
 	{
-		// ÉÐÎ´¶¨ÒåGraphics::AllocateDescriptor
-		// m_RTVHandle = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-		// m_SRVHandle = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		m_RTVHandle = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		m_SRVHandle = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	}
 
 	ID3D12Resource* pResource = m_pResource.Get();
@@ -123,7 +123,7 @@ void ColorBuffer::CreateDerivedViews(ID3D12Device* pDevice, DXGI_FORMAT format, 
 	{
 		if (m_UAVHandle[i].ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
 		{
-			// m_UAVHandle[i] = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			m_UAVHandle[i] = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		}
 
 		pDevice->CreateUnorderedAccessView(pResource, nullptr, &uavDesc, m_UAVHandle[i]);
