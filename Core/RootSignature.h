@@ -112,7 +112,8 @@ namespace MyDirectX
 		{
 			if (numRootParams > 0)
 				m_ParamArray.reset(new RootParameter[numRootParams]);
-			m_ParamArray = nullptr;
+			else
+				m_ParamArray = nullptr;
 			m_NumParameters = numRootParams;
 
 			if (numStaticSamplers > 0)

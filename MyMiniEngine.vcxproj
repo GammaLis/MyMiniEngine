@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Core\CommandContext.h" />
     <ClInclude Include="Core\ColorBuffer.h" />
     <ClInclude Include="Core\Color.h" />
     <ClInclude Include="Core\CommandListManager.h" />
@@ -61,8 +62,10 @@
     <ClInclude Include="Core\LinearAllocator.h" />
     <ClInclude Include="Core\PixelBuffer.h" />
     <ClInclude Include="Core\DepthBuffer.h" />
+    <ClInclude Include="Core\DynamicDescriptorHeap.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Core\CommandContext.cpp" />
     <ClCompile Include="Core\ColorBuffer.cpp" />
     <ClCompile Include="Core\Color.cpp" />
     <ClCompile Include="Core\CommandListManager.cpp" />
@@ -90,6 +93,7 @@
     <ClCompile Include="Core\LinearAllocator.cpp" />
     <ClCompile Include="Core\PixelBuffer.cpp" />
     <ClCompile Include="Core\DepthBuffer.cpp" />
+    <ClCompile Include="Core\DynamicDescriptorHeap.cpp" />
     <ClCompile Include="WinMain.cpp" />
   </ItemGroup>
   <ItemGroup>

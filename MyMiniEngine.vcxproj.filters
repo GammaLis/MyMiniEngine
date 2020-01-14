@@ -145,6 +145,12 @@
     <ClInclude Include="Core\DepthBuffer.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="Core\CommandContext.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\DynamicDescriptorHeap.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -229,6 +235,12 @@
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="Core\DepthBuffer.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\CommandContext.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\DynamicDescriptorHeap.cpp">
       <Filter>Core</Filter>
     </ClCompile>
   </ItemGroup>

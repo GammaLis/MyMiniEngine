@@ -18,6 +18,11 @@ namespace MyDirectX
 		static CommandListManager s_CommandManager;
 		static ContextManager s_ContextManager;
 
+		inline static UINT GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type)
+		{
+			return s_Device->GetDescriptorHandleIncrementSize(type);
+		}
+
 		// 
 		static DescriptorAllocator s_DescriptorAllocator[];
 
@@ -25,6 +30,8 @@ namespace MyDirectX
 		{
 			return s_DescriptorAllocator[type].Allocate(s_Device, count);
 		}
+
+		
 
 	};
 
