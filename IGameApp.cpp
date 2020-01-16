@@ -1,58 +1,39 @@
-#include "MyApp.h"
+#include "IGameApp.h"
 #include "MyWindow.h"
-#include "DeviceResources.h"
+#include "Graphics.h"
 #include "GameTimer.h"
 #include <sstream>
 #include <windowsX.h>
-#include <d3dcompiler.h>
 
 #pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "dxgi.lib")
-#pragma comment(lib, "dxguid.lib")
-// msdn DXGI_DEBUG_ID
-// DXGI_DEBUG_ID globally unique identifier(GUID) values that identify producers of degbug messages
-// IDXGIInfoQueue
-// to use any of these GUID valus, include DXGIDebug.h in your code and link to dxguid.lib
-#pragma comment(lib, "d3dcompiler.lib")
 
 using namespace MyDirectX;
 
-MyApp* MyApp::m_App = nullptr;
+IGameApp* IGameApp::m_App = nullptr;
 
-
-MyApp* MyApp::GetApp()
+IGameApp* IGameApp::GetApp()
 {
 	return m_App;
 }
 
-// 暂时这样，后面调整 -20-1-9
-UINT MyApp::GetDescriptorIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type)
-{
-	ASSERT(m_App != nullptr && m_App->pDevice != nullptr);
-	
-	return m_App->pDevice->GetDescriptorHandleIncrementSize(type);
-}
-
-MyApp::MyApp(HINSTANCE hInstance, const wchar_t* title, UINT width, UINT height)
-	: m_HInstance{hInstance}, m_Title{title}, m_Width{width}, m_Height{height}
+IGameApp::IGameApp(HINSTANCE hInstance, const wchar_t* title, UINT width, UINT height)
+	: m_HInstance{ hInstance }, m_Title{ title }, m_Width{ width }, m_Height{ height }
 {
 	m_Window = std::make_unique<MyWindow>(hInstance, title, width, height);
-
-	m_DeviceResources = std::make_unique<DeviceResources>();
-
+	m_Gfx = std::make_unique<Graphics>();
 	m_Timer = std::make_unique<GameTimer>();
 
-	// only one MyApp can be constructed
+	// only one IGameApp can be constructed
 	assert(m_App == nullptr);
 	m_App = this;
 }
 
-MyApp::~MyApp()
+IGameApp::~IGameApp()
 {
-	ReleaseD3DObjects();
 }
 
-bool MyApp::Init()
+bool IGameApp::Init()
 {
 	if (!m_Window->Init())
 	{
@@ -61,43 +42,34 @@ bool MyApp::Init()
 
 	HWND hwnd = m_Window->GetWindow();
 
-	if (!m_DeviceResources->Init(hwnd, m_Width, m_Height))
-	{
-		return false;
-	}
-
-	CacheD3DObjects();
-
-	InitAssets();
+	m_Gfx->Init(hwnd, m_Width, m_Height);
 
 	return true;
 }
 
-void MyApp::OnResize()
+void IGameApp::OnResize()
+{
+
+}
+
+void IGameApp::Update()
+{
+
+}
+
+void IGameApp::Render()
+{
+	m_Gfx->Clear();
+}
+
+void IGameApp::Cleanup()
 {
 	// TO DO
+	m_Gfx->Terminate();
+	m_Gfx->Shutdown();
 }
 
-void MyApp::Update()
-{
-	// TO DO
-}
-
-void MyApp::Render()
-{
-	m_DeviceResources->Prepare();
-
-	m_DeviceResources->Clear();
-
-	m_DeviceResources->Present();
-}
-
-void MyApp::Cleanup()
-{
-	// TO DO
-}
-
-int MyApp::Run()
+int IGameApp::Run()
 {
 	m_Timer->Reset();
 
@@ -117,13 +89,15 @@ int MyApp::Run()
 			Update();
 
 			Render();
+
+			m_Gfx->Present();
 		}
 	}
 
 	return (int)msg.wParam;
 }
 
-LRESULT MyApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+LRESULT IGameApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	switch (msg)
 	{
@@ -158,12 +132,11 @@ LRESULT MyApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-void MyApp::InitAssets()
+void IGameApp::InitAssets()
 {
-	// TO DO
 }
 
-void MyApp::CalculateFrameStats()
+void IGameApp::CalculateFrameStats()
 {
 	// Code computes the average frames per second, and also the 
 	// average time it takes to render one frame.  These stats 
@@ -191,19 +164,4 @@ void MyApp::CalculateFrameStats()
 		frameCnt = 0;
 		timeElapsed += 1.0f;
 	}
-}
-
-// 缓存部分常用DirectX对象，供子类使用
-void MyApp::CacheD3DObjects()
-{
-	pDevice = m_DeviceResources->GetD3DDevice();
-
-	pCmdList = m_DeviceResources->GetCommandList();
-}
-
-void MyApp::ReleaseD3DObjects()
-{
-	pDevice = nullptr;
-
-	pCmdList = nullptr;
 }

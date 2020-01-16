@@ -26,7 +26,7 @@ namespace MyDirectX
 
 		D3D12_GPU_VIRTUAL_ADDRESS RootConstantBufferView() const { return m_GpuVirtualAddress; }
 
-		D3D12_CPU_DESCRIPTOR_HANDLE CreateConstantBufferView(uint32_t offset, uint32_t size) const;
+		D3D12_CPU_DESCRIPTOR_HANDLE CreateConstantBufferView(ID3D12Device* pDevice, uint32_t offset, uint32_t size) const;
 
 		D3D12_VERTEX_BUFFER_VIEW VertexBufferView(size_t offset, uint32_t size, uint32_t stride) const;
 		D3D12_VERTEX_BUFFER_VIEW VertexBufferView(size_t baseVertexIndex = 0) const
@@ -55,7 +55,7 @@ namespace MyDirectX
 		}
 
 		D3D12_RESOURCE_DESC DescribeBuffer();
-		virtual void CreateDerivedViews() = 0;
+		virtual void CreateDerivedViews(ID3D12Device* pDevice) = 0;
 
 		D3D12_CPU_DESCRIPTOR_HANDLE m_UAV;
 		D3D12_CPU_DESCRIPTOR_HANDLE m_SRV;
@@ -93,7 +93,7 @@ namespace MyDirectX
 	class ByteAddressBuffer : public GpuBuffer 
 	{
 	public:
-		virtual void CreateDerivedViews() override;
+		virtual void CreateDerivedViews(ID3D12Device* pDevice) override;
 	};
 
 	class IndirectArgsBuffer : public ByteAddressBuffer
@@ -112,7 +112,7 @@ namespace MyDirectX
 			GpuBuffer::Destroy();
 		}
 
-		virtual void CreateDerivedViews() override;
+		virtual void CreateDerivedViews(ID3D12Device* pDevice) override;
 
 		ByteAddressBuffer& GetCounterBuffer() { return m_CounterBuffer; }
 
@@ -129,7 +129,7 @@ namespace MyDirectX
 	public:
 		TypedBuffer(DXGI_FORMAT format): m_DataFormat(format) {  }
 
-		virtual void CreateDerivedViews() override;
+		virtual void CreateDerivedViews(ID3D12Device* pDevice) override;
 
 	protected:
 		DXGI_FORMAT m_DataFormat;

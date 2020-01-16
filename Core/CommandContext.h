@@ -4,7 +4,7 @@
 #include "GpuBuffer.h"
 #include "PixelBuffer.h"
 #include "LinearAllocator.h"
-// #include "DynamicDescriptorHeap.h"
+#include "DynamicDescriptorHeap.h"
 #include "PipelineState.h"
 #include "RootSignature.h"
 #include <queue>
@@ -120,7 +120,7 @@ namespace MyDirectX
 
 		DynAlloc ReserveUploadMemory(size_t sizeInBytes)
 		{
-			return m_CpuLinearAllocator.Allocate(m_Device, sizeInBytes);
+			return m_CpuLinearAllocator.Allocate(sizeInBytes);
 		}
 
 		static void InitializeTexture(GpuResource& dest, UINT numSubresources, D3D12_SUBRESOURCE_DATA subData[]);
@@ -164,8 +164,8 @@ namespace MyDirectX
 		ID3D12RootSignature* m_CurComputeRootSignature;
 		ID3D12PipelineState* m_CurPipelineState;
 
-		// DynamicDescriptorHeap m_DynamicViewDescriptorHeap;	// HEAP_TYPE_CBV_SRV_UAV
-		// DynamicDescriptorHeap m_DynamicSamplerDescriptor;	// HEAP_TYPE_SAMPLER
+		DynamicDescriptorHeap m_DynamicViewDescriptorHeap;		// HEAP_TYPE_CBV_SRV_UAV
+		DynamicDescriptorHeap m_DynamicSamplerDescriptorHeap;	// HEAP_TYPE_SAMPLER
 
 		D3D12_RESOURCE_BARRIER m_ResourceBarrierBuffer[16];
 		UINT m_NumBarriersToFlush;
@@ -179,7 +179,7 @@ namespace MyDirectX
 		void SetID(const std::wstring& ID) { m_ID = ID; }
 	};
 
-	// 
+	// Graphics Context
 	class GraphicsContext : public CommandContext
 	{
 	public:
@@ -248,11 +248,50 @@ namespace MyDirectX
 		void DrawIndexedInstanced(UINT indexCountPerInstance, UINT instanceCount, UINT startIndexLocation,
 			INT baseVertexLocation, UINT startInstanceLocation);
 		void DrawIndirect(GpuBuffer& argumentBuffer, uint64_t argumentBufferOffset = 0);
-		void ExcuteIndirect(CommandSignature& commandSig, GpuBuffer& argumentBuffer, uint64_t argumentStartOffset = 0,
+		void ExecuteIndirect(CommandSignature& commandSig, GpuBuffer& argumentBuffer, uint64_t argumentStartOffset = 0,
 			uint32_t maxCommands = 1, GpuBuffer* commandCounterBuffer = nullptr, uint64_t counterOffset = 0);
 
 	};
 
+	// Compute Context
+	class ComputeContext : public CommandContext
+	{
+	public:
+		static ComputeContext& Begin(const std::wstring& ID = L"", bool async = false);
+
+		void ClearUAV(GpuBuffer& target);
+		void ClearUAV(ColorBuffer& target);
+
+		void SetRootSignature(const RootSignature& rootSig);
+
+		void SetConstantArray(UINT rootIndex, UINT numConstants, const void* pConstants);
+		void SetConstant(UINT rootIndex, DWParam val, UINT offset = 0);
+		void SetConstants(UINT rootIndex, DWParam X);
+		void SetConstants(UINT rootIndex, DWParam X, DWParam Y);
+		void SetConstants(UINT rootIndex, DWParam X, DWParam Y, DWParam Z);
+		void SetConstants(UINT rootIndex, DWParam X, DWParam Y, DWParam Z, DWParam W);
+		void SetConstantBuffer(UINT rootIndex, D3D12_GPU_VIRTUAL_ADDRESS cbv);
+		void SetDynamicConstantBufferView(UINT rootIndex, size_t bufferSize, const void* bufferData);
+		void SetDynamicSRV(UINT rootIndex, size_t bufferSize, const void* bufferData);
+		void SetBufferSRV(UINT rootIndex, const GpuBuffer& srv, UINT64 offset = 0);
+		void SetBufferUAV(UINT rootIndex, const GpuBuffer& uav, UINT64 offset = 0);
+		void SetDescriptorTable(UINT rootIndex, D3D12_GPU_DESCRIPTOR_HANDLE firstHandle);
+
+		void SetDynamicDescriptor(UINT rootIndex, UINT offset, D3D12_CPU_DESCRIPTOR_HANDLE handle);
+		void SetDynamicDescriptors(UINT rootIndex, UINT offset, UINT count, const D3D12_CPU_DESCRIPTOR_HANDLE handles[]);
+		void SetDynamicSampler(UINT rootIndex, UINT offset, D3D12_CPU_DESCRIPTOR_HANDLE handle);
+		void SetDynamicSamplers(UINT rootIndex, UINT offset, UINT count, const D3D12_CPU_DESCRIPTOR_HANDLE handles[]);
+
+		void Dispatch(size_t groupCountX = 1, size_t groupCountY = 1, size_t groupCountZ = 1);
+		void Dispatch1D(size_t threadCountX, size_t groupSizeX = 64);
+		void Dispatch2D(size_t threadCountX, size_t threadCountY, size_t groupSizeX = 8, size_t groupSizeY = 8);
+		void Dispatch3D(size_t threadCountX, size_t threadCountY, size_t threadCountZ, size_t groupSizeX, size_t groupSizeY, size_t groupSizeZ);
+		void DispatchIndirect(GpuBuffer& argumentBuffer, uint64_t argumentBufferOffset = 0);
+		void ExecuteIndirect(CommandSignature& commandSig, GpuBuffer& argumentBuffer, uint64_t argumentStartOffset = 0,
+			uint32_t maxCommands = 1, GpuBuffer* commandCounterBuffer = nullptr, uint64_t counterOffset = 0);
+	};
+
+	// inline functions
 	inline void CommandContext::FlushResourceBarriers()
 	{
 		if (m_NumBarriersToFlush > 0)

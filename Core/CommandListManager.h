@@ -36,14 +36,16 @@ namespace MyDirectX
 		uint64_t IncrementFence();
 		bool IsFenceComplete(uint64_t fenceValue);
 		// 尽管声明友元friend class CommandListManager,这里还是需要声明class CommandListManager
-		void StallForFence(CommandListManager* pCmdListManager, uint64_t fenceValue);
+		// void StallForFence(CommandListManager* pCmdListManager, uint64_t fenceValue);
+		// 还是改成这样
+		void StallForFence(uint64_t fenceValue);
 		void StallForProducer(CommandQueue& producer);
 		void WaitForFence(uint64_t fenceValue);
 		void WaitForIdle() { WaitForFence(IncrementFence()); }
 
-		ID3D12CommandQueue *GetCommandQueue() {}
+		ID3D12CommandQueue* GetCommandQueue() { return m_CommandQueue; }
 
-		uint64_t GetNextFenceValue() {}
+		uint64_t GetNextFenceValue() { return m_NextFenceValue; }
 
 	private:
 		uint64_t ExecuteCommandList(ID3D12CommandList* list);

@@ -3,7 +3,7 @@
 
 namespace MyDirectX
 {
-	// 主要处理 纹理相关资源 BackBuffer,DepthBuffer,Texture,...
+	// 主要处理 纹理相关资源 RenderTargets, DepthStencilTexture, and other Textures,...
 	class PixelBuffer : public GpuResource
 	{
 	public:

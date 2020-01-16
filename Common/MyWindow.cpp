@@ -1,6 +1,7 @@
 #include "MyWindow.h"
 #include "resource.h"
 #include "MyApp.h"
+#include "../IGameApp.h"
 
 using namespace MyDirectX;
 
@@ -8,7 +9,11 @@ LRESULT CALLBACK MyDirectX::MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPAR
 {
 	// forward hwnd on because we can get messages (e.g. WM_CREATE)
 	// before CreateWindow returns, and thus before mMainWnd is valid
+#ifdef MINI_ENGINE
+	return IGameApp::GetApp()->MsgProc(hwnd, msg, wParam, lParam);
+#else
 	return MyApp::GetApp()->MsgProc(hwnd, msg, wParam, lParam);
+#endif
 }
 
 const wchar_t* MyWindow::ClassName = L"MyWindow";

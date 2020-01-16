@@ -1,5 +1,6 @@
 #include "MyBaseApp.h"
 #include "Utility.h"
+#include "IGameApp.h"
 
 // I. windows程序 预处理定义-_WINDOWS,连接器子系统SubSystem:WINDOWS
 //int WINAPI WinMain(_In_ HINSTANCE hInstance,
@@ -30,6 +31,20 @@ int main(int argc, const char* argv[])
 
 	HINSTANCE hInst = GetModuleHandle(0);
 
+#ifdef MINI_ENGINE
+	// 1. IGameApp
+	MyDirectX::IGameApp gApp(hInst);
+
+	int ret = 0;
+	if (gApp.Init())
+	{
+		ret = gApp.Run();
+	}
+
+	gApp.Cleanup();
+
+#else
+	// 2. MyBaseApp
 	MyDirectX::MyBaseApp myApp(hInst, L"Hello, World!");
 
 	int ret = 0;
@@ -37,6 +52,7 @@ int main(int argc, const char* argv[])
 	{
 		ret = myApp.Run();
 	}
+#endif	
 
 	return ret;
 }

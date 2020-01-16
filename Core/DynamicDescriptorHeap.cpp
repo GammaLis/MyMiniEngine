@@ -335,3 +335,6 @@ namespace MyDirectX
 		ASSERT(m_MaxCachedDescriptors <= kMaxNumDescriptors, "Exceeded user-supplied maximum cache size");
 	}
 }
+
+// _BitScanReverse - 从高位到低位，第一个1出现位置（左边开始计数...3210）
+// _BitScanForward - 从低位到高位，第一个1出现位置

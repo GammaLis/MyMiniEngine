@@ -61,6 +61,7 @@ void PixelBuffer::AssociateWithResource(ID3D12Device* pDevice, const std::wstrin
 	ASSERT(pResource != nullptr);
 	D3D12_RESOURCE_DESC resourceDesc = pResource->GetDesc();
 
+	// 将m_pResource(ComPtr)与当前接口指针向关联
 	m_pResource.Attach(pResource);
 	m_UsageState = currentState;
 

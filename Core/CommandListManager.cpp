@@ -1,4 +1,6 @@
 #include "CommandListManager.h"
+#include "Graphics.h"
+#include "CommandListManager.h"
 
 using namespace MyDirectX;
 
@@ -78,9 +80,11 @@ bool CommandQueue::IsFenceComplete(uint64_t fenceValue)
 	return fenceValue <= m_LastCompletedFenceValue;
 }
 
-void CommandQueue::StallForFence(CommandListManager* pCmdListManager, uint64_t fenceValue)
+void CommandQueue::StallForFence(uint64_t fenceValue)
 {
-	CommandQueue& producer = pCmdListManager->GetQueue((D3D12_COMMAND_LIST_TYPE)(fenceValue >> 56));
+	// 之前传入参数 CommandListManager *pCmdListManager
+	// CommandQueue& producer = pCmdListManager->GetQueue((D3D12_COMMAND_LIST_TYPE)(fenceValue >> 56));
+	CommandQueue& producer = Graphics::s_CommandManager.GetQueue((D3D12_COMMAND_LIST_TYPE)(fenceValue >> 56));
 	m_CommandQueue->Wait(producer.m_pFence, fenceValue);
 }
 

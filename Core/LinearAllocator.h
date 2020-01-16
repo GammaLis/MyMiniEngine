@@ -48,7 +48,7 @@ namespace MyDirectX
 			Unmap();
 		}
 
-
+		// UPLOAD_HEAP (or DEFAULT_HEAP Map ???£¬DEFAULT_HEAPÒ²ÄÜMAP ??? -20-1-15)
 		void Map()
 		{
 			if (m_CpuVirtualAddress == nullptr)
@@ -90,8 +90,8 @@ namespace MyDirectX
 	{
 	public:
 		LinearAllocatorPageManager();
-		LinearAllocationPage* RequestPage(ID3D12Device* pDevice);
-		LinearAllocationPage* CreateNewPage(ID3D12Device *pDevice, size_t pageSize = 0);
+		LinearAllocationPage* RequestPage();
+		LinearAllocationPage* CreateNewPage(size_t pageSize = 0);
 
 		// discard pages will get recycled. This is for fixed size pages
 		void DiscardPages(uint64_t fenceID, const std::vector<LinearAllocationPage*>& pages);
@@ -123,7 +123,7 @@ namespace MyDirectX
 			m_PageSize = (type == LinearAllocatorType::kGpuExclusive ? kGpuAllocatorPageSize : kCpuAllocatorPageSize);
 		}
 
-		DynAlloc Allocate(ID3D12Device* pDevice, size_t sizeInBytes, size_t alignment = DEFAULT_ALIGN);
+		DynAlloc Allocate(size_t sizeInBytes, size_t alignment = DEFAULT_ALIGN);
 
 		void CleanupUsedPages(uint64_t fenceID);
 
@@ -134,7 +134,7 @@ namespace MyDirectX
 		}
 
 	private:
-		DynAlloc AllocateLargePage(ID3D12Device* pDevice, size_t sizeInBytes);
+		DynAlloc AllocateLargePage(size_t sizeInBytes);
 
 		static LinearAllocatorPageManager s_PageManager[2];
 

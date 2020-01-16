@@ -1,33 +1,26 @@
 #pragma once
-
 #include "pch.h"
-//#include "MyWindow.h"
-//#include "DeviceResources.h"
-//#include "GameTimer.h"
+
+#define MINI_ENGINE
 
 namespace MyDirectX
 {
 	class MyWindow;
-	class DeviceResources;
+	class Graphics;
 	class GameTimer;
 
-	class MyApp
+	class IGameApp
 	{
 	public:
-		static MyApp* GetApp();
-		static UINT GetDescriptorIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type);
+		static IGameApp* GetApp();
 
-		MyApp(HINSTANCE hInstance, const wchar_t *title = L"Hello, World!", UINT width = SCR_WIDTH, UINT height = SCR_HEIGHT);
-		virtual ~MyApp();
+		IGameApp(HINSTANCE hInstance, const wchar_t* title = L"Hello, World!", UINT width = SCR_WIDTH, UINT height = SCR_HEIGHT);
+		virtual ~IGameApp();
 
 		virtual bool Init();
-
 		virtual void OnResize();
-
 		virtual void Update();
-
 		virtual void Render();
-
 		virtual void Cleanup();
 
 		int Run();
@@ -42,21 +35,14 @@ namespace MyDirectX
 	protected:
 		virtual void InitAssets();
 
-		static MyApp* m_App;
+		static IGameApp* m_App;
 
 		std::unique_ptr<MyWindow> m_Window;
-		std::unique_ptr<DeviceResources> m_DeviceResources;
+		std::unique_ptr<Graphics> m_Gfx;
 		std::unique_ptr<GameTimer> m_Timer;
-
-#pragma region Cached Direct3D object
-		ID3D12Device* pDevice;
-		ID3D12GraphicsCommandList* pCmdList;
-#pragma endregion
 
 	private:
 		void CalculateFrameStats();
-		void CacheD3DObjects();
-		void ReleaseD3DObjects();
 
 		HINSTANCE m_HInstance;
 

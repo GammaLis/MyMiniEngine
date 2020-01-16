@@ -17,6 +17,9 @@
     <Filter Include="Source Files">
       <UniqueIdentifier>{d8d3bc0d-091b-421a-8961-7c5326c69f55}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Game">
+      <UniqueIdentifier>{38c6d91a-289a-4262-aa34-088cf2b6c9ad}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\GpuResource.h">
@@ -151,6 +154,9 @@
     <ClInclude Include="Core\DynamicDescriptorHeap.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="IGameApp.h">
+      <Filter>Game</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -242,6 +248,9 @@
     </ClCompile>
     <ClCompile Include="Core\DynamicDescriptorHeap.cpp">
       <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="IGameApp.cpp">
+      <Filter>Game</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

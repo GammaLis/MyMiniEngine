@@ -63,6 +63,7 @@
     <ClInclude Include="Core\PixelBuffer.h" />
     <ClInclude Include="Core\DepthBuffer.h" />
     <ClInclude Include="Core\DynamicDescriptorHeap.h" />
+    <ClInclude Include="IGameApp.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Core\CommandContext.cpp" />
@@ -94,6 +95,7 @@
     <ClCompile Include="Core\PixelBuffer.cpp" />
     <ClCompile Include="Core\DepthBuffer.cpp" />
     <ClCompile Include="Core\DynamicDescriptorHeap.cpp" />
+    <ClCompile Include="IGameApp.cpp" />
     <ClCompile Include="WinMain.cpp" />
   </ItemGroup>
   <ItemGroup>
