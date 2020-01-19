@@ -63,7 +63,10 @@
     <ClInclude Include="Core\PixelBuffer.h" />
     <ClInclude Include="Core\DepthBuffer.h" />
     <ClInclude Include="Core\DynamicDescriptorHeap.h" />
+    <ClInclude Include="Core\GfxCommon.h" />
     <ClInclude Include="IGameApp.h" />
+    <ClInclude Include="Model.h" />
+    <ClInclude Include="Core\SamplerManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Core\CommandContext.cpp" />
@@ -95,7 +98,10 @@
     <ClCompile Include="Core\PixelBuffer.cpp" />
     <ClCompile Include="Core\DepthBuffer.cpp" />
     <ClCompile Include="Core\DynamicDescriptorHeap.cpp" />
+    <ClCompile Include="Core\GfxCommon.cpp" />
     <ClCompile Include="IGameApp.cpp" />
+    <ClCompile Include="Model.cpp" />
+    <ClCompile Include="Core\SamplerManager.cpp" />
     <ClCompile Include="WinMain.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -106,6 +112,36 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Core\Math\Functions.inl" />
+    <None Include="Shaders\ColorSpaceUtility.hlsli" />
+    <None Include="Shaders\PresentRS.hlsli" />
+    <None Include="Shaders\ShaderUtility.hlsli" />
+    <None Include="Shaders\ToneMappingUtility.hlsli" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shaders\BasicTrianglePS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\PresentHDRPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\ScreenQuadVS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\BasicTriangleVS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+    </FxCompile>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -166,8 +202,10 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(SolutionDir)\Core;$(SolutionDir)\Common;$(SolutionDir)..\MyDirectXTK\Include;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)\Core;$(SolutionDir)\Common;$(SolutionDir)..\MyDirectXTK\Include;$(SolutionDir)$(Platform)\$(Configuration);$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)..\MyDirectXTK\Lib\x64\Debug;$(LibraryPath)</LibraryPath>
+    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -200,6 +238,11 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <FxCompile>
+      <HeaderFileOutput>$(OutDir)%(Filename).h</HeaderFileOutput>
+      <VariableName>%(Filename)</VariableName>
+      <ShaderModel>5.1</ShaderModel>
+    </FxCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>

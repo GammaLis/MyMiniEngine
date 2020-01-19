@@ -1,0 +1,345 @@
+#include "GfxCommon.h"
+#include "Graphics.h"
+#include "CommandListManager.h"
+#include "CommandContext.h"
+#include <d3dcompiler.h>
+
+#include "ScreenQuadVS.h"
+#include "PresentHDRPS.h"
+#include "BasicTriangleVS.h"
+#include "BasicTrianglePS.h"
+
+#pragma comment(lib, "d3dcompiler.lib")
+
+using namespace MyDirectX;
+
+using Microsoft::WRL::ComPtr;
+
+uint32_t GfxStates::s_DisplayWidth = 1280, GfxStates::s_DisplayHeight = 720;
+uint32_t GfxStates::s_NativeWidth = 0, GfxStates::s_NativeHeight = 0;
+float GfxStates::s_HDRPaperWhite = 200.0f;
+float GfxStates::s_MaxDisplayLuminance = 1000.0f;
+
+DXGI_FORMAT GfxStates::s_DefaultHdrColorFormat = DXGI_FORMAT_R11G11B10_FLOAT;
+DXGI_FORMAT GfxStates::s_DefaultDSVFormat = DXGI_FORMAT_D32_FLOAT;
+
+void GfxStates::SetNativeResolution(ID3D12Device* pDevice, Resolutions nativeRes)
+{
+	static Resolutions curRes = (Resolutions)(-1);
+
+	if (curRes == nativeRes)
+		return;
+
+	switch (nativeRes)
+	{
+	default:
+	case Resolutions::k480p:
+		s_NativeWidth = 640;
+		s_NativeHeight = 480;
+		break;
+
+	case Resolutions::k720p:
+		s_NativeWidth = 1280;
+		s_NativeHeight = 720;
+		break;
+
+	case Resolutions::k900p:
+		s_NativeWidth = 1600;
+		s_NativeHeight = 900;
+		break;
+
+	case Resolutions::k1080p:
+		s_NativeWidth = 1920;
+		s_NativeHeight = 1080;
+		break;
+
+	case Resolutions::k1440p:
+		s_NativeWidth = 2560;
+		s_NativeHeight = 1440;
+		break;
+
+	case Resolutions::k1800p:
+		s_NativeWidth = 3200;
+		s_NativeHeight = 1800;
+		break;
+
+	case Resolutions::k2160p:
+		s_NativeWidth = 3840;
+		s_NativeHeight = 720;
+		break;
+	}
+
+	DEBUGPRINT("Changing native resolution to %ux%u", s_NativeWidth, s_NativeHeight);
+
+	curRes = nativeRes;
+
+	Graphics::s_CommandManager.IdleGPU();
+
+	Graphics::s_ResourceManager.InitRenderingBuffers(pDevice, s_NativeWidth, s_NativeHeight);
+
+}
+
+void ResourceManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferWidth, uint32_t bufferHeight)
+{
+	// 暂时不需要 initContext
+	// GraphicsContext& initContext = GraphicsContext::Begin();
+
+	const uint32_t bufferWidth1 = (bufferWidth + 1) / 2;
+	const uint32_t bufferWidth2 = (bufferWidth + 3) / 4;
+	const uint32_t bufferWidth3 = (bufferWidth + 7) / 8;
+	const uint32_t bufferWidth4 = (bufferWidth + 15) / 16;
+	const uint32_t bufferWidth5 = (bufferWidth + 31) / 32;
+	const uint32_t bufferWidth6 = (bufferWidth + 63) / 64;
+	const uint32_t bufferHeight1 = (bufferHeight + 1) / 2;
+	const uint32_t bufferHeight2 = (bufferHeight + 3) / 4;
+	const uint32_t bufferHeight3 = (bufferHeight + 7) / 8;
+	const uint32_t bufferHeight4 = (bufferHeight + 15) / 16;
+	const uint32_t bufferHeight5 = (bufferHeight + 31) / 32;
+	const uint32_t bufferHeight6 = (bufferHeight + 63) / 64;
+
+	// 
+	m_SceneColorBuffer.Create(pDevice, L"Main Color Buffer", bufferWidth, bufferHeight, 1, GfxStates::s_DefaultHdrColorFormat);
+	m_SceneColorBuffer.SetClearColor(Color(0.2f, 0.4f, 0.4f));
+	m_SceneDepthBuffer.Create(pDevice, L"Scene Depth Buffer", bufferWidth, bufferHeight, GfxStates::s_DefaultDSVFormat);
+
+}
+
+void ResourceManager::ResizeDisplayDependentBuffers(ID3D12Device* pDevice, uint32_t bufferWidth, uint32_t bufferHeight)
+{
+
+}
+
+void ResourceManager::DestroyRenderingBuffers()
+{
+
+}
+
+void ShaderManager::CreateFromByteCode()
+{
+	m_ScreenQuadVS = CD3DX12_SHADER_BYTECODE(ScreenQuadVS, sizeof(ScreenQuadVS));
+	m_PresentHDRPS = CD3DX12_SHADER_BYTECODE(PresentHDRPS, sizeof(PresentHDRPS));
+
+	m_BasicTriangleVS = CD3DX12_SHADER_BYTECODE(BasicTriangleVS, sizeof(BasicTriangleVS));
+	m_BasicTrianglePS = CD3DX12_SHADER_BYTECODE(BasicTrianglePS, sizeof(BasicTrianglePS));
+}
+
+void ShaderManager::CompileShadersFromFile()
+{
+#ifdef _DEBUG
+	UINT compileFlag = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+	UINT compileFlag = 0;
+#endif
+	
+	{
+		ComPtr<ID3DBlob> pBasicTriangleVS;
+		ComPtr<ID3DBlob> pBasicTrianglePS;
+		ASSERT_SUCCEEDED(D3DCompileFromFile(L"Shaders\\BasicTriangle.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
+			"vert", "vs_5_1", compileFlag, 0, &pBasicTriangleVS, nullptr));
+		ASSERT_SUCCEEDED(D3DCompileFromFile(L"Shaders\\BasicTriangle.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
+			"frag", "ps_5_1", compileFlag, 0, &pBasicTrianglePS, nullptr));
+		m_BasicTriangleVS = CD3DX12_SHADER_BYTECODE(pBasicTriangleVS.Get());
+		m_BasicTrianglePS = CD3DX12_SHADER_BYTECODE(pBasicTrianglePS.Get());
+	}
+
+	{
+		//ComPtr<ID3DBlob> pScreenQuadVS, pVSError;
+		//ComPtr<ID3DBlob> pPresentHDRPS, pPSError;
+		//ASSERT_SUCCEEDED(D3DCompileFromFile(L"Shaders\\ScreenQuadVS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		//	"main", "vs_5_1", compileFlag, 0, &pScreenQuadVS, &pVSError));
+		//ASSERT_SUCCEEDED(D3DCompileFromFile(L"Shaders\\PresentHDRPS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		//	"main", "ps_5_1", compileFlag, 0, &pPresentHDRPS, &pPSError));
+
+		//m_ScreenQuadVS = CD3DX12_SHADER_BYTECODE(pScreenQuadVS.Get());
+		//m_PresentHDRPS = CD3DX12_SHADER_BYTECODE(pPresentHDRPS.Get());
+	}
+}
+
+// CommonStates
+void CommonStates::InitCommonStates(ID3D12Device* pDevice)
+{
+	// Sampler Desc
+	{
+		// SamplerLinearWrap
+		SamplerLinearWrapDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+		SamplerLinearWrap = SamplerLinearWrapDesc.CreateDescriptor(pDevice);
+
+		// SamplerAnisoWrap
+		SamplerAnisoWrapDesc.MaxAnisotropy = 4;
+		SamplerAnisoWrap = SamplerAnisoWrapDesc.CreateDescriptor(pDevice);
+
+		// SamplerShadow
+		SamplerShadowDesc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+		SamplerShadowDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;		// reversed-Z
+		SamplerShadowDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
+		SamplerShadow = SamplerShadowDesc.CreateDescriptor(pDevice);
+
+		// SamplerLinearClamp
+		SamplerLinearClampDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+		SamplerLinearClampDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
+		SamplerLinearClamp = SamplerLinearClampDesc.CreateDescriptor(pDevice);
+
+		// SamplerVolumeWrap
+		SamplerVolumeWrapDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+		SamplerVolumeWrap = SamplerVolumeWrapDesc.CreateDescriptor(pDevice);
+
+		// SamplerPointClamp
+		SamplerPointClampDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+		SamplerPointClampDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
+		SamplerPointClamp = SamplerPointClampDesc.CreateDescriptor(pDevice);
+
+		// SamplerLinearBorder
+		SamplerLinearBorderDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+		SamplerLinearBorderDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_BORDER);
+		SamplerLinearBorderDesc.SetBorderColor(Color(0.0f, 0.0f, 0.0f, 0.0f));
+		SamplerLinearBorder = SamplerLinearBorderDesc.CreateDescriptor(pDevice);
+
+		// SamplerPointerBorder
+		SamplerPointBorderDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+		SamplerPointBorderDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_BORDER);
+		SamplerPointBorderDesc.SetBorderColor(Color(0.0f, 0.0f, 0.0f, 0.0f));
+		SamplerPointBorder = SamplerPointBorderDesc.CreateDescriptor(pDevice);
+	}
+
+	// Rasterizer States
+	{
+		// default rasterizer states
+		{
+			RasterizerDefault.CullMode = D3D12_CULL_MODE_BACK;
+			RasterizerDefault.FillMode = D3D12_FILL_MODE_SOLID;
+			RasterizerDefault.FrontCounterClockwise = TRUE;
+			RasterizerDefault.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
+			RasterizerDefault.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+			RasterizerDefault.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+			RasterizerDefault.DepthClipEnable = TRUE;
+			RasterizerDefault.ForcedSampleCount = 0;
+			RasterizerDefault.MultisampleEnable = FALSE;
+			RasterizerDefault.AntialiasedLineEnable = FALSE;
+			RasterizerDefault.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+		}
+		// RasterizerDefaultMsaa
+		{
+			RasterizerDefaultMsaa = RasterizerDefault;
+			RasterizerDefaultMsaa.MultisampleEnable = TRUE;
+		}
+		// RasterizerDefaultCw
+		{
+			RasterizerDefaultCw = RasterizerDefault;
+			RasterizerDefaultCw.FrontCounterClockwise = FALSE;
+		}
+		// RasterizerDefaultCwMsaa
+		{
+			RasterizerDefaultCwMsaa = RasterizerDefaultCw;
+			RasterizerDefaultCwMsaa.MultisampleEnable = TRUE;
+		}
+		// RasterizerTwoSided
+		{
+			RasterizerTwoSided = RasterizerDefault;
+			RasterizerTwoSided.CullMode = D3D12_CULL_MODE_NONE;
+		}
+		// 
+		{
+			RasterizerTwoSidedMsaa = RasterizerTwoSided;
+			RasterizerTwoSidedMsaa.MultisampleEnable = TRUE;
+		}
+
+		// shadows need their own rasterizer state so we can reserve the winding of faces 
+		{
+			RasterizerShadow = RasterizerDefault;
+			// RasterizerShadow.CullMode = D3D12_CULL_FRONT;	// hacked here rather fixing the content
+			RasterizerShadow.SlopeScaledDepthBias = -1.5f;
+			RasterizerShadow.DepthBias = -100;
+		}
+		// RasterizerShadowTwoSided
+		{
+			RasterizerShadowTwoSided = RasterizerShadow;
+			RasterizerShadowTwoSided.CullMode = D3D12_CULL_MODE_NONE;
+		}
+		//
+		{
+			RasterizerShadowCW = RasterizerShadow;
+			RasterizerShadowCW.FrontCounterClockwise = FALSE;
+		}
+	}
+
+	// Blend States
+	{
+		D3D12_BLEND_DESC alphaBlend = {};
+		alphaBlend.IndependentBlendEnable = FALSE;
+		alphaBlend.RenderTarget[0].BlendEnable = FALSE;
+		alphaBlend.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+		alphaBlend.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+		alphaBlend.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+		alphaBlend.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+		alphaBlend.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+		alphaBlend.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+		alphaBlend.RenderTarget[0].RenderTargetWriteMask = 0;
+
+		// BlendNoColorWrite
+		BlendNoColorWrite = alphaBlend;
+
+		// BlendDisable
+		alphaBlend.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+		BlendDisable = alphaBlend;
+
+		// blendTraditional
+		alphaBlend.RenderTarget[0].BlendEnable = TRUE;
+		BlendTraditional = alphaBlend;
+
+		// BlendPremultiplied
+		alphaBlend.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
+		BlendPreMultiplied = alphaBlend;
+
+		// BlendAdditive
+		alphaBlend.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+		BlendAdditive = alphaBlend;
+
+		// BlendTraditionalAdditive
+		alphaBlend.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+		BlendTraditionalAdditive = alphaBlend;
+	}
+
+	// Depth Stencil States
+	{
+		// DepthStateDisabled
+		DepthStateDisabled.DepthEnable = FALSE;
+		DepthStateDisabled.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+		DepthStateDisabled.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+		DepthStateDisabled.StencilEnable = FALSE;
+		DepthStateDisabled.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
+		DepthStateDisabled.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
+		DepthStateDisabled.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+		DepthStateDisabled.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+		DepthStateDisabled.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+		DepthStateDisabled.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+		DepthStateDisabled.BackFace = DepthStateDisabled.FrontFace;
+
+		// DepthStateReadWrite
+		DepthStateReadWrite = DepthStateDisabled;
+		DepthStateReadWrite.DepthEnable = TRUE;
+		DepthStateReadWrite.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;	// reversed-Z
+		DepthStateReadWrite.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+
+		// DepthStateReadOnly
+		DepthStateReadOnly = DepthStateReadWrite;
+		DepthStateReadOnly.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+
+		// DepthStateReadOnlyReversed 
+		DepthStateReadOnlyReversed = DepthStateReadOnly;
+		DepthStateReadOnlyReversed.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+
+		// DepthStateTestEqual
+		DepthStateTestEqual = DepthStateReadOnly;
+		DepthStateTestEqual.DepthFunc = D3D12_COMPARISON_FUNC_EQUAL;
+	}	
+
+	// Command Root Signatures
+	{
+		DispatchIndirectCommandSignature[0].Dispatch();
+		DispatchIndirectCommandSignature.Finalize(pDevice);
+
+		DrawIndirectCommandSignature[0].Draw();
+		DrawIndirectCommandSignature.Finalize(pDevice);
+	}
+
+}

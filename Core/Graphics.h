@@ -1,6 +1,7 @@
 #pragma once
 #include "pch.h"
 #include "Color.h"
+#include "GfxCommon.h"
 #include "PipelineState.h"
 #include "RootSignature.h"
 #include "DescriptorHeap.h"
@@ -13,8 +14,10 @@ namespace MyDirectX
 	class CommandListManager;
 	class ContextManager;
 	class CommandContext;
-	class CommandSignature;	
 
+	class ShaderManager;
+	class ResourceManager;
+	
 	class Graphics
 	{
 	public:
@@ -24,7 +27,8 @@ namespace MyDirectX
 		Graphics(
 			DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R10G10B10A2_UNORM,
 			D3D_FEATURE_LEVEL minFeatureLevel = D3D_FEATURE_LEVEL_11_0,
-			unsigned flags = 0);
+			unsigned flags = 0,
+			Resolutions nativeRes = Resolutions::k480p);
 		Graphics(const Graphics&) = delete;
 		Graphics& operator=(const Graphics&) = delete;
 		~Graphics() {  }
@@ -37,10 +41,17 @@ namespace MyDirectX
 
 		void Clear(Color clearColor = Color(.2f, .4f, .4f));
 
+		ColorBuffer& GetRenderTarget() { return m_BackBuffer[m_BackBufferIndex]; }
+		const ColorBuffer &GetRenderTarget() const { return m_BackBuffer[m_BackBufferIndex]; }
+
 		// static members
 		static ID3D12Device* s_Device;
 		static CommandListManager s_CommandManager;
 		static ContextManager s_ContextManager;
+
+		static ShaderManager s_ShaderManager;
+		static ResourceManager s_ResourceManager;
+		static CommonStates s_CommonStates;
 
 		inline static UINT GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type)
 		{
@@ -74,11 +85,17 @@ namespace MyDirectX
 
 		void HandleDeviceLost();
 
+		void CustomInit();
+
 		// init RootSignatures
 		void InitRootSignatures();
 
 		// init PSOs
 		void InitPSOs();
+
+		// prepare present
+		void PreparePresentHDR();
+		void PreparePresentLDR();
 
 		// class members
 		
@@ -89,12 +106,16 @@ namespace MyDirectX
 		Microsoft::WRL::ComPtr<IDXGISwapChain4> m_SwapChain;
 
 		// PSOs
+		RootSignature m_EmptyRS;
+		RootSignature m_PresentRS;
+		GraphicsPSO m_PresentSDRPSO;
+		GraphicsPSO m_PresentHDRPSO;
+
 		RootSignature m_GenerateMipsRS;
 		ComputePSO m_GenerateMipsLinearPSO[4];
 		ComputePSO m_GenerateMipsGammaPSO[4];
-
+		
 		RootSignature m_BasicTriangleRS;
-		GraphicsPSO m_BasicTrianglePSO;
 
 		// resources
 		ColorBuffer m_PreDisplayBuffer;
@@ -110,10 +131,11 @@ namespace MyDirectX
 		bool m_bEnableVSync = false;
 		
 		// settings
-		uint32_t m_DisplayWidth = 1024;
-		uint32_t m_DisplayHeight = 768;
+		uint32_t m_DisplayWidth = 1280;
+		uint32_t m_DisplayHeight = 720;
 		DXGI_FORMAT m_SwapChainFormat = DXGI_FORMAT_R10G10B10A2_UNORM;
 		DWORD m_DxgiFactoryFlags = 0;
+		Resolutions m_CurNativeRes;
 
 		HWND m_hWindow;
 

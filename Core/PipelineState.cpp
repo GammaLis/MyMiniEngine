@@ -118,7 +118,8 @@ namespace MyDirectX
 				firstCompile = true;
 				PSORef = s_GraphicsPSOHashMap[hashCode].GetAddressOf();
 			}
-			PSORef = iter->second.GetAddressOf();
+			else
+				PSORef = iter->second.GetAddressOf();
 		}
 
 		if (firstCompile)

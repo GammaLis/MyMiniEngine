@@ -116,7 +116,7 @@ namespace MyDirectX
 	{
 		if (m_CurHeap == nullptr)
 		{
-			ASSERT(m_CurOffset = 0);
+			ASSERT(m_CurOffset == 0);
 			m_CurHeap = RequestDescriptorHeap(m_DescriptorType);
 			m_FirstDescriptor = DescriptorHandle(
 				m_CurHeap->GetCPUDescriptorHandleForHeapStart(),

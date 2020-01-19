@@ -1,5 +1,7 @@
 #pragma once
 #include "pch.h"
+#include "RootSignature.h"
+#include "PipelineState.h"
 
 #define MINI_ENGINE
 
@@ -8,6 +10,7 @@ namespace MyDirectX
 	class MyWindow;
 	class Graphics;
 	class GameTimer;
+	class Model;
 
 	class IGameApp
 	{
@@ -19,7 +22,7 @@ namespace MyDirectX
 
 		virtual bool Init();
 		virtual void OnResize();
-		virtual void Update();
+		virtual void Update(float deltaTime);
 		virtual void Render();
 		virtual void Cleanup();
 
@@ -40,11 +43,22 @@ namespace MyDirectX
 		std::unique_ptr<MyWindow> m_Window;
 		std::unique_ptr<Graphics> m_Gfx;
 		std::unique_ptr<GameTimer> m_Timer;
+		std::unique_ptr<Model> m_Model;
 
 	private:
 		void CalculateFrameStats();
 
 		HINSTANCE m_HInstance;
+
+#pragma region Hello, Triangle
+		virtual void InitPipelineStates();
+		virtual void InitGeometryBuffers();		
+
+		void RenderTriangle();
+
+		RootSignature m_EmptyRS;
+		GraphicsPSO m_BasicTrianglePSO;
+#pragma endregion
 
 	protected:
 		UINT m_Width;

@@ -1,7 +1,10 @@
 #include "IGameApp.h"
 #include "MyWindow.h"
 #include "Graphics.h"
+#include "CommandContext.h"
+#include "GpuBuffer.h"
 #include "GameTimer.h"
+#include "Model.h"
 #include <sstream>
 #include <windowsX.h>
 
@@ -23,6 +26,7 @@ IGameApp::IGameApp(HINSTANCE hInstance, const wchar_t* title, UINT width, UINT h
 	m_Window = std::make_unique<MyWindow>(hInstance, title, width, height);
 	m_Gfx = std::make_unique<Graphics>();
 	m_Timer = std::make_unique<GameTimer>();
+	m_Model = std::make_unique<Model>();
 
 	// only one IGameApp can be constructed
 	assert(m_App == nullptr);
@@ -44,6 +48,8 @@ bool IGameApp::Init()
 
 	m_Gfx->Init(hwnd, m_Width, m_Height);
 
+	InitAssets();
+
 	return true;
 }
 
@@ -52,20 +58,25 @@ void IGameApp::OnResize()
 
 }
 
-void IGameApp::Update()
+void IGameApp::Update(float deltaTime)
 {
 
 }
 
 void IGameApp::Render()
 {
-	m_Gfx->Clear();
+	// m_Gfx->Clear();
+
+	RenderTriangle();
 }
 
 void IGameApp::Cleanup()
 {
 	// TO DO
 	m_Gfx->Terminate();
+
+	m_Model->Cleanup();
+
 	m_Gfx->Shutdown();
 }
 
@@ -85,8 +96,9 @@ int IGameApp::Run()
 		{
 			m_Timer->Tick();
 			CalculateFrameStats();
-
-			Update();
+			
+			float deltaTime = m_Timer->DeltaTime();
+			Update(deltaTime);
 
 			Render();
 
@@ -134,6 +146,10 @@ LRESULT IGameApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 void IGameApp::InitAssets()
 {
+	// a basic triangle
+	InitPipelineStates();
+
+	InitGeometryBuffers();
 }
 
 void IGameApp::CalculateFrameStats()
@@ -164,4 +180,78 @@ void IGameApp::CalculateFrameStats()
 		frameCnt = 0;
 		timeElapsed += 1.0f;
 	}
+}
+
+// 
+void IGameApp::InitGeometryBuffers()
+{
+	m_Model->Create(Graphics::s_Device);
+}
+
+void IGameApp::InitPipelineStates()
+{
+	m_EmptyRS.Finalize(Graphics::s_Device, L"EmptyRootSignature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+	// const auto& colorBuffer = Graphics::s_ResourceManager.m_SceneColorBuffer;
+	const auto& colorBuffer = m_Gfx->GetRenderTarget();
+	const auto& depthBuffer = Graphics::s_ResourceManager.m_SceneDepthBuffer;
+	DXGI_FORMAT colorFormat = colorBuffer.GetFormat();
+	DXGI_FORMAT depthFormat = depthBuffer.GetFormat();
+
+	D3D12_INPUT_ELEMENT_DESC basicInputElements[] =
+	{
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
+		{"COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
+	};
+
+	m_BasicTrianglePSO.SetRootSignature(m_EmptyRS);
+	m_BasicTrianglePSO.SetInputLayout(_countof(basicInputElements), basicInputElements);
+	m_BasicTrianglePSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+	m_BasicTrianglePSO.SetVertexShader(Graphics::s_ShaderManager.m_BasicTriangleVS);
+	m_BasicTrianglePSO.SetPixelShader(Graphics::s_ShaderManager.m_BasicTrianglePS);
+	m_BasicTrianglePSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerDefault);
+	m_BasicTrianglePSO.SetBlendState(Graphics::s_CommonStates.BlendDisable);
+	m_BasicTrianglePSO.SetDepthStencilState(Graphics::s_CommonStates.DepthStateDisabled);
+	m_BasicTrianglePSO.SetSampleMask(0xFFFFFFFF);
+	m_BasicTrianglePSO.SetRenderTargetFormats(1, &colorFormat, depthFormat);
+	m_BasicTrianglePSO.Finalize(Graphics::s_Device);
+
+}
+
+void IGameApp::RenderTriangle()
+{
+	GraphicsContext& gfxContext = GraphicsContext::Begin(L"Scene Render");
+	
+	// auto &colorBuffer = Graphics::s_ResourceManager.m_SceneColorBuffer;
+	auto& colorBuffer = m_Gfx->GetRenderTarget();
+
+	// 这里需要 flushImmediate，ClearRenderTargetView 需要rt处于D3D12_RESOURCE_STATE_RENDER_TARGET状态
+	gfxContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+
+	gfxContext.SetRootSignature(m_EmptyRS);
+	gfxContext.SetPipeineState(m_BasicTrianglePSO);
+	gfxContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	/**
+		MSDN ClearRenderTarget
+		the debug layer will issue an error if the subresources referenced by the view are not in the appropriate state.
+	For ClearRenderTargetView the state must be D3D12_RESOURCE_STATE_RENDER_TARGET.
+	*/
+	gfxContext.ClearColor(colorBuffer);		// 这里 就开始需要 colorBuffer 处于D3D12_RESOURCE_STATE_RENDER_TARGET状态了
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[] =
+	{
+		colorBuffer.GetRTV()
+	};
+	gfxContext.SetRenderTargets(_countof(rtvs), rtvs);
+	gfxContext.SetViewportAndScissor(0, 0, m_Width, m_Height);
+
+	auto vertexBufferView = m_Model->m_VertexBuffer.VertexBufferView();
+	gfxContext.SetVertexBuffer(0, vertexBufferView);
+	auto indexBufferView = m_Model->m_IndexBuffer.IndexBufferView();
+	gfxContext.SetIndexBuffer(indexBufferView);
+	gfxContext.DrawIndexed(m_Model->m_IndexCount);
+
+	gfxContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_PRESENT);
+
+	gfxContext.Finish(true);
 }

@@ -5,10 +5,16 @@
 namespace MyDirectX
 {    
     using Microsoft::WRL::ComPtr;
-
+    
+    // managers
     ID3D12Device* Graphics::s_Device = nullptr;
     CommandListManager Graphics::s_CommandManager;
     ContextManager Graphics::s_ContextManager;
+
+    // cached resources and states
+    ShaderManager Graphics::s_ShaderManager;
+    ResourceManager Graphics::s_ResourceManager;
+    CommonStates Graphics::s_CommonStates;
 
     DescriptorAllocator Graphics::s_DescriptorAllocator[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES] =
     {
@@ -18,12 +24,14 @@ namespace MyDirectX
         D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
     };
 
-    Graphics::Graphics(DXGI_FORMAT backBufferFormat, D3D_FEATURE_LEVEL minFeatureLevel, unsigned flags)
+    Graphics::Graphics(DXGI_FORMAT backBufferFormat, D3D_FEATURE_LEVEL minFeatureLevel, 
+        unsigned flags, Resolutions nativeRes)
         : m_SwapChainFormat{ backBufferFormat },
         m_BackBufferIndex{ 0 },
         m_D3DMinFeatureLevel{ minFeatureLevel },
         m_D3DFeatureLevel{ minFeatureLevel },
-        m_Options{ flags }
+        m_Options{ flags },
+        m_CurNativeRes{ nativeRes }
     {
         if (minFeatureLevel < D3D_FEATURE_LEVEL_11_0)
         {
@@ -42,8 +50,18 @@ namespace MyDirectX
         m_DisplayWidth = std::max<UINT>(width, 1);
         m_DisplayHeight = std::max<UINT>(height, 1);
 
+        // ¾²Ì¬»º´æ width height
+        GfxStates::s_DisplayWidth = m_DisplayWidth;
+        GfxStates::s_DisplayHeight = m_DisplayHeight;
+
         CreateDeviceResources();
         CreateWindowSizeDependentResources();
+
+        //
+        s_ShaderManager.CreateFromByteCode();
+        s_CommonStates.InitCommonStates(m_Device.Get());
+        GfxStates::SetNativeResolution(m_Device.Get(), m_CurNativeRes);
+        CustomInit();
     }
 
     void Graphics::Resize(uint32_t newWidth, uint32_t newHeight)
@@ -62,6 +80,10 @@ namespace MyDirectX
 
         m_DisplayWidth = newWidth;
         m_DisplayHeight = newHeight;
+
+        // ¾²Ì¬»º´æ width height
+        GfxStates::s_DisplayWidth = m_DisplayWidth;
+        GfxStates::s_DisplayHeight = m_DisplayHeight;
 
         DEBUGPRINT("Changing display resolution to %ux%u", newWidth, newHeight);
 
@@ -142,8 +164,19 @@ namespace MyDirectX
 
     void Graphics::Present()
     {
-        m_SwapChain->Present(1, 0);
+        //// Ä¬ÈÏ¿ªÆôHDR
+        //m_bEnableHDROutput = true;
+        //if (m_bEnableHDROutput)
+        //    PreparePresentHDR();
+        //else
+        //    PreparePresentLDR();
+
         m_BackBufferIndex = (m_BackBufferIndex + 1) % SWAP_CHAIN_BUFFER_COUNT;
+
+        m_SwapChain->Present(1, 0);
+
+        // ¿ÉÒÔ¶¯Ì¬¸Ä±ä NativeResolution
+        GfxStates::SetNativeResolution(m_Device.Get(), m_CurNativeRes);
     }
 
     void Graphics::Clear(Color clearColor)
@@ -579,6 +612,7 @@ namespace MyDirectX
             ComPtr<ID3D12Resource> displayPlane;
             ASSERT_SUCCEEDED(m_SwapChain->GetBuffer(i, IID_PPV_ARGS(displayPlane.ReleaseAndGetAddressOf())));
             m_BackBuffer[i].CreateFromSwapChain(m_Device.Get(), L"Primary SwapChain Buffer", displayPlane.Detach());
+            // set clear color, for debugging
             m_BackBuffer[i].SetClearColor(Color(.2f, .4f, .4f));
         }
     }
@@ -591,14 +625,98 @@ namespace MyDirectX
         CreateWindowSizeDependentResources();
     }
 
+    // init
+    void Graphics::CustomInit()
+    {
+        InitRootSignatures();
+        InitPSOs();
+    }
+
     void Graphics::InitRootSignatures()
     {
-        // basic triangle
-        // m_BasicTriangleRS.Reset()
+        m_EmptyRS.Finalize(m_Device.Get(), L"EmptyRootSignature");
+
+        // present RootSignature
+        m_PresentRS.Reset(4, 2);
+        m_PresentRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);    // 2
+        m_PresentRS[1].InitAsConstants(0, 6, D3D12_SHADER_VISIBILITY_ALL);
+        m_PresentRS[2].InitAsBufferSRV(2, D3D12_SHADER_VISIBILITY_PIXEL);
+        m_PresentRS[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
+        m_PresentRS.InitStaticSampler(0, s_CommonStates.SamplerLinearClampDesc);
+        m_PresentRS.InitStaticSampler(1, s_CommonStates.SamplerPointClampDesc);
+        m_PresentRS.Finalize(m_Device.Get(), L"Present");
     }
 
     void Graphics::InitPSOs()
     {
+        m_PresentHDRPSO.SetRootSignature(m_PresentRS);
+        m_PresentHDRPSO.SetRasterizerState(s_CommonStates.RasterizerDefault);
+        m_PresentHDRPSO.SetBlendState(s_CommonStates.BlendTraditional);
+        m_PresentHDRPSO.SetDepthStencilState(s_CommonStates.DepthStateDisabled);
+        m_PresentHDRPSO.SetSampleMask(0xFFFFFFFF);
+        m_PresentHDRPSO.SetInputLayout(0, nullptr);
+        m_PresentHDRPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+        m_PresentHDRPSO.SetVertexShader(s_ShaderManager.m_ScreenQuadVS);
+        m_PresentHDRPSO.SetPixelShader(s_ShaderManager.m_PresentHDRPS);
+        DXGI_FORMAT swapChainFormats[2] = { m_SwapChainFormat, m_SwapChainFormat };
+        m_PresentHDRPSO.SetRenderTargetFormats(2, swapChainFormats, DXGI_FORMAT_UNKNOWN);
+        m_PresentHDRPSO.Finalize(m_Device.Get());
+    }
 
+    void Graphics::PreparePresentHDR()
+    {
+        GraphicsContext& context = GraphicsContext::Begin(L"Present");
+
+        // we're going to be reading these buffers to write to the swap chain buffer(s)
+        auto& backBuffer = m_BackBuffer[m_BackBufferIndex];
+        context.TransitionResource(s_ResourceManager.m_SceneColorBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        context.TransitionResource(m_BackBuffer[m_BackBufferIndex], D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+        context.SetRootSignature(m_PresentRS);
+        context.SetPipeineState(m_PresentHDRPSO);
+        context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+        context.SetDynamicDescriptor(0, 0, s_ResourceManager.m_SceneColorBuffer.GetSRV());
+        
+        D3D12_CPU_DESCRIPTOR_HANDLE rtvs[] =
+        {
+            backBuffer.GetRTV()
+        };
+        context.SetRenderTargets(_countof(rtvs), rtvs);
+        context.SetViewportAndScissor(0, 0, GfxStates::s_NativeWidth, GfxStates::s_NativeHeight);
+        struct Constants
+        {
+            float RcpDstWidth;
+            float RcpDstHeight;
+            float PaperWhite;
+            float MaxBrightness;
+            int32_t DebugMode;
+        };
+        Constants consts = {
+            1.f / GfxStates::s_NativeWidth, 1.f / GfxStates::s_NativeHeight,
+            (float)GfxStates::s_HDRPaperWhite, (float)GfxStates::s_MaxDisplayLuminance, 0
+        };
+        context.SetConstantArray(1, sizeof(Constants) / 4, (float*)&consts);
+        context.Draw(3);
+
+        context.TransitionResource(backBuffer, D3D12_RESOURCE_STATE_PRESENT);
+
+        // close the final context to be executed before frame present
+        context.Finish(true);
+    }
+
+    void Graphics::PreparePresentLDR()
+    {
+        GraphicsContext &context = GraphicsContext::Begin(L"Present");
+
+        // we're going to be reading these buffers to write to the swap chain buffer(s)
+        auto& colorBuffer = s_ResourceManager.m_SceneColorBuffer;
+        context.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+        context.SetRootSignature(m_PresentRS);
+        context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+        // copy (and convert) the LDR buffer to the back buffer
+        context.SetDynamicDescriptor(0, 0, colorBuffer.GetSRV());
     }
 }

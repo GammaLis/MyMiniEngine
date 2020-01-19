@@ -20,6 +20,9 @@
     <Filter Include="Game">
       <UniqueIdentifier>{38c6d91a-289a-4262-aa34-088cf2b6c9ad}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{14bf1bea-b8d0-43dc-bdfc-b0510ad49667}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\GpuResource.h">
@@ -157,6 +160,15 @@
     <ClInclude Include="IGameApp.h">
       <Filter>Game</Filter>
     </ClInclude>
+    <ClInclude Include="Core\GfxCommon.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\SamplerManager.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Model.h">
+      <Filter>Game</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -252,6 +264,15 @@
     <ClCompile Include="IGameApp.cpp">
       <Filter>Game</Filter>
     </ClCompile>
+    <ClCompile Include="Core\GfxCommon.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\SamplerManager.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Model.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MyMiniEngine.rc">
@@ -267,5 +288,31 @@
     <None Include="Core\Math\Functions.inl">
       <Filter>Core\Math</Filter>
     </None>
+    <None Include="Shaders\ColorSpaceUtility.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\PresentRS.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\ToneMappingUtility.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\ShaderUtility.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shaders\PresentHDRPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ScreenQuadVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\BasicTrianglePS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\BasicTriangleVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
