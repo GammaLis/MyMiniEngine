@@ -164,12 +164,12 @@ namespace MyDirectX
 
     void Graphics::Present()
     {
-        //// 默认开启HDR
-        //m_bEnableHDROutput = true;
-        //if (m_bEnableHDROutput)
-        //    PreparePresentHDR();
-        //else
-        //    PreparePresentLDR();
+        // 默认开启HDR
+        // m_bEnableHDROutput = true;
+        if (m_bEnableHDROutput)
+            PreparePresentHDR();
+        else
+            PreparePresentLDR();
 
         m_BackBufferIndex = (m_BackBufferIndex + 1) % SWAP_CHAIN_BUFFER_COUNT;
 
@@ -417,12 +417,26 @@ namespace MyDirectX
             d3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
             d3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
 #endif
+            // suppress whole categories of messages
+            //D3D12_MESSAGE_CATEGORY categories[] = {  };
+
+            // suppress messages based on their severity level（严重等级）
+            D3D12_MESSAGE_SEVERITY severities[] =
+            {
+                D3D12_MESSAGE_SEVERITY_INFO
+            };
+
             // suppress individual messages by their ID
             D3D12_MESSAGE_ID denyIds[] =
             {
                 D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,
                 D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,
                 D3D12_MESSAGE_ID_EXECUTECOMMANDLISTS_WRONGSWAPCHAINBUFFERREFERENCE,
+
+                // 3dgep.com
+                // this occurs when a render target is cleared using a clear color that is not the optimized color
+                // specified during resource creation.
+                D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
 
                 // This occurs when there are uninitialized descriptors in a descriptor table, even when a
                 // shader does not access the missing descriptors.  I find this is common when switching
@@ -442,9 +456,15 @@ namespace MyDirectX
                 (D3D12_MESSAGE_ID)1008,
             };
             D3D12_INFO_QUEUE_FILTER filter = {};
+            //filter.DenyList.NumCategories = _countof(categories);
+            //filter.DenyList.pCategoryList = categories;
+            filter.DenyList.NumSeverities = _countof(severities);
+            filter.DenyList.pSeverityList = severities;
             filter.DenyList.NumIDs = _countof(denyIds);
             filter.DenyList.pIDList = denyIds;
             d3dInfoQueue->AddStorageFilterEntries(&filter);
+
+            // d3dInfoQueue->PushStorageFilter(&filter);
         }
 #endif
         // 缓存静态pDevice
@@ -649,18 +669,43 @@ namespace MyDirectX
 
     void Graphics::InitPSOs()
     {
-        m_PresentHDRPSO.SetRootSignature(m_PresentRS);
-        m_PresentHDRPSO.SetRasterizerState(s_CommonStates.RasterizerDefault);
-        m_PresentHDRPSO.SetBlendState(s_CommonStates.BlendTraditional);
-        m_PresentHDRPSO.SetDepthStencilState(s_CommonStates.DepthStateDisabled);
-        m_PresentHDRPSO.SetSampleMask(0xFFFFFFFF);
-        m_PresentHDRPSO.SetInputLayout(0, nullptr);
-        m_PresentHDRPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-        m_PresentHDRPSO.SetVertexShader(s_ShaderManager.m_ScreenQuadVS);
+        // PresentSDRPSO
+        m_PresentSDRPSO.SetRootSignature(m_PresentRS);
+        m_PresentSDRPSO.SetRasterizerState(s_CommonStates.RasterizerDefault);
+        m_PresentSDRPSO.SetBlendState(s_CommonStates.BlendDisable);
+        m_PresentSDRPSO.SetDepthStencilState(s_CommonStates.DepthStateDisabled);
+        m_PresentSDRPSO.SetSampleMask(0xFFFFFFFF);
+        m_PresentSDRPSO.SetInputLayout(0, nullptr);
+        m_PresentSDRPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+        m_PresentSDRPSO.SetVertexShader(s_ShaderManager.m_ScreenQuadVS);
+        m_PresentSDRPSO.SetPixelShader(s_ShaderManager.m_PresentSDRPS);
+        m_PresentSDRPSO.SetRenderTargetFormat(m_SwapChainFormat, DXGI_FORMAT_UNKNOWN);
+        m_PresentSDRPSO.Finalize(m_Device.Get());
+
+        auto CreatePSO = [&](GraphicsPSO &pso, const CD3DX12_SHADER_BYTECODE &pixelShader)
+        {
+            pso = m_PresentSDRPSO;
+            pso.SetPixelShader(pixelShader);
+            pso.Finalize(m_Device.Get());
+        };
+        CreatePSO(m_MagnifyPixelsPSO, s_ShaderManager.m_MagnifyPixelsPS);
+        CreatePSO(m_BilinearUpsamplePSO, s_ShaderManager.m_BilinearUpsamplePS);
+        CreatePSO(m_BicubicVerticalUpsamplePSO, s_ShaderManager.m_BicubicVerticalUpsamplePS);
+        CreatePSO(m_SharpeningUpsamplePSO, s_ShaderManager.m_SharpeningUpsamplePS);
+
+        // BicubicHorizontalUpsamplePSO
+        m_BicubicHorizontalUpsamplePSO = m_PresentSDRPSO;
+        m_BicubicHorizontalUpsamplePSO.SetPixelShader(s_ShaderManager.m_BicubicHorizontalUpsamplePS);
+        m_BicubicHorizontalUpsamplePSO.SetRenderTargetFormat(GfxStates::s_DefaultHdrColorFormat, DXGI_FORMAT_UNKNOWN);
+        m_BicubicHorizontalUpsamplePSO.Finalize(m_Device.Get());
+
+        // PresentHDRPSO
+        m_PresentHDRPSO = m_PresentSDRPSO;
         m_PresentHDRPSO.SetPixelShader(s_ShaderManager.m_PresentHDRPS);
         DXGI_FORMAT swapChainFormats[2] = { m_SwapChainFormat, m_SwapChainFormat };
         m_PresentHDRPSO.SetRenderTargetFormats(2, swapChainFormats, DXGI_FORMAT_UNKNOWN);
         m_PresentHDRPSO.Finalize(m_Device.Get());
+
     }
 
     void Graphics::PreparePresentHDR()
@@ -673,7 +718,7 @@ namespace MyDirectX
         context.TransitionResource(m_BackBuffer[m_BackBufferIndex], D3D12_RESOURCE_STATE_RENDER_TARGET);
 
         context.SetRootSignature(m_PresentRS);
-        context.SetPipeineState(m_PresentHDRPSO);
+        context.SetPipelineState(m_PresentHDRPSO);
         context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
         context.SetDynamicDescriptor(0, 0, s_ResourceManager.m_SceneColorBuffer.GetSRV());
@@ -683,7 +728,23 @@ namespace MyDirectX
             backBuffer.GetRTV()
         };
         context.SetRenderTargets(_countof(rtvs), rtvs);
+        // debug
+        {
+            static bool b = true;
+            if (b == false)
+            {
+                GfxStates::s_NativeWidth /= 2;
+                GfxStates::s_NativeHeight /= 2;
+                b = true;
+            }
+        }
+        // end debug
         context.SetViewportAndScissor(0, 0, GfxStates::s_NativeWidth, GfxStates::s_NativeHeight);
+        // Note: -20-1-21
+        // MS MiniEngine采用NativeWidth和NativeHeight
+        // 但是 如果 DisplayWidth和DisplayHeight与之不同，显示部分图像（截断）（默认Display W和H更小），
+        // 这样 shader里面应该采用 采样 （Sample）而非 取值（Tex[xy]）
+        // context.SetViewportAndScissor(0, 0, GfxStates::s_DisplayWidth, GfxStates::s_DisplayHeight);
         struct Constants
         {
             float RcpDstWidth;
@@ -702,7 +763,7 @@ namespace MyDirectX
         context.TransitionResource(backBuffer, D3D12_RESOURCE_STATE_PRESENT);
 
         // close the final context to be executed before frame present
-        context.Finish(true);
+        context.Finish();
     }
 
     void Graphics::PreparePresentLDR()
@@ -710,6 +771,7 @@ namespace MyDirectX
         GraphicsContext &context = GraphicsContext::Begin(L"Present");
 
         // we're going to be reading these buffers to write to the swap chain buffer(s)
+        auto& backBuffer = m_BackBuffer[m_BackBufferIndex];
         auto& colorBuffer = s_ResourceManager.m_SceneColorBuffer;
         context.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
@@ -718,5 +780,83 @@ namespace MyDirectX
 
         // copy (and convert) the LDR buffer to the back buffer
         context.SetDynamicDescriptor(0, 0, colorBuffer.GetSRV());
+
+        ColorBuffer& upsampleDest = (GfxStates::s_DebugZoom == DebugZoom::Off ?
+            backBuffer : m_PreDisplayBuffer);
+
+        if (GfxStates::s_NativeWidth == GfxStates::s_DisplayWidth &&
+            GfxStates::s_NativeHeight == GfxStates::s_DisplayHeight)
+        {
+            context.SetPipelineState(m_PresentSDRPSO);
+            context.TransitionResource(upsampleDest, D3D12_RESOURCE_STATE_RENDER_TARGET);
+            context.SetRenderTarget(upsampleDest.GetRTV());
+            context.SetViewportAndScissor(0, 0, GfxStates::s_NativeWidth, GfxStates::s_NativeHeight);
+            context.Draw(3);
+        }
+        else if (GfxStates::s_UpsampleFilter == UpsampleFilter::kBicubic)
+        {
+            // horizontal pass
+            context.TransitionResource(s_ResourceManager.m_HorizontalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+            context.SetRenderTarget(s_ResourceManager.m_HorizontalBuffer.GetRTV());
+            context.SetViewportAndScissor(0, 0, GfxStates::s_DisplayWidth, GfxStates::s_NativeHeight);
+            context.SetPipelineState(m_BicubicHorizontalUpsamplePSO);
+            context.SetConstants(1, GfxStates::s_NativeWidth, GfxStates::s_NativeHeight, (float)GfxStates::s_BicubicUpsampleWeight);
+            context.Draw(3);
+
+            // vertical pass
+            context.TransitionResource(s_ResourceManager.m_HorizontalBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            context.TransitionResource(upsampleDest, D3D12_RESOURCE_STATE_RENDER_TARGET);
+            context.SetRenderTarget(upsampleDest.GetRTV());
+            context.SetViewportAndScissor(0, 0, GfxStates::s_DisplayWidth, GfxStates::s_DisplayHeight);
+            context.SetPipelineState(m_BicubicVerticalUpsamplePSO);
+            context.SetDynamicDescriptor(0, 0, s_ResourceManager.m_HorizontalBuffer.GetSRV());
+            context.SetConstants(1, GfxStates::s_DisplayWidth, GfxStates::s_NativeHeight, (float)GfxStates::s_BicubicUpsampleWeight);
+            context.Draw(3);
+        }
+        else if (GfxStates::s_UpsampleFilter == UpsampleFilter::kSharpening)
+        {
+            context.TransitionResource(upsampleDest, D3D12_RESOURCE_STATE_RENDER_TARGET);
+            context.SetRenderTarget(upsampleDest.GetRTV());
+            context.SetViewportAndScissor(0, 0, GfxStates::s_DisplayWidth, GfxStates::s_DisplayHeight);
+            context.SetPipelineState(m_SharpeningUpsamplePSO);
+            
+            float texelWidth = 1.0f / GfxStates::s_NativeWidth;
+            float texelHeight = 1.0f / GfxStates::s_NativeHeight;
+            float X = Math::Cos((float)GfxStates::s_SharpeningRotation * Math::DegToRad) * (float)GfxStates::s_SharpeningSpread;
+            float Y = Math::Sin((float)GfxStates::s_SharpeningRotation * Math::DegToRad) * (float)GfxStates::s_SharpeningSpread;
+            const float WA = (float)GfxStates::s_SharpeningStrength;
+            const float WB = 1.0f + 4.0f * WA;
+            // offset0 - (cosTheta * x + sinTheta * y)
+            // offset1 - (sinTheta * x - cosTheta * y)
+            // 倾斜 theta 角度的2个互相垂直的向量
+            float Constants[] = { X * texelWidth, Y * texelHeight, Y * texelWidth, -X * texelHeight, WA, WB };
+            context.SetConstantArray(1, _countof(Constants), Constants);
+            context.Draw(3);
+        }
+        else if (GfxStates::s_UpsampleFilter == UpsampleFilter::kBilinear)
+        {
+            context.TransitionResource(upsampleDest, D3D12_RESOURCE_STATE_RENDER_TARGET);
+            context.SetRenderTarget(upsampleDest.GetRTV());
+            context.SetViewportAndScissor(0, 0, GfxStates::s_DisplayWidth, GfxStates::s_DisplayHeight);
+            context.SetPipelineState(m_BilinearUpsamplePSO);
+            context.Draw(3);
+        }
+
+        if (GfxStates::s_DebugZoom != DebugZoom::Off)
+        {
+            context.TransitionResource(m_PreDisplayBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            context.TransitionResource(backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+            context.SetRenderTarget(backBuffer.GetRTV());
+            context.SetViewportAndScissor(0, 0, GfxStates::s_DisplayWidth, GfxStates::s_DisplayWidth);
+            context.SetPipelineState(m_MagnifyPixelsPSO);
+            context.SetDynamicDescriptor(0, 0, m_PreDisplayBuffer.GetSRV());
+            context.SetConstants(1, 1.f / ((int)GfxStates::s_DebugZoom + 1.f));
+            context.Draw(3);
+        }
+
+        context.TransitionResource(backBuffer, D3D12_RESOURCE_STATE_PRESENT);
+
+        // close the final context to be executed before frame present
+        context.Finish();
     }
 }

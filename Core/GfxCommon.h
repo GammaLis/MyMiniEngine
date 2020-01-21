@@ -18,6 +18,22 @@ namespace MyDirectX
 		k2160p,
 		kNumRes
 	};
+	enum class DebugZoom
+	{
+		Off,
+		k2x,
+		k4x,
+		k8x,
+		k16x,
+		kNumZoom
+	};
+	enum class UpsampleFilter
+	{
+		kBilinear,
+		kBicubic,
+		kSharpening,
+		kNumFilter
+	};
 
 	class GfxStates
 	{
@@ -29,6 +45,15 @@ namespace MyDirectX
 
 		static float s_HDRPaperWhite;				// 100.0 - 500.0	stepSize - 50.0
 		static float s_MaxDisplayLuminance;			// 500.0 - 10000.0	stepSize - 100.0
+		static float s_BicubicUpsampleWeight;		// -1.0  - 0.25		stepSize - 0.25
+		static float s_SharpeningSpread;			// 0.7	 - 2.0		stepSize - 0.1
+		static float s_SharpeningRotation;			// 0.0	 - 90.0		stepSize - 15.0f
+		static float s_SharpeningStrength;			// 0.0	 - 1.0		stepSize - 0.01
+
+		// enums
+		static Resolutions s_NativeRes;
+		static DebugZoom s_DebugZoom;
+		static UpsampleFilter s_UpsampleFilter;
 
 		static DXGI_FORMAT s_DefaultHdrColorFormat;
 		static DXGI_FORMAT s_DefaultDSVFormat;
@@ -47,7 +72,7 @@ namespace MyDirectX
 
 		//ColorBuffer m_PoseEffectsBuffer;	// R32_UINT (to support Read-Modify-Write with a UAV)
 		//ColorBuffer m_OverlayBuffer;		// R8G8B8A8_UNORM
-		//ColorBuffer m_HorizontalBuffer;		// for separable (bicubic) upsampling
+		ColorBuffer m_HorizontalBuffer;		// for separable (bicubic) upsampling
 
 		// ...
 
@@ -64,6 +89,13 @@ namespace MyDirectX
 
 		CD3DX12_SHADER_BYTECODE m_ScreenQuadVS;
 		CD3DX12_SHADER_BYTECODE m_PresentHDRPS;
+		CD3DX12_SHADER_BYTECODE m_PresentSDRPS;
+		CD3DX12_SHADER_BYTECODE m_MagnifyPixelsPS;
+		CD3DX12_SHADER_BYTECODE m_BilinearUpsamplePS;
+		CD3DX12_SHADER_BYTECODE m_BicubicHorizontalUpsamplePS;
+		CD3DX12_SHADER_BYTECODE m_BicubicVerticalUpsamplePS;
+		CD3DX12_SHADER_BYTECODE m_SharpeningUpsamplePS;
+
 	};
 
 	class CommonStates

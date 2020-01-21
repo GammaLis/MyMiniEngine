@@ -143,7 +143,7 @@ namespace MyDirectX
 		void PIXEndEvent();
 		void PIXSetMarker(const wchar_t* label);
 
-		void SetPipeineState(const PSO& pso);
+		void SetPipelineState(const PSO& pso);
 		void SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, ID3D12DescriptorHeap* pHeap);
 		void SetDescriptorHeaps(UINT heapCount, D3D12_DESCRIPTOR_HEAP_TYPE type[], ID3D12DescriptorHeap* pHeaps[]);
 
@@ -301,7 +301,7 @@ namespace MyDirectX
 		}
 	}
 
-	inline void CommandContext::SetPipeineState(const PSO& pso)
+	inline void CommandContext::SetPipelineState(const PSO& pso)
 	{
 		ID3D12PipelineState* pipelineState = pso.GetPipelineStateObject();
 		if (pipelineState == m_CurPipelineState)

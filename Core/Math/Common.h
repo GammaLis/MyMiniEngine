@@ -168,4 +168,10 @@ namespace Math
     enum EZUnitVector { kZUnitVector };
     enum EWUnitVector { kWUnitVector };
 
+    // my adding -20-1-21
+    static constexpr float Pi = 3.1415926535898f;
+
+    static constexpr float RadToDeg = 180.0f / Pi;
+    static constexpr float DegToRad = Pi / 180.f;
+
 }

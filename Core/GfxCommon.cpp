@@ -6,6 +6,16 @@
 
 #include "ScreenQuadVS.h"
 #include "PresentHDRPS.h"
+#include "PresentSDRPS.h"
+#include "MagnifyPixelsPS.h"
+// bicubic upsample
+#include "BicubicHorizontalUpsamplePS.h"
+#include "BicubicVerticalUpsamplePS.h"
+// sharpening upsample
+#include "SharpeningUpsamplePS.h"
+// bilinear upsample
+#include "BilinearUpsamplePS.h"
+// test
 #include "BasicTriangleVS.h"
 #include "BasicTrianglePS.h"
 
@@ -17,17 +27,28 @@ using Microsoft::WRL::ComPtr;
 
 uint32_t GfxStates::s_DisplayWidth = 1280, GfxStates::s_DisplayHeight = 720;
 uint32_t GfxStates::s_NativeWidth = 0, GfxStates::s_NativeHeight = 0;
+
 float GfxStates::s_HDRPaperWhite = 200.0f;
 float GfxStates::s_MaxDisplayLuminance = 1000.0f;
+
+// https://en.wikipedia.org/wiki/Bicubic_interpolation
+// BicubicUpsample A - Í¨³£ -0.5 -0.75
+float GfxStates::s_BicubicUpsampleWeight = -0.75f;		// -1.0 - 0.25		stepSize - 0.25
+float GfxStates::s_SharpeningSpread = 1.0f;				// 0.7 - 2.0		stepSize - 0.1
+float GfxStates::s_SharpeningRotation = 45.0f;			// 0.0 - 90.0		stepSize - 15.0f
+float GfxStates::s_SharpeningStrength = 0.1f;			// 0.0 - 1.0
+
+// enums
+Resolutions GfxStates::s_NativeRes = (Resolutions)-1;
+DebugZoom GfxStates::s_DebugZoom = DebugZoom::Off;
+UpsampleFilter GfxStates::s_UpsampleFilter = UpsampleFilter::kBilinear;
 
 DXGI_FORMAT GfxStates::s_DefaultHdrColorFormat = DXGI_FORMAT_R11G11B10_FLOAT;
 DXGI_FORMAT GfxStates::s_DefaultDSVFormat = DXGI_FORMAT_D32_FLOAT;
 
 void GfxStates::SetNativeResolution(ID3D12Device* pDevice, Resolutions nativeRes)
 {
-	static Resolutions curRes = (Resolutions)(-1);
-
-	if (curRes == nativeRes)
+	if (s_NativeRes == nativeRes)
 		return;
 
 	switch (nativeRes)
@@ -71,7 +92,7 @@ void GfxStates::SetNativeResolution(ID3D12Device* pDevice, Resolutions nativeRes
 
 	DEBUGPRINT("Changing native resolution to %ux%u", s_NativeWidth, s_NativeHeight);
 
-	curRes = nativeRes;
+	s_NativeRes = nativeRes;
 
 	Graphics::s_CommandManager.IdleGPU();
 
@@ -102,6 +123,9 @@ void ResourceManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t buffe
 	m_SceneColorBuffer.SetClearColor(Color(0.2f, 0.4f, 0.4f));
 	m_SceneDepthBuffer.Create(pDevice, L"Scene Depth Buffer", bufferWidth, bufferHeight, GfxStates::s_DefaultDSVFormat);
 
+	// bicubic horizontal upsample intermediate buffer
+	m_HorizontalBuffer.Create(pDevice, L"Bicubic Intermediate", GfxStates::s_DisplayWidth, bufferHeight, 1, GfxStates::s_DefaultHdrColorFormat);
+
 }
 
 void ResourceManager::ResizeDisplayDependentBuffers(ID3D12Device* pDevice, uint32_t bufferWidth, uint32_t bufferHeight)
@@ -118,7 +142,20 @@ void ShaderManager::CreateFromByteCode()
 {
 	m_ScreenQuadVS = CD3DX12_SHADER_BYTECODE(ScreenQuadVS, sizeof(ScreenQuadVS));
 	m_PresentHDRPS = CD3DX12_SHADER_BYTECODE(PresentHDRPS, sizeof(PresentHDRPS));
+	m_PresentSDRPS = CD3DX12_SHADER_BYTECODE(PresentSDRPS, sizeof(PresentSDRPS));
+	m_MagnifyPixelsPS = CD3DX12_SHADER_BYTECODE(MagnifyPixelsPS, sizeof(MagnifyPixelsPS));
 
+	// bicubic upsample
+	m_BicubicHorizontalUpsamplePS = CD3DX12_SHADER_BYTECODE(BicubicHorizontalUpsamplePS, sizeof(BicubicHorizontalUpsamplePS));
+	m_BicubicVerticalUpsamplePS = CD3DX12_SHADER_BYTECODE(BicubicVerticalUpsamplePS, sizeof(BicubicVerticalUpsamplePS));
+
+	// sharpening upsample
+	m_SharpeningUpsamplePS = CD3DX12_SHADER_BYTECODE(SharpeningUpsamplePS, sizeof(SharpeningUpsamplePS));
+
+	// bilinear upsample
+	m_BilinearUpsamplePS = CD3DX12_SHADER_BYTECODE(BilinearUpsamplePS, sizeof(BilinearUpsamplePS));
+
+	// basic triangle
 	m_BasicTriangleVS = CD3DX12_SHADER_BYTECODE(BasicTriangleVS, sizeof(BasicTriangleVS));
 	m_BasicTrianglePS = CD3DX12_SHADER_BYTECODE(BasicTrianglePS, sizeof(BasicTrianglePS));
 }

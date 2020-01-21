@@ -19,14 +19,23 @@ cbuffer CB0 : register(b0)
     uint DebugMode;
 }
 
+/**
+    SV_Position
+    when SV_Position is declared for input to a shader, it can have one of 2 interpolation modes specified:
+a.linearNoPerspective or b.linearNoPerspectiveCentroid, where the latter causes centroid-snapped xyzw
+values to be provided when multisample antialiasing. When used in a shader, SV_Position describes the pixel location.
+Available in all shaders to get the pixel center with a 0.5 offset.
+*/
 [RootSignature(Present_RootSig)]
-PSOutput main(float4 position : SV_Position)
+PSOutput main(float4 position : SV_Position, float2 uv : TexCoord0)
 {
     PSOutput Out;
 
     // 暂时注释
     // float4 UI = Overlay.SampleLevel(BilinearClamp, position.xy * RcpDstSize, 0);
     float3 HDR = ColorTex[(int2)position.xy];
+    // or -mf
+    // float3 HDR = ColorTex.Sample(BilinearClamp, uv);     
     float3 SDR = TM_Stanard(HDR);
 
     // Better to blend in linear space (unlike the hardware compositor)
@@ -60,7 +69,8 @@ PSOutput main(float4 position : SV_Position)
     // Current values are specified in nits.  Normalize to max specified brightness.
     Out.HdrOutput = ApplyREC2084Curve(FinalOutput / 10000.0);
 
-    Out.HdrOutput = float3(0.2, 0.4, 0.4);
+    // Out.HdrOutput = float3(0.2, 0.4, 0.4);
+    // Out.HdrOutput = float3(position * RcpDstSize, 0.0);
 
     return Out;
 }

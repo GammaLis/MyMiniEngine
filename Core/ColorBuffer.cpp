@@ -23,6 +23,9 @@ void ColorBuffer::Create(ID3D12Device* pDevice, const std::wstring& name, uint32
 	resourceDesc.SampleDesc.Count = m_FragmentCount;
 	resourceDesc.SampleDesc.Quality = 0;
 
+	// warning: CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE
+	// this warning occurs when a render target is cleared using a clear color that is not the optimized clear color
+	// specified during resource creation.
 	D3D12_CLEAR_VALUE clearValue = {};
 	clearValue.Format = format;
 	clearValue.Color[0] = m_ClearColor.R();

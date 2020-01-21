@@ -28,7 +28,7 @@ namespace MyDirectX
 			DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R10G10B10A2_UNORM,
 			D3D_FEATURE_LEVEL minFeatureLevel = D3D_FEATURE_LEVEL_11_0,
 			unsigned flags = 0,
-			Resolutions nativeRes = Resolutions::k480p);
+			Resolutions nativeRes = Resolutions::k720p);
 		Graphics(const Graphics&) = delete;
 		Graphics& operator=(const Graphics&) = delete;
 		~Graphics() {  }
@@ -110,12 +110,16 @@ namespace MyDirectX
 		RootSignature m_PresentRS;
 		GraphicsPSO m_PresentSDRPSO;
 		GraphicsPSO m_PresentHDRPSO;
+		GraphicsPSO m_MagnifyPixelsPSO;
+		// upsample 
+		GraphicsPSO m_BilinearUpsamplePSO;
+		GraphicsPSO m_BicubicHorizontalUpsamplePSO;
+		GraphicsPSO m_BicubicVerticalUpsamplePSO;
+		GraphicsPSO m_SharpeningUpsamplePSO;
 
 		RootSignature m_GenerateMipsRS;
 		ComputePSO m_GenerateMipsLinearPSO[4];
 		ComputePSO m_GenerateMipsGammaPSO[4];
-		
-		RootSignature m_BasicTriangleRS;
 
 		// resources
 		ColorBuffer m_PreDisplayBuffer;
@@ -135,7 +139,10 @@ namespace MyDirectX
 		uint32_t m_DisplayHeight = 720;
 		DXGI_FORMAT m_SwapChainFormat = DXGI_FORMAT_R10G10B10A2_UNORM;
 		DWORD m_DxgiFactoryFlags = 0;
+
 		Resolutions m_CurNativeRes;
+
+
 
 		HWND m_hWindow;
 
