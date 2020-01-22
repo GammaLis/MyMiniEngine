@@ -96,11 +96,11 @@ void GfxStates::SetNativeResolution(ID3D12Device* pDevice, Resolutions nativeRes
 
 	Graphics::s_CommandManager.IdleGPU();
 
-	Graphics::s_ResourceManager.InitRenderingBuffers(pDevice, s_NativeWidth, s_NativeHeight);
+	Graphics::s_BufferManager.InitRenderingBuffers(pDevice, s_NativeWidth, s_NativeHeight);
 
 }
 
-void ResourceManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferWidth, uint32_t bufferHeight)
+void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferWidth, uint32_t bufferHeight)
 {
 	// 暂时不需要 initContext
 	// GraphicsContext& initContext = GraphicsContext::Begin();
@@ -128,14 +128,18 @@ void ResourceManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t buffe
 
 }
 
-void ResourceManager::ResizeDisplayDependentBuffers(ID3D12Device* pDevice, uint32_t bufferWidth, uint32_t bufferHeight)
+void BufferManager::ResizeDisplayDependentBuffers(ID3D12Device* pDevice, uint32_t bufferWidth, uint32_t bufferHeight)
 {
-
+	m_HorizontalBuffer.Create(pDevice, L"Bicubic Intermediate", GfxStates::s_DisplayWidth, bufferHeight, 1, GfxStates::s_DefaultHdrColorFormat);
 }
 
-void ResourceManager::DestroyRenderingBuffers()
+void BufferManager::DestroyRenderingBuffers()
 {
+	m_SceneColorBuffer.Destroy();
+	m_SceneDepthBuffer.Destroy();
 
+	// bicubic horizontal upsample intermediate buffer
+	m_HorizontalBuffer.Destroy();
 }
 
 void ShaderManager::CreateFromByteCode()
@@ -160,6 +164,7 @@ void ShaderManager::CreateFromByteCode()
 	m_BasicTrianglePS = CD3DX12_SHADER_BYTECODE(BasicTrianglePS, sizeof(BasicTrianglePS));
 }
 
+// 暂时不用这个函数，无法解决#include问题 -20-1-21
 void ShaderManager::CompileShadersFromFile()
 {
 #ifdef _DEBUG
@@ -379,4 +384,10 @@ void CommonStates::InitCommonStates(ID3D12Device* pDevice)
 		DrawIndirectCommandSignature.Finalize(pDevice);
 	}
 
+}
+
+void CommonStates::DestroyCommonStates()
+{
+	DispatchIndirectCommandSignature.Destroy();
+	DrawIndirectCommandSignature.Destroy();
 }

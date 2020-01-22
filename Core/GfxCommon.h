@@ -59,7 +59,7 @@ namespace MyDirectX
 		static DXGI_FORMAT s_DefaultDSVFormat;
 	};
 
-	class ResourceManager
+	class BufferManager
 	{
 	public:
 		void InitRenderingBuffers(ID3D12Device *pDevice, uint32_t nativeWidth, uint32_t nativeHeight);
@@ -102,6 +102,7 @@ namespace MyDirectX
 	{
 	public:
 		void InitCommonStates(ID3D12Device *pDevice);
+		void DestroyCommonStates();
 
 		SamplerDesc SamplerLinearWrapDesc;
 		SamplerDesc SamplerAnisoWrapDesc;

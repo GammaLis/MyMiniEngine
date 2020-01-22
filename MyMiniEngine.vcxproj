@@ -38,6 +38,8 @@
     <ClInclude Include="Common\pch.h" />
     <ClInclude Include="Common\resource.h" />
     <ClInclude Include="Core\Camera.h" />
+    <ClInclude Include="Core\dds.h" />
+    <ClInclude Include="Core\DDSTextureLoader.h" />
     <ClInclude Include="Core\GpuResource.h" />
     <ClInclude Include="Core\GpuBuffer.h" />
     <ClInclude Include="Core\Hash.h" />
@@ -64,9 +66,11 @@
     <ClInclude Include="Core\DepthBuffer.h" />
     <ClInclude Include="Core\DynamicDescriptorHeap.h" />
     <ClInclude Include="Core\GfxCommon.h" />
+    <ClInclude Include="FileUtility.h" />
     <ClInclude Include="IGameApp.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="Core\SamplerManager.h" />
+    <ClInclude Include="Core\TextureManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Core\CommandContext.cpp" />
@@ -85,6 +89,7 @@
     <ClCompile Include="Common\MyUtils.cpp" />
     <ClCompile Include="Common\MyWindow.cpp" />
     <ClCompile Include="Core\Camera.cpp" />
+    <ClCompile Include="Core\DDSTextureLoader.cpp" />
     <ClCompile Include="Core\GpuBuffer.cpp" />
     <ClCompile Include="Core\Math\Frustum.cpp" />
     <ClCompile Include="Core\Math\Random.cpp" />
@@ -99,9 +104,11 @@
     <ClCompile Include="Core\DepthBuffer.cpp" />
     <ClCompile Include="Core\DynamicDescriptorHeap.cpp" />
     <ClCompile Include="Core\GfxCommon.cpp" />
+    <ClCompile Include="FileUtility.cpp" />
     <ClCompile Include="IGameApp.cpp" />
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="Core\SamplerManager.cpp" />
+    <ClCompile Include="Core\TextureManager.cpp" />
     <ClCompile Include="WinMain.cpp" />
   </ItemGroup>
   <ItemGroup>

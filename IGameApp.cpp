@@ -192,10 +192,10 @@ void IGameApp::InitPipelineStates()
 {
 	m_EmptyRS.Finalize(Graphics::s_Device, L"EmptyRootSignature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-	const auto& colorBuffer = Graphics::s_ResourceManager.m_SceneColorBuffer;
+	const auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 	// 或者 直接画到 backbuffer
 	// const auto& colorBuffer = m_Gfx->GetRenderTarget();
-	const auto& depthBuffer = Graphics::s_ResourceManager.m_SceneDepthBuffer;
+	const auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
 	DXGI_FORMAT colorFormat = colorBuffer.GetFormat();
 	DXGI_FORMAT depthFormat = depthBuffer.GetFormat();
 
@@ -206,9 +206,9 @@ void IGameApp::InitPipelineStates()
 
 		// DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_FORMAT_R10G10B10A2_UNORM
 		// 测试不同格式，
-		// DXGI_FORMAT_B8G8R8A8_UNORM 对应 XMCOLOR
-		// DXGI_FORMAT_R10G10B10A2_UNORM 对应 XMXDECN4
-		// DXGI_FORMAT_R32G32B32A32_FLOAT 对应 XMFLOAT4
+		// DXGI_FORMAT_B8G8R8A8_UNORM		对应 XMCOLOR
+		// DXGI_FORMAT_R10G10B10A2_UNORM	对应 XMXDECN4
+		// DXGI_FORMAT_R32G32B32A32_FLOAT	对应 XMFLOAT4
 	};
 
 	m_BasicTrianglePSO.SetRootSignature(m_EmptyRS);
@@ -229,7 +229,7 @@ void IGameApp::RenderTriangle()
 {
 	GraphicsContext& gfxContext = GraphicsContext::Begin(L"Scene Render");
 	
-	auto &colorBuffer = Graphics::s_ResourceManager.m_SceneColorBuffer;
+	auto &colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 	// 或者 直接画到 backbuffer
 	// auto& colorBuffer = m_Gfx->GetRenderTarget();
 

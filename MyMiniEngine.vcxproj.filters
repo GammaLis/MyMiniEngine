@@ -169,6 +169,18 @@
     <ClInclude Include="Model.h">
       <Filter>Game</Filter>
     </ClInclude>
+    <ClInclude Include="Core\DDSTextureLoader.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\dds.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="FileUtility.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\TextureManager.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -272,6 +284,15 @@
     </ClCompile>
     <ClCompile Include="Model.cpp">
       <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\DDSTextureLoader.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="FileUtility.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\TextureManager.cpp">
+      <Filter>Core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -1,6 +1,8 @@
 #include "Graphics.h"
 #include "CommandListManager.h"
 #include "CommandContext.h"
+#include "TextureManager.h"
+
 
 namespace MyDirectX
 {    
@@ -13,7 +15,8 @@ namespace MyDirectX
 
     // cached resources and states
     ShaderManager Graphics::s_ShaderManager;
-    ResourceManager Graphics::s_ResourceManager;
+    BufferManager Graphics::s_BufferManager;
+    TextureManager Graphics::s_TextureManager;
     CommonStates Graphics::s_CommonStates;
 
     DescriptorAllocator Graphics::s_DescriptorAllocator[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES] =
@@ -111,9 +114,10 @@ namespace MyDirectX
         // m_BackBufferIndex = 0;
         m_BackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
 
-        // TO DO
-        // s_CommandManager.IdleGPU();
-        // ResizeDisplayDependentBuffers(g_NativeWidth, g_NativeHeight);
+        // 调整 显示尺寸相关buffer大小
+        s_CommandManager.IdleGPU();
+        s_BufferManager.ResizeDisplayDependentBuffers(m_Device.Get(), 
+            GfxStates::s_NativeWidth, GfxStates::s_NativeHeight);
     }
 
     void Graphics::Terminate()
@@ -136,8 +140,9 @@ namespace MyDirectX
         RootSignature::DestroyAll();
         DescriptorAllocator::DestroyAll();
 
-        // TO DO
         // resources
+        s_CommonStates.DestroyCommonStates();
+        s_BufferManager.DestroyRenderingBuffers();
 
         // back buffers
         for (UINT i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
@@ -183,19 +188,17 @@ namespace MyDirectX
     {
         auto& context = GraphicsContext::Begin(L"Clear Color");
 
-        context.TransitionResource(m_BackBuffer[m_BackBufferIndex], D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-        context.FlushResourceBarriers();
-        context.ClearColor(m_BackBuffer[m_BackBufferIndex]);
+        auto& colorBuffer = s_BufferManager.m_SceneColorBuffer;
+        context.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 
         D3D12_CPU_DESCRIPTOR_HANDLE rtvs[] =
         {
-            m_BackBuffer[m_BackBufferIndex].GetRTV()
+            colorBuffer.GetRTV()
         };
         context.SetRenderTargets(_countof(rtvs), rtvs);
         context.SetViewportAndScissor(0, 0, m_DisplayWidth, m_DisplayHeight);
-        
-        context.TransitionResource(m_BackBuffer[m_BackBufferIndex], D3D12_RESOURCE_STATE_PRESENT);
+
+        context.ClearColor(colorBuffer);
 
         context.Finish();
     }
@@ -714,14 +717,14 @@ namespace MyDirectX
 
         // we're going to be reading these buffers to write to the swap chain buffer(s)
         auto& backBuffer = m_BackBuffer[m_BackBufferIndex];
-        context.TransitionResource(s_ResourceManager.m_SceneColorBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        context.TransitionResource(s_BufferManager.m_SceneColorBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         context.TransitionResource(m_BackBuffer[m_BackBufferIndex], D3D12_RESOURCE_STATE_RENDER_TARGET);
 
         context.SetRootSignature(m_PresentRS);
         context.SetPipelineState(m_PresentHDRPSO);
         context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-        context.SetDynamicDescriptor(0, 0, s_ResourceManager.m_SceneColorBuffer.GetSRV());
+        context.SetDynamicDescriptor(0, 0, s_BufferManager.m_SceneColorBuffer.GetSRV());
         
         D3D12_CPU_DESCRIPTOR_HANDLE rtvs[] =
         {
@@ -772,7 +775,7 @@ namespace MyDirectX
 
         // we're going to be reading these buffers to write to the swap chain buffer(s)
         auto& backBuffer = m_BackBuffer[m_BackBufferIndex];
-        auto& colorBuffer = s_ResourceManager.m_SceneColorBuffer;
+        auto& colorBuffer = s_BufferManager.m_SceneColorBuffer;
         context.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
         context.SetRootSignature(m_PresentRS);
@@ -796,20 +799,20 @@ namespace MyDirectX
         else if (GfxStates::s_UpsampleFilter == UpsampleFilter::kBicubic)
         {
             // horizontal pass
-            context.TransitionResource(s_ResourceManager.m_HorizontalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
-            context.SetRenderTarget(s_ResourceManager.m_HorizontalBuffer.GetRTV());
+            context.TransitionResource(s_BufferManager.m_HorizontalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+            context.SetRenderTarget(s_BufferManager.m_HorizontalBuffer.GetRTV());
             context.SetViewportAndScissor(0, 0, GfxStates::s_DisplayWidth, GfxStates::s_NativeHeight);
             context.SetPipelineState(m_BicubicHorizontalUpsamplePSO);
             context.SetConstants(1, GfxStates::s_NativeWidth, GfxStates::s_NativeHeight, (float)GfxStates::s_BicubicUpsampleWeight);
             context.Draw(3);
 
             // vertical pass
-            context.TransitionResource(s_ResourceManager.m_HorizontalBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            context.TransitionResource(s_BufferManager.m_HorizontalBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
             context.TransitionResource(upsampleDest, D3D12_RESOURCE_STATE_RENDER_TARGET);
             context.SetRenderTarget(upsampleDest.GetRTV());
             context.SetViewportAndScissor(0, 0, GfxStates::s_DisplayWidth, GfxStates::s_DisplayHeight);
             context.SetPipelineState(m_BicubicVerticalUpsamplePSO);
-            context.SetDynamicDescriptor(0, 0, s_ResourceManager.m_HorizontalBuffer.GetSRV());
+            context.SetDynamicDescriptor(0, 0, s_BufferManager.m_HorizontalBuffer.GetSRV());
             context.SetConstants(1, GfxStates::s_DisplayWidth, GfxStates::s_NativeHeight, (float)GfxStates::s_BicubicUpsampleWeight);
             context.Draw(3);
         }

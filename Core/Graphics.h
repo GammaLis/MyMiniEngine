@@ -16,7 +16,8 @@ namespace MyDirectX
 	class CommandContext;
 
 	class ShaderManager;
-	class ResourceManager;
+	class BufferManager;
+	class TextureManager;
 	
 	class Graphics
 	{
@@ -50,7 +51,8 @@ namespace MyDirectX
 		static ContextManager s_ContextManager;
 
 		static ShaderManager s_ShaderManager;
-		static ResourceManager s_ResourceManager;
+		static BufferManager s_BufferManager;
+		static TextureManager s_TextureManager;
 		static CommonStates s_CommonStates;
 
 		inline static UINT GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type)
@@ -140,9 +142,8 @@ namespace MyDirectX
 		DXGI_FORMAT m_SwapChainFormat = DXGI_FORMAT_R10G10B10A2_UNORM;
 		DWORD m_DxgiFactoryFlags = 0;
 
+		// native resolution,Çø±ðÓÚdisplay resolution
 		Resolutions m_CurNativeRes;
-
-
 
 		HWND m_hWindow;
 
