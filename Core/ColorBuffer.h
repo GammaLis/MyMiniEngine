@@ -74,7 +74,7 @@ namespace MyDirectX
 		}
 
 		void CreateDerivedViews(ID3D12Device* pDevice, DXGI_FORMAT format, uint32_t arraySize, uint32_t numMips = 1);
-
+		
 		Color m_ClearColor;
 		D3D12_CPU_DESCRIPTOR_HANDLE m_SRVHandle;
 		D3D12_CPU_DESCRIPTOR_HANDLE m_RTVHandle;

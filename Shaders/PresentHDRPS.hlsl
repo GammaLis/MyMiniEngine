@@ -1,10 +1,10 @@
 #include "ToneMappingUtility.hlsli"
 #include "PresentRS.hlsli"
 
-Texture2D<float3> ColorTex : register(t0);
-Texture2D<float4> Overlay : register(t1);
+Texture2D<float3> ColorTex  : register(t0);
+Texture2D<float4> Overlay   : register(t1);
 
-SamplerState BilinearClamp : register(s0);
+SamplerState BilinearClamp  : register(s0);
 
 struct PSOutput
 {
@@ -32,7 +32,7 @@ PSOutput main(float4 position : SV_Position, float2 uv : TexCoord0)
     PSOutput Out;
 
     // 暂时注释
-    // float4 UI = Overlay.SampleLevel(BilinearClamp, position.xy * RcpDstSize, 0);
+    float4 UI = Overlay.SampleLevel(BilinearClamp, position.xy * RcpDstSize, 0);
     float3 HDR = ColorTex[(int2)position.xy];
     // or -mf
     // float3 HDR = ColorTex.Sample(BilinearClamp, uv);     
@@ -40,15 +40,15 @@ PSOutput main(float4 position : SV_Position, float2 uv : TexCoord0)
 
     // Better to blend in linear space (unlike the hardware compositor)
     // 暂时注释
-    // UI.rgb = RemoveSRGBCurve(UI.rgb);
+    UI.rgb = RemoveSRGBCurve(UI.rgb);
 
     // SDR was not explicitly clamped to [0, 1] on input, but it will be on output
     // 暂时注释
-    // SDR = saturate(SDR) * (1 - UI.a) + UI.rgb;
+    SDR = saturate(SDR) * (1 - UI.a) + UI.rgb;
 
     HDR = REC709toREC2020(HDR);
     // 暂时注释
-    // UI.rgb = REC709toREC2020(UI.rgb) * PaperWhite;
+    UI.rgb = REC709toREC2020(UI.rgb) * PaperWhite;
     SDR = REC709toREC2020(SDR) * PaperWhite;
 
     // Tone map while in Rec.2020.  This allows values to taper to the maximum of the display.
@@ -56,7 +56,7 @@ PSOutput main(float4 position : SV_Position, float2 uv : TexCoord0)
 
     // Composite HDR buffer with UI
     // 暂时注释
-    // HDR = HDR * (1 - UI.a) + UI.rgb;
+    HDR = HDR * (1 - UI.a) + UI.rgb;
 
     float3 FinalOutput;
     switch (DebugMode)

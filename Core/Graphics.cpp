@@ -2,6 +2,7 @@
 #include "CommandListManager.h"
 #include "CommandContext.h"
 #include "TextureManager.h"
+#include "Effect.h"
 
 
 namespace MyDirectX
@@ -65,6 +66,10 @@ namespace MyDirectX
         s_CommonStates.InitCommonStates(m_Device.Get());
         GfxStates::SetNativeResolution(m_Device.Get(), m_CurNativeRes);
         CustomInit();
+
+        // 考虑放在 Graphics里 还是 IGameApp里 -20-1-27
+        // 目前 感觉放在 Graphics里 更加合适
+        Effect::Init(m_Device.Get());
     }
 
     void Graphics::Resize(uint32_t newWidth, uint32_t newHeight)
@@ -143,6 +148,10 @@ namespace MyDirectX
         // resources
         s_CommonStates.DestroyCommonStates();
         s_BufferManager.DestroyRenderingBuffers();
+        s_TextureManager.Shutdown();
+
+        // effects
+        Effect::Shutdown();
 
         // back buffers
         for (UINT i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
@@ -661,7 +670,7 @@ namespace MyDirectX
 
         // present RootSignature
         m_PresentRS.Reset(4, 2);
-        m_PresentRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);    // 2
+        m_PresentRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);    // SceanColorBuffer, OveralyBuffer
         m_PresentRS[1].InitAsConstants(0, 6, D3D12_SHADER_VISIBILITY_ALL);
         m_PresentRS[2].InitAsBufferSRV(2, D3D12_SHADER_VISIBILITY_PIXEL);
         m_PresentRS[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
@@ -696,6 +705,13 @@ namespace MyDirectX
         CreatePSO(m_BicubicVerticalUpsamplePSO, s_ShaderManager.m_BicubicVerticalUpsamplePS);
         CreatePSO(m_SharpeningUpsamplePSO, s_ShaderManager.m_SharpeningUpsamplePS);
 
+        // BlendUIPSO
+        m_BlendUIPSO = m_PresentSDRPSO;
+        m_BlendUIPSO.SetRasterizerState(s_CommonStates.RasterizerTwoSided);
+        m_BlendUIPSO.SetBlendState(s_CommonStates.BlendPreMultiplied);
+        m_BlendUIPSO.SetPixelShader(s_ShaderManager.m_BufferCopyPS);
+        m_BlendUIPSO.Finalize(m_Device.Get());
+
         // BicubicHorizontalUpsamplePSO
         m_BicubicHorizontalUpsamplePSO = m_PresentSDRPSO;
         m_BicubicHorizontalUpsamplePSO.SetPixelShader(s_ShaderManager.m_BicubicHorizontalUpsamplePS);
@@ -718,6 +734,7 @@ namespace MyDirectX
         // we're going to be reading these buffers to write to the swap chain buffer(s)
         auto& backBuffer = m_BackBuffer[m_BackBufferIndex];
         context.TransitionResource(s_BufferManager.m_SceneColorBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        context.TransitionResource(s_BufferManager.m_OverlayBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         context.TransitionResource(m_BackBuffer[m_BackBufferIndex], D3D12_RESOURCE_STATE_RENDER_TARGET);
 
         context.SetRootSignature(m_PresentRS);
@@ -725,6 +742,7 @@ namespace MyDirectX
         context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
         context.SetDynamicDescriptor(0, 0, s_BufferManager.m_SceneColorBuffer.GetSRV());
+        context.SetDynamicDescriptor(1, 0, s_BufferManager.m_OverlayBuffer.GetSRV());
         
         D3D12_CPU_DESCRIPTOR_HANDLE rtvs[] =
         {
@@ -767,6 +785,21 @@ namespace MyDirectX
 
         // close the final context to be executed before frame present
         context.Finish();
+    }
+
+    void Graphics::CompositeOverlays(GraphicsContext& context)
+    {
+        // blend (or write) the UI overlay
+        auto& overlayBuffer = s_BufferManager.m_OverlayBuffer;
+        context.TransitionResource(overlayBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        context.SetDynamicDescriptor(0, 0, overlayBuffer.GetSRV());
+        // 显示 Default字体纹理 （调试使用） -20-1-28
+        // auto& textRenderer = Effect::s_TextRenderer;
+        // context.SetDynamicDescriptor(0, 0, textRenderer.GetDefaultFontTexture());
+
+        context.SetPipelineState(m_BlendUIPSO);
+        context.SetConstants(1, 1.0f / GfxStates::s_NativeWidth, 1.0f / GfxStates::s_NativeHeight);
+        context.Draw(3);
     }
 
     void Graphics::PreparePresentLDR()
@@ -856,6 +889,8 @@ namespace MyDirectX
             context.SetConstants(1, 1.f / ((int)GfxStates::s_DebugZoom + 1.f));
             context.Draw(3);
         }
+
+        CompositeOverlays(context);
 
         context.TransitionResource(backBuffer, D3D12_RESOURCE_STATE_PRESENT);
 

@@ -1,7 +1,7 @@
 #include "FileUtility.h"
 #include <fstream>
 #include <mutex>
-// #include <zlib.h>
+#include <zlib.h>		// NuGet
 
 namespace Utility
 {
@@ -10,18 +10,28 @@ namespace Utility
 
 	ByteArray NullFile = make_shared<vector<byte>>(vector<byte>());
 
-	ByteArray DecompressZippedFile(wstring& fileName)
-	{
-		// TODO 
-		// 暂时返回NULL
-		return NullFile;
-	}
+	ByteArray DecompressZippedFile(wstring& fileName);
 
 	ByteArray ReadFileHelper(const wstring& fileName)
 	{
-		// TODO 
-		// 暂时返回NULL
-		return NullFile;
+		struct _stat64 fileStat;
+		int fileExists = _wstat64(fileName.c_str(), &fileStat);
+		if (fileExists == -1)
+			return NullFile;
+
+		ifstream file(fileName, ios::in | ios::binary);
+		if (!file)
+			return NullFile;
+
+		// std::basic_istream<charT, Traits>::seekg
+		// 设置当前关联streambuf 对象的输入位置指示器。
+		ByteArray byteArray = make_shared<vector<byte>>(file.seekg(0, ios::end).tellg());
+		file.seekg(0, ios::beg).read((char*)byteArray->data(), byteArray->size());
+		file.close();
+
+		ASSERT(byteArray->size() == (size_t)fileStat.st_size);
+
+		return byteArray;
 	}
 
 	ByteArray ReadFileHelperEx(shared_ptr<wstring> pFileName)
@@ -39,12 +49,54 @@ namespace Utility
 		// create a dynamic buffer to hold compressed blocks
 		vector<unique_ptr<byte>> blocks;
 
-		// TODO 
-		// 暂时返回NULL
-		return NullFile;
+		z_stream strm = {};
+		strm.data_type = Z_BINARY;
+		strm.total_in = strm.avail_in = (uInt)compressedSource->size();
+		strm.next_in = compressedSource->data();
+
+		err = inflateInit2(&strm, (15 + 32));	// 15 window bits, and the +32 tells zlib to detect if using gzip or zlib 
+
+		while (err == Z_OK || err == Z_BUF_ERROR)
+		{
+			strm.avail_out = chunkSize;
+			strm.next_out = (byte*)malloc(chunkSize);
+			blocks.emplace_back(strm.next_out);
+			err = inflate(&strm, Z_NO_FLUSH);
+		}
+
+		if (err != Z_STREAM_END)
+		{
+			inflateEnd(&strm);
+			return NullFile;
+		}
+
+		ASSERT(strm.total_out > 0, "Nothing to decompress");
+
+		ByteArray byteArray = make_shared<vector<byte>>(strm.total_out);
+
+		// allocate actual memory for this
+		// copy the bits into that RAM
+		// free everything else up!!
+		void* curDest = byteArray->data();
+		size_t remaining = byteArray->size();
+
+		for (size_t i = 0; i < blocks.size(); ++i)
+		{
+			ASSERT(remaining > 0);
+
+			size_t copySize = min(remaining, (size_t)chunkSize);
+
+			memcpy(curDest, blocks[i].get(), copySize);
+			curDest = (byte*)curDest + copySize;
+			remaining -= copySize;
+		}
+
+		inflateEnd(&strm);
+
+		return byteArray;
 	}
 
-	ByteArray DecompressedZippedFile(wstring& fileName)
+	ByteArray DecompressZippedFile(wstring& fileName)
 	{
 		ByteArray compressedFile = ReadFileHelper(fileName);
 		if (compressedFile == NullFile)
@@ -59,8 +111,7 @@ namespace Utility
 		}
 
 		return decompressedFile;
-	}
-	
+	}	
 
 	ByteArray ReadFileSync(const std::wstring& fileName)
 	{
@@ -72,6 +123,4 @@ namespace Utility
 		shared_ptr<wstring> sharedPtr = make_shared<wstring>(fileName);
 		return create_task([=] {return ReadFileHelperEx(sharedPtr); });
 	}
-
 }
-

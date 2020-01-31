@@ -5,6 +5,10 @@
 #include <d3dcompiler.h>
 
 #include "ScreenQuadVS.h"
+
+/**
+	present
+*/
 #include "PresentHDRPS.h"
 #include "PresentSDRPS.h"
 #include "MagnifyPixelsPS.h"
@@ -15,6 +19,16 @@
 #include "SharpeningUpsamplePS.h"
 // bilinear upsample
 #include "BilinearUpsamplePS.h"
+// blend overlay ui
+#include "BufferCopyPS.h"
+
+/**
+	text
+*/
+#include "TextVS.h"
+#include "TextAntialiasingPS.h"
+#include "TextShadowPS.h"
+
 // test
 #include "BasicTriangleVS.h"
 #include "BasicTrianglePS.h"
@@ -123,6 +137,10 @@ void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferW
 	m_SceneColorBuffer.SetClearColor(Color(0.2f, 0.4f, 0.4f));
 	m_SceneDepthBuffer.Create(pDevice, L"Scene Depth Buffer", bufferWidth, bufferHeight, GfxStates::s_DefaultDSVFormat);
 
+	// UI overlay
+	m_OverlayBuffer.Create(pDevice, L"UI Overlay", GfxStates::s_DisplayWidth, GfxStates::s_DisplayHeight, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
+	m_OverlayBuffer.SetClearColor(Color(0.6f, 0.4f, 0.2f, 0.2f));
+
 	// bicubic horizontal upsample intermediate buffer
 	m_HorizontalBuffer.Create(pDevice, L"Bicubic Intermediate", GfxStates::s_DisplayWidth, bufferHeight, 1, GfxStates::s_DefaultHdrColorFormat);
 
@@ -130,6 +148,10 @@ void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferW
 
 void BufferManager::ResizeDisplayDependentBuffers(ID3D12Device* pDevice, uint32_t bufferWidth, uint32_t bufferHeight)
 {
+	// UI overlay
+	m_OverlayBuffer.Create(pDevice, L"UI Overlay", GfxStates::s_DisplayWidth, GfxStates::s_DisplayHeight, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
+
+	// for presenting - bicubic horizontal upsample intermediate buffer
 	m_HorizontalBuffer.Create(pDevice, L"Bicubic Intermediate", GfxStates::s_DisplayWidth, bufferHeight, 1, GfxStates::s_DefaultHdrColorFormat);
 }
 
@@ -138,6 +160,9 @@ void BufferManager::DestroyRenderingBuffers()
 	m_SceneColorBuffer.Destroy();
 	m_SceneDepthBuffer.Destroy();
 
+	// UI overlay
+	m_OverlayBuffer.Destroy();
+
 	// bicubic horizontal upsample intermediate buffer
 	m_HorizontalBuffer.Destroy();
 }
@@ -145,6 +170,10 @@ void BufferManager::DestroyRenderingBuffers()
 void ShaderManager::CreateFromByteCode()
 {
 	m_ScreenQuadVS = CD3DX12_SHADER_BYTECODE(ScreenQuadVS, sizeof(ScreenQuadVS));
+
+	/**
+		present
+	*/
 	m_PresentHDRPS = CD3DX12_SHADER_BYTECODE(PresentHDRPS, sizeof(PresentHDRPS));
 	m_PresentSDRPS = CD3DX12_SHADER_BYTECODE(PresentSDRPS, sizeof(PresentSDRPS));
 	m_MagnifyPixelsPS = CD3DX12_SHADER_BYTECODE(MagnifyPixelsPS, sizeof(MagnifyPixelsPS));
@@ -158,6 +187,16 @@ void ShaderManager::CreateFromByteCode()
 
 	// bilinear upsample
 	m_BilinearUpsamplePS = CD3DX12_SHADER_BYTECODE(BilinearUpsamplePS, sizeof(BilinearUpsamplePS));
+
+	// 
+	m_BufferCopyPS = CD3DX12_SHADER_BYTECODE(BufferCopyPS, sizeof(BufferCopyPS));
+
+	/**
+		text
+	*/
+	m_TextVS = CD3DX12_SHADER_BYTECODE(TextVS, sizeof(TextVS));
+	m_TextAntialiasPS = CD3DX12_SHADER_BYTECODE(TextAntialiasingPS, sizeof(TextAntialiasingPS));
+	m_TextShadowPS = CD3DX12_SHADER_BYTECODE(TextShadowPS, sizeof(TextShadowPS));
 
 	// basic triangle
 	m_BasicTriangleVS = CD3DX12_SHADER_BYTECODE(BasicTriangleVS, sizeof(BasicTriangleVS));

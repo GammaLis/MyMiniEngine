@@ -71,7 +71,7 @@ namespace MyDirectX
 		DepthBuffer m_SceneDepthBuffer;		// D32_FLOAT_S8_UINT
 
 		//ColorBuffer m_PoseEffectsBuffer;	// R32_UINT (to support Read-Modify-Write with a UAV)
-		//ColorBuffer m_OverlayBuffer;		// R8G8B8A8_UNORM
+		ColorBuffer m_OverlayBuffer;		// R8G8B8A8_UNORM
 		ColorBuffer m_HorizontalBuffer;		// for separable (bicubic) upsampling
 
 		// ...
@@ -87,7 +87,11 @@ namespace MyDirectX
 		CD3DX12_SHADER_BYTECODE m_BasicTriangleVS;
 		CD3DX12_SHADER_BYTECODE m_BasicTrianglePS;
 
+		/// screen effects
+		// screen quad VS
 		CD3DX12_SHADER_BYTECODE m_ScreenQuadVS;
+
+		// present
 		CD3DX12_SHADER_BYTECODE m_PresentHDRPS;
 		CD3DX12_SHADER_BYTECODE m_PresentSDRPS;
 		CD3DX12_SHADER_BYTECODE m_MagnifyPixelsPS;
@@ -95,6 +99,12 @@ namespace MyDirectX
 		CD3DX12_SHADER_BYTECODE m_BicubicHorizontalUpsamplePS;
 		CD3DX12_SHADER_BYTECODE m_BicubicVerticalUpsamplePS;
 		CD3DX12_SHADER_BYTECODE m_SharpeningUpsamplePS;
+		CD3DX12_SHADER_BYTECODE m_BufferCopyPS;		// blend overlay ui
+
+		/// text 
+		CD3DX12_SHADER_BYTECODE m_TextVS;
+		CD3DX12_SHADER_BYTECODE m_TextAntialiasPS;
+		CD3DX12_SHADER_BYTECODE m_TextShadowPS;
 
 	};
 

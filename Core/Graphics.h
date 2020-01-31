@@ -98,6 +98,7 @@ namespace MyDirectX
 		// prepare present
 		void PreparePresentHDR();
 		void PreparePresentLDR();
+		void CompositeOverlays(GraphicsContext& context);
 
 		// class members
 		
@@ -110,6 +111,7 @@ namespace MyDirectX
 		// PSOs
 		RootSignature m_EmptyRS;
 		RootSignature m_PresentRS;
+		GraphicsPSO m_BlendUIPSO;		// blend overlay UI
 		GraphicsPSO m_PresentSDRPSO;
 		GraphicsPSO m_PresentHDRPSO;
 		GraphicsPSO m_MagnifyPixelsPSO;

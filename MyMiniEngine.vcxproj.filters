@@ -23,6 +23,12 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{14bf1bea-b8d0-43dc-bdfc-b0510ad49667}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\Present">
+      <UniqueIdentifier>{17b109af-d976-48b7-9ed5-64ebe56c249a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Text">
+      <UniqueIdentifier>{5d66ddcb-939c-41ed-9f5f-75f74cda1512}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\GpuResource.h">
@@ -181,6 +187,12 @@
     <ClInclude Include="Core\TextureManager.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="Core\TextRenderer.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Effect.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -294,6 +306,12 @@
     <ClCompile Include="Core\TextureManager.cpp">
       <Filter>Core</Filter>
     </ClCompile>
+    <ClCompile Include="Core\TextRenderer.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Effect.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MyMiniEngine.rc">
@@ -309,25 +327,44 @@
     <None Include="Core\Math\Functions.inl">
       <Filter>Core\Math</Filter>
     </None>
-    <None Include="Shaders\ColorSpaceUtility.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\PresentRS.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="Shaders\ToneMappingUtility.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="packages.config" />
+    <None Include="Shaders\PresentRS.hlsli">
+      <Filter>Shaders\Present</Filter>
+    </None>
+    <None Include="Shaders\ColorSpaceUtility.hlsli">
       <Filter>Shaders</Filter>
     </None>
     <None Include="Shaders\ShaderUtility.hlsli">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\TextRS.hlsli">
+      <Filter>Shaders\Text</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Shaders\PresentHDRPS.hlsl">
-      <Filter>Shaders</Filter>
+    <FxCompile Include="Shaders\BicubicHorizontalUpsamplePS.hlsl">
+      <Filter>Shaders\Present</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\ScreenQuadVS.hlsl">
-      <Filter>Shaders</Filter>
+    <FxCompile Include="Shaders\BicubicVerticalUpsamplePS.hlsl">
+      <Filter>Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\BilinearUpsamplePS.hlsl">
+      <Filter>Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\MagnifyPixelsPS.hlsl">
+      <Filter>Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\PresentHDRPS.hlsl">
+      <Filter>Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\PresentSDRPS.hlsl">
+      <Filter>Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SharpeningUpsamplePS.hlsl">
+      <Filter>Shaders\Present</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\BasicTrianglePS.hlsl">
       <Filter>Shaders</Filter>
@@ -335,23 +372,20 @@
     <FxCompile Include="Shaders\BasicTriangleVS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\BicubicHorizontalUpsamplePS.hlsl">
+    <FxCompile Include="Shaders\ScreenQuadVS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\BicubicVerticalUpsamplePS.hlsl">
-      <Filter>Shaders</Filter>
+    <FxCompile Include="Shaders\TextAntialiasingPS.hlsl">
+      <Filter>Shaders\Text</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\BilinearUpsamplePS.hlsl">
-      <Filter>Shaders</Filter>
+    <FxCompile Include="Shaders\TextShadowPS.hlsl">
+      <Filter>Shaders\Text</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\MagnifyPixelsPS.hlsl">
-      <Filter>Shaders</Filter>
+    <FxCompile Include="Shaders\TextVS.hlsl">
+      <Filter>Shaders\Text</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\PresentSDRPS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\SharpeningUpsamplePS.hlsl">
-      <Filter>Shaders</Filter>
+    <FxCompile Include="Shaders\BufferCopyPS.hlsl">
+      <Filter>Shaders\Present</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>

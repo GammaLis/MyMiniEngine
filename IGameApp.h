@@ -11,6 +11,7 @@ namespace MyDirectX
 	class Graphics;
 	class GameTimer;
 	class Model;
+	class GraphicsContext;
 
 	class IGameApp
 	{
@@ -24,6 +25,7 @@ namespace MyDirectX
 		virtual void OnResize();
 		virtual void Update(float deltaTime);
 		virtual void Render();
+		virtual void RenderUI();
 		virtual void Cleanup();
 
 		int Run();
@@ -52,7 +54,9 @@ namespace MyDirectX
 
 #pragma region Hello, Triangle
 		virtual void InitPipelineStates();
-		virtual void InitGeometryBuffers();		
+		virtual void InitGeometryBuffers();
+		
+		virtual void CustomUI(GraphicsContext &context);
 
 		void RenderTriangle();
 

@@ -2,6 +2,7 @@
 #include "MyWindow.h"
 #include "Graphics.h"
 #include "CommandContext.h"
+#include "TextRenderer.h"	// TextContext
 #include "GpuBuffer.h"
 #include "GameTimer.h"
 #include "Model.h"
@@ -70,6 +71,21 @@ void IGameApp::Render()
 	RenderTriangle();
 }
 
+void IGameApp::RenderUI()
+{
+	auto& uiContext = GraphicsContext::Begin(L"Render UI");
+
+	auto& overlayBuffer = Graphics::s_BufferManager.m_OverlayBuffer;
+	uiContext.TransitionResource(overlayBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+	uiContext.ClearColor(overlayBuffer);
+	uiContext.SetRenderTarget(overlayBuffer.GetRTV());
+	uiContext.SetViewportAndScissor(0, 0, overlayBuffer.GetWidth(), overlayBuffer.GetHeight());
+
+	CustomUI(uiContext);
+
+	uiContext.Finish();
+}
+
 void IGameApp::Cleanup()
 {
 	// TO DO
@@ -101,6 +117,8 @@ int IGameApp::Run()
 			Update(deltaTime);
 
 			Render();
+
+			RenderUI();
 
 			m_Gfx->Present();
 		}
@@ -186,6 +204,18 @@ void IGameApp::CalculateFrameStats()
 void IGameApp::InitGeometryBuffers()
 {
 	m_Model->Create(Graphics::s_Device);
+}
+
+void IGameApp::CustomUI(GraphicsContext &context)
+{
+	TextContext textContext(context);
+	textContext.Begin();
+	textContext.SetTextSize(48.f);
+	textContext.SetColor(Color(1.0f, 0.0f, 0.0f));
+	textContext.ResetCursor(100.f, 100.f);
+	textContext.DrawString("Hello, World!");
+
+	textContext.End();
 }
 
 void IGameApp::InitPipelineStates()
