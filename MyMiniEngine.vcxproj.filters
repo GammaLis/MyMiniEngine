@@ -20,14 +20,20 @@
     <Filter Include="Game">
       <UniqueIdentifier>{38c6d91a-289a-4262-aa34-088cf2b6c9ad}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Shaders">
+    <Filter Include="Core\Shaders">
       <UniqueIdentifier>{14bf1bea-b8d0-43dc-bdfc-b0510ad49667}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Shaders\Present">
+    <Filter Include="Core\Shaders\Present">
       <UniqueIdentifier>{17b109af-d976-48b7-9ed5-64ebe56c249a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Shaders\Text">
+    <Filter Include="Core\Shaders\Text">
       <UniqueIdentifier>{5d66ddcb-939c-41ed-9f5f-75f74cda1512}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core\Shaders\Misc">
+      <UniqueIdentifier>{0954de53-da4b-43eb-8d78-149f91f3a25a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{96c2deb8-e87b-47ae-933f-3fa71f64759e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -193,6 +199,9 @@
     <ClInclude Include="Core\Effect.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="ModelViewer.h">
+      <Filter>Game</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -312,59 +321,82 @@
     <ClCompile Include="Core\Effect.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="MyMiniEngine.rc">
-      <Filter>资源文件</Filter>
-    </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="..\Common\hinata.ico">
-      <Filter>资源文件</Filter>
-    </Image>
+    <ClCompile Include="ModelViewer.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Core\Math\Functions.inl">
       <Filter>Core\Math</Filter>
     </None>
-    <None Include="Shaders\ToneMappingUtility.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="packages.config" />
-    <None Include="Shaders\PresentRS.hlsli">
-      <Filter>Shaders\Present</Filter>
+    <None Include="Core\Shaders\TextRS.hlsli">
+      <Filter>Core\Shaders\Text</Filter>
     </None>
-    <None Include="Shaders\ColorSpaceUtility.hlsli">
+    <None Include="Core\Shaders\PresentRS.hlsli">
+      <Filter>Core\Shaders\Present</Filter>
+    </None>
+    <None Include="Core\Shaders\PixelPacking.hlsli">
+      <Filter>Core\Shaders\Misc</Filter>
+    </None>
+    <None Include="Core\Shaders\PixelPacking_R11G11B10.hlsli">
+      <Filter>Core\Shaders\Misc</Filter>
+    </None>
+    <None Include="Core\Shaders\PixelPacking_RGBE.hlsli">
+      <Filter>Core\Shaders\Misc</Filter>
+    </None>
+    <None Include="Core\Shaders\PixelPacking_RGBM.hlsli">
+      <Filter>Core\Shaders\Misc</Filter>
+    </None>
+    <None Include="Core\Shaders\ToneMappingUtility.hlsli">
+      <Filter>Core\Shaders\Misc</Filter>
+    </None>
+    <None Include="Core\Shaders\ColorSpaceUtility.hlsli">
+      <Filter>Core\Shaders\Misc</Filter>
+    </None>
+    <None Include="Core\Shaders\ShaderUtility.hlsli">
+      <Filter>Core\Shaders\Misc</Filter>
+    </None>
+    <None Include="Shaders\ModelViewerRS.hlsli">
       <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\ShaderUtility.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\TextRS.hlsli">
-      <Filter>Shaders\Text</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Shaders\BicubicHorizontalUpsamplePS.hlsl">
-      <Filter>Shaders\Present</Filter>
+    <FxCompile Include="Core\Shaders\TextVS.hlsl">
+      <Filter>Core\Shaders\Text</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\BicubicVerticalUpsamplePS.hlsl">
-      <Filter>Shaders\Present</Filter>
+    <FxCompile Include="Core\Shaders\TextAntialiasingPS.hlsl">
+      <Filter>Core\Shaders\Text</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\BilinearUpsamplePS.hlsl">
-      <Filter>Shaders\Present</Filter>
+    <FxCompile Include="Core\Shaders\TextShadowPS.hlsl">
+      <Filter>Core\Shaders\Text</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\MagnifyPixelsPS.hlsl">
-      <Filter>Shaders\Present</Filter>
+    <FxCompile Include="Core\Shaders\BicubicHorizontalUpsamplePS.hlsl">
+      <Filter>Core\Shaders\Present</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\PresentHDRPS.hlsl">
-      <Filter>Shaders\Present</Filter>
+    <FxCompile Include="Core\Shaders\BicubicVerticalUpsamplePS.hlsl">
+      <Filter>Core\Shaders\Present</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\PresentSDRPS.hlsl">
-      <Filter>Shaders\Present</Filter>
+    <FxCompile Include="Core\Shaders\BilinearUpsamplePS.hlsl">
+      <Filter>Core\Shaders\Present</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\SharpeningUpsamplePS.hlsl">
-      <Filter>Shaders\Present</Filter>
+    <FxCompile Include="Core\Shaders\BufferCopyPS.hlsl">
+      <Filter>Core\Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\MagnifyPixelsPS.hlsl">
+      <Filter>Core\Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\PresentHDRPS.hlsl">
+      <Filter>Core\Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\PresentSDRPS.hlsl">
+      <Filter>Core\Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\SharpeningUpsamplePS.hlsl">
+      <Filter>Core\Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\ScreenQuadVS.hlsl">
+      <Filter>Core\Shaders\Misc</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\BasicTrianglePS.hlsl">
       <Filter>Shaders</Filter>
@@ -372,20 +404,21 @@
     <FxCompile Include="Shaders\BasicTriangleVS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\ScreenQuadVS.hlsl">
+    <FxCompile Include="Shaders\ModelViewerPS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\TextAntialiasingPS.hlsl">
-      <Filter>Shaders\Text</Filter>
+    <FxCompile Include="Shaders\ModelViewerVS.hlsl">
+      <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\TextShadowPS.hlsl">
-      <Filter>Shaders\Text</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\TextVS.hlsl">
-      <Filter>Shaders\Text</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\BufferCopyPS.hlsl">
-      <Filter>Shaders\Present</Filter>
-    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="MyMiniEngine.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="hinata.ico">
+      <Filter>资源文件</Filter>
+    </Image>
   </ItemGroup>
 </Project>

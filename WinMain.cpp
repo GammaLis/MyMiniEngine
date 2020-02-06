@@ -1,6 +1,7 @@
 #include "MyBaseApp.h"
 #include "Utility.h"
 #include "IGameApp.h"
+#include "ModelViewer.h"
 
 // I. windows程序 预处理定义-_WINDOWS,连接器子系统SubSystem:WINDOWS
 //int WINAPI WinMain(_In_ HINSTANCE hInstance,
@@ -33,7 +34,8 @@ int main(int argc, const char* argv[])
 
 #ifdef MINI_ENGINE
 	// 1. IGameApp
-	MyDirectX::IGameApp gApp(hInst);
+	// MyDirectX::IGameApp gApp(hInst);
+	MyDirectX::ModelViewer gApp(hInst, L"ModelViewer");
 
 	int ret = 0;
 	if (gApp.Init())

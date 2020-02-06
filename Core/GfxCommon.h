@@ -133,7 +133,8 @@ namespace MyDirectX
 		D3D12_CPU_DESCRIPTOR_HANDLE SamplerLinearBorder;
 
 		D3D12_RASTERIZER_DESC RasterizerDefault;		// counter-clockwise
-		D3D12_RASTERIZER_DESC RasterizerDefaultMsaa;	
+		D3D12_RASTERIZER_DESC RasterizerDefaultMsaa;
+		D3D12_RASTERIZER_DESC RasterizerDefaultWireframe;
 		D3D12_RASTERIZER_DESC RasterizerDefaultCw;		// clockwise winding
 		D3D12_RASTERIZER_DESC RasterizerDefaultCwMsaa;	
 		D3D12_RASTERIZER_DESC RasterizerTwoSided;

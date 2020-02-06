@@ -13,6 +13,15 @@ namespace MyDirectX
 	class Model;
 	class GraphicsContext;
 
+	enum class ObjectFilter
+	{
+		kNone = 0x0,
+		kOpaque = 0x1,
+		kCutout = 0x2,
+		kTransparent = 0x4,
+		kAll = 0xF,
+	};
+
 	class IGameApp
 	{
 	public:
@@ -55,6 +64,7 @@ namespace MyDirectX
 #pragma region Hello, Triangle
 		virtual void InitPipelineStates();
 		virtual void InitGeometryBuffers();
+		virtual void InitCustom();
 		
 		virtual void CustomUI(GraphicsContext &context);
 
@@ -68,6 +78,9 @@ namespace MyDirectX
 		UINT m_Width;
 		UINT m_Height;
 		const wchar_t* m_Title;
+
+		D3D12_VIEWPORT m_MainViewport;
+		D3D12_RECT m_MainScissor;
 	};
 }
 

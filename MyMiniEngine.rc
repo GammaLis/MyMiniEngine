@@ -27,7 +27,7 @@ LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED
 
 1 TEXTINCLUDE 
 BEGIN
-    "resource.h\0"
+    "resource1.h\0"
 END
 
 2 TEXTINCLUDE 
@@ -52,7 +52,7 @@ END
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_ICON1               ICON                    "F:\\DX12\\Introduction to 3D Game Programming with DirectX12\\Common\\hinata.ico"
+IDI_ICON1               ICON                    "hinata.ico"
 
 #endif    // 中文(简体，中国) resources
 /////////////////////////////////////////////////////////////////////////////

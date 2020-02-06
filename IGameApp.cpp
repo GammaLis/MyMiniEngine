@@ -168,6 +168,8 @@ void IGameApp::InitAssets()
 	InitPipelineStates();
 
 	InitGeometryBuffers();
+
+	InitCustom();
 }
 
 void IGameApp::CalculateFrameStats()
@@ -204,6 +206,10 @@ void IGameApp::CalculateFrameStats()
 void IGameApp::InitGeometryBuffers()
 {
 	m_Model->Create(Graphics::s_Device);
+}
+
+void IGameApp::InitCustom()
+{
 }
 
 void IGameApp::CustomUI(GraphicsContext &context)

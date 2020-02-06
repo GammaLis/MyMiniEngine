@@ -303,6 +303,11 @@ void CommonStates::InitCommonStates(ID3D12Device* pDevice)
 			RasterizerDefaultMsaa = RasterizerDefault;
 			RasterizerDefaultMsaa.MultisampleEnable = TRUE;
 		}
+		// RasterizerDefaultWireframe
+		{
+			RasterizerDefaultWireframe = RasterizerDefault;
+			RasterizerDefaultWireframe.FillMode = D3D12_FILL_MODE_WIREFRAME;
+		}
 		// RasterizerDefaultCw
 		{
 			RasterizerDefaultCw = RasterizerDefault;
@@ -399,7 +404,7 @@ void CommonStates::InitCommonStates(ID3D12Device* pDevice)
 		DepthStateReadWrite = DepthStateDisabled;
 		DepthStateReadWrite.DepthEnable = TRUE;
 		DepthStateReadWrite.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;	// reversed-Z
-		DepthStateReadWrite.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+		DepthStateReadWrite.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 
 		// DepthStateReadOnly
 		DepthStateReadOnly = DepthStateReadWrite;

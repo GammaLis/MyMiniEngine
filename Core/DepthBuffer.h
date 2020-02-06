@@ -6,7 +6,8 @@ namespace MyDirectX
 	class DepthBuffer : public PixelBuffer
 	{
 	public:
-		DepthBuffer(float clearDepth = 1.0f, uint8_t clearStencil = 0)
+		// reversed-Z: near - 1.0f, far - 0.0f
+		DepthBuffer(float clearDepth = 0.0f, uint8_t clearStencil = 0)
 			: m_ClearDepth(clearDepth), m_ClearStencil(clearStencil)
 		{
 			m_hDSV[0].ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
