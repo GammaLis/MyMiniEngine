@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "RootSignature.h"
 #include "PipelineState.h"
+#include "GpuBuffer.h"
 
 #define MINI_ENGINE
 
@@ -71,7 +72,9 @@ namespace MyDirectX
 		void RenderTriangle();
 
 		RootSignature m_EmptyRS;
+		RootSignature m_BasicTriangleRS;
 		GraphicsPSO m_BasicTrianglePSO;
+		StructuredBuffer m_ConstantBuffer;
 #pragma endregion
 
 	protected:

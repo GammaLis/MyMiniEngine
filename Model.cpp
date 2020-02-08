@@ -20,8 +20,11 @@ namespace MyDirectX
 	using namespace DirectX::PackedVector;
 
 	// 去除扩展名
-	inline std::string RemoveExt(const char* str)
+	inline std::string ModifyFilePath(const char* str)
 	{
+		if (*str == '\0')
+			return std::string();
+
 		const uint32_t Size = 256;
 		char path[Size] = "Models/";
 
@@ -33,6 +36,9 @@ namespace MyDirectX
 			++pStart;
 
 		strncat_s(path, pStart, Size - 1);
+		
+		// 加载DDS图片需要
+		// 删除文件扩展名
 		char* pch = strrchr(path, '.');
 		while (pch != nullptr && *pch != 0) *(pch++) = 0;
 
@@ -48,6 +54,7 @@ namespace MyDirectX
 	{
 		XMFLOAT3 position;
 		XMCOLOR color;
+		XMFLOAT2 uv;
 	};
 
 	Model::Model()
@@ -97,11 +104,12 @@ namespace MyDirectX
 
 	void Model::Create(ID3D12Device* pDevice)
 	{
+		// vertex buffer & index buffer
 		Vertex vertices[] =
 		{
-			Vertex{XMFLOAT3( .0f, +.6f, 0.f), XMCOLOR(1.0f ,0.0f, 0.0f, 1.0f)},
-			Vertex{XMFLOAT3(-.6f, -.6f, 0.f), XMCOLOR(0.0f, 1.0f, 0.0f, 1.0f)},
-			Vertex{XMFLOAT3(+.6f, -.6f, 0.f), XMCOLOR(0.0f, 0.0f, 1.0f, 1.0f)},
+			Vertex{XMFLOAT3( .0f, +.6f, 0.f), XMCOLOR(1.0f ,0.0f, 0.0f, 1.0f), XMFLOAT2(0.5f, 0.0f)},
+			Vertex{XMFLOAT3(-.6f, -.6f, 0.f), XMCOLOR(0.0f, 1.0f, 0.0f, 1.0f), XMFLOAT2(0.0f, 1.0f)},
+			Vertex{XMFLOAT3(+.6f, -.6f, 0.f), XMCOLOR(0.0f, 0.0f, 1.0f, 1.0f), XMFLOAT2(1.0f, 1.0f)},
 		};
 
 		uint16_t indices[] = { 0, 1, 2 };
@@ -117,6 +125,13 @@ namespace MyDirectX
 
 		m_VertexBuffer.Create(pDevice, L"VertexBuffer", vertexCount, vertexStride, &vertices);
 		m_IndexBuffer.Create(pDevice, L"IndexBuffer", indexCount, indexStride, &indices);
+
+		// textures
+		const ManagedTexture* defaultTex = Graphics::s_TextureManager.LoadBySTB_IMAGE(pDevice, L"Default_Anim.PNG");
+		if (defaultTex->IsValid())
+		{
+			m_DefaultSRV = defaultTex->GetSRV();
+		}
 	}
 
 	void Model::CreateFromAssimp(ID3D12Device* pDevice, const std::string& fileName)
@@ -137,7 +152,11 @@ namespace MyDirectX
 
 			// textures
 			{
-				// LoadTextures(pDevice);
+				// 默认加载DDS图片,需要删去图片路径扩展名
+				LoadTextures(pDevice);
+				
+				// 采用stb_image加载图片（默认png格式） 
+				// LoadTexturesBySTB_IMAGE(pDevice);
 			}
 		}
 	}
@@ -239,12 +258,12 @@ namespace MyDirectX
 				dstMat->specularStrength = specularStrength;
 
 				// texture path
-				dstMat->texDiffusePath = RemoveExt(texDiffusePath.C_Str());
-				dstMat->texSpecularPath = RemoveExt(texSpecularPath.C_Str());
-				dstMat->texNormalPath = RemoveExt(texNormalPath.C_Str());
-				dstMat->texEmissivePath = RemoveExt(texEmissivePath.C_Str());
-				dstMat->texLightmapPath = RemoveExt(texLightmapPath.C_Str());
-				dstMat->texReflectionPath = RemoveExt(texReflectionPath.C_Str());
+				dstMat->texDiffusePath = ModifyFilePath(texDiffusePath.C_Str());
+				dstMat->texSpecularPath = ModifyFilePath(texSpecularPath.C_Str());
+				dstMat->texNormalPath = ModifyFilePath(texNormalPath.C_Str());
+				dstMat->texEmissivePath = ModifyFilePath(texEmissivePath.C_Str());
+				dstMat->texLightmapPath = ModifyFilePath(texLightmapPath.C_Str());
+				dstMat->texReflectionPath = ModifyFilePath(texReflectionPath.C_Str());
 
 				aiString matName;
 				srcMat->Get(AI_MATKEY_NAME, matName);
@@ -585,6 +604,71 @@ namespace MyDirectX
 
 			// load reflection
 			// matTextures[5] = Graphics::s_TextureManager.LoadFromFile(pDevice, mat.texReflectionPath, true);
+
+			m_SRVs[materialIdx * 6 + 0] = matTextures[0]->GetSRV();
+			m_SRVs[materialIdx * 6 + 1] = matTextures[1]->GetSRV();
+			m_SRVs[materialIdx * 6 + 2] = matTextures[2]->GetSRV();
+			m_SRVs[materialIdx * 6 + 3] = matTextures[0]->GetSRV();
+			m_SRVs[materialIdx * 6 + 4] = matTextures[0]->GetSRV();
+			m_SRVs[materialIdx * 6 + 5] = matTextures[0]->GetSRV();
+		}
+	}
+	void Model::LoadTexturesBySTB_IMAGE(ID3D12Device* pDevice)
+	{
+		ReleaseTextures();
+
+		m_SRVs = new D3D12_CPU_DESCRIPTOR_HANDLE[m_MaterialCount * 6];
+
+		const ManagedTexture* matTextures[6] = {};
+
+		for (unsigned int materialIdx = 0; materialIdx < m_MaterialCount; ++materialIdx)
+		{
+			const Material& mat = m_pMaterial[materialIdx];
+
+			// load diffuse
+			bool bValid = !mat.texDiffusePath.empty();
+			if (bValid)
+			{
+				matTextures[0] = Graphics::s_TextureManager.LoadBySTB_IMAGE(pDevice, mat.texDiffusePath, true);
+				bValid = matTextures[0]->IsValid();
+			}
+			if (!bValid)
+			{
+				matTextures[0] = Graphics::s_TextureManager.LoadBySTB_IMAGE(pDevice, "default.PNG", true);
+			}
+
+			// load specular
+			bValid = !mat.texDiffusePath.empty();
+			if (bValid)
+			{
+				matTextures[1] = Graphics::s_TextureManager.LoadBySTB_IMAGE(pDevice, mat.texSpecularPath, true);
+				bValid = matTextures[1]->IsValid();
+			}
+			if (!bValid)
+			{
+				matTextures[1] = Graphics::s_TextureManager.LoadBySTB_IMAGE(pDevice, "default_specular.PNG", true);
+			}
+
+			// load normal
+			bValid = !mat.texNormalPath.empty();
+			if (bValid)
+			{
+				matTextures[2] = Graphics::s_TextureManager.LoadBySTB_IMAGE(pDevice, mat.texNormalPath, false);
+				bValid = matTextures[2]->IsValid();
+			}
+			if (!bValid)
+			{
+				matTextures[2] = Graphics::s_TextureManager.LoadBySTB_IMAGE(pDevice, "default_normal.PNG", false);
+			}
+
+			// load emissive
+			// matTextures[3] = Graphics::s_TextureManager.LoadBySTB_IMAGE(pDevice, mat.texEmissivePath, true);
+
+			// load lightmap
+			// matTextures[4] = Graphics::s_TextureManager.LoadBySTB_IMAGE(pDevice, mat.texLightmapPath, true);
+
+			// load reflection
+			// matTextures[5] = Graphics::s_TextureManager.LoadBySTB_IMAGE(pDevice, mat.texReflectionPath, true);
 
 			m_SRVs[materialIdx * 6 + 0] = matTextures[0]->GetSRV();
 			m_SRVs[materialIdx * 6 + 1] = matTextures[1]->GetSRV();

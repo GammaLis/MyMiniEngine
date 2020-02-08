@@ -5,6 +5,9 @@
 #include "../FileUtility.h"
 #include <thread>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 namespace MyDirectX
 {
 
@@ -156,6 +159,31 @@ namespace MyDirectX
 		Create(pDevice, header.pitch, header.width, header.height, header.format, (uint8_t*)memBuffer + sizeof(Header));
 	}
 
+	void Texture::CreateTexBySTB_IMAGE(ID3D12Device* pDevice, const void* memBuffer, size_t fileSize, bool sRGB)
+	{
+		int width, height, nChannels;
+		stbi_uc* data = stbi_load_from_memory((const stbi_uc*)memBuffer, fileSize, &width, &height, &nChannels, 0);
+		if (data)
+		{
+			DXGI_FORMAT format;
+			switch (nChannels)
+			{
+			case 1:
+				format = DXGI_FORMAT_R8_UNORM;
+				break;
+			case 2:
+				format = DXGI_FORMAT_R8G8_UNORM;
+				break;
+			case 4:
+			default:
+				format = sRGB ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM;
+				break;
+			}
+			Create(pDevice, width, height, format, data);
+		}
+		stbi_image_free(data);
+	}
+
 	// ManagedTexture
 	void ManagedTexture::WaitForLoad() const
 	{
@@ -287,7 +315,64 @@ namespace MyDirectX
 		else
 			tex->SetToInvalidTexture();
 
-		return nullptr;
+		return tex;
+	}
+
+	const ManagedTexture* TextureManager::LoadBySTB_IMAGE(ID3D12Device* pDevice, const std::wstring& fileName, bool sRGB)
+	{
+		auto managedTex = FindOrLoadTexture(fileName);
+
+		ManagedTexture* tex = managedTex.first;
+		const bool requestsLoad = managedTex.second;
+
+		if (!requestsLoad)
+		{
+			tex->WaitForLoad();
+			return tex;
+		}
+
+		// 直接使用stbi_load
+		/*std::wstring path = (m_RootPath + fileName);
+		size_t len = path.size() + 1;
+		char* cpath = (char*)_malloca(len);
+		size_t r;
+		wcstombs_s(&r, cpath, len, path.c_str(), len);
+		int x, y, n;
+		auto data = stbi_load(cpath, &x, &y, &n, 0);
+		if (data)
+		{
+			DXGI_FORMAT format;
+			switch (n)
+			{
+			case 1:
+				format = DXGI_FORMAT_R8_UNORM;
+				break;
+			case 2:
+				format = DXGI_FORMAT_R8G8_UNORM;
+				break;
+			case 4:
+			default:
+				format = sRGB ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM;
+				break;
+			}
+			tex->Create(pDevice, x, y, format, data);
+			tex->GetResource()->SetName(fileName.c_str());
+		}
+		else
+			tex->SetToInvalidTexture();
+		stbi_image_free(data);*/
+		// 
+
+		Utility::ByteArray ba = Utility::ReadFileSync(m_RootPath + fileName);
+		if (ba->size() > 0)
+		{
+			tex->CreateTexBySTB_IMAGE(pDevice, ba->data(), ba->size(), sRGB);
+			tex->GetResource()->SetName(fileName.c_str());
+		}
+		else
+			tex->SetToInvalidTexture();
+
+		return tex;
 	}
 
 	// -mf

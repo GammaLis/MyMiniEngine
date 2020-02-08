@@ -110,29 +110,29 @@ float3 main(VSOutput i) : SV_TARGET
 
 	float3 colorSum = float3(0.0, 0.0, 0.0);
 
-	// float3 diffuseAlbedo = _TexDiffuse.Sample(s_DefaultSampler, i.uv);
+	float3 diffuseAlbedo = _TexDiffuse.Sample(s_DefaultSampler, i.uv);
 
-	// // ao
-	// {
-	// 	colorSum += diffuseAlbedo;
-	// }
+	// ao
+	{
+		colorSum += diffuseAlbedo;
+	}
 
-	// float gloss = 128.0f;
-	// float3 normal;
-	// {
-	// 	normal = _TexNormal.Sample(s_DefaultSampler, i.uv) * 2.0 - 1.0;
-	// 	AntiAliasSpecular(normal, gloss);
-	// 	float3x3 tbn = float3x3(normalize(i.tangent), normalize(i.bitangent), normalize(i.normal));
-	// 	normal = normalize(mul(normal, tbn));
-	// }
+	float gloss = 128.0f;
+	float3 normal;
+	{
+		normal = _TexNormal.Sample(s_DefaultSampler, i.uv) * 2.0 - 1.0;
+		AntiAliasSpecular(normal, gloss);
+		float3x3 tbn = float3x3(normalize(i.tangent), normalize(i.bitangent), normalize(i.normal));
+		normal = normalize(mul(normal, tbn));
+	}
 
-	// float3 specularAlbedo = float3(0.56, 0.56, 0.56);
-	// float specularMask = _TexSpecular.Sample(s_DefaultSampler, i.uv).g;
-	// float3 viewDir = normalize(i.viewDir);
-	// // 暂时空置shadow coord
-	// float3 shadowCoord = 0.0;
-	// colorSum += ApplyDirectionalLight(diffuseAlbedo, specularAlbedo, 
-	// 	specularMask, gloss, normal, viewDir, _SunDirection, _SunColor, shadowCoord);
+	float3 specularAlbedo = float3(0.56, 0.56, 0.56);
+	float specularMask = _TexSpecular.Sample(s_DefaultSampler, i.uv).g;
+	float3 viewDir = normalize(i.viewDir);
+	// 暂时空置shadow coord
+	float3 shadowCoord = 0.0;
+	colorSum += ApplyDirectionalLight(diffuseAlbedo, specularAlbedo, 
+		specularMask, gloss, normal, viewDir, _SunDirection, _SunColor, shadowCoord);
 
 	return colorSum;
 }

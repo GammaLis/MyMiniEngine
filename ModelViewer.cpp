@@ -126,7 +126,7 @@ void ModelViewer::InitPipelineStates()
 	m_DepthPSO.SetInputLayout(_countof(inputElements), inputElements);
 	m_DepthPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 	m_DepthPSO.SetVertexShader(CD3DX12_SHADER_BYTECODE(ModelViewerVS, sizeof(ModelViewerVS)));
-	m_DepthPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerDefaultWireframe);	// RasterizerDefault
+	m_DepthPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerDefault);	// RasterizerDefault RasterizerDefaultWireframe
 	m_DepthPSO.SetBlendState(Graphics::s_CommonStates.BlendNoColorWrite);
 	m_DepthPSO.SetDepthStencilState(Graphics::s_CommonStates.DepthStateReadWrite);
 	m_DepthPSO.SetRenderTargetFormats(0, nullptr, depthFormat);
@@ -187,7 +187,7 @@ void ModelViewer::RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4
 
 			curMatIdx = mesh.materialIndex;
 			// 暂时不用纹理
-			// gfxContext.SetDynamicDescriptors(3, 0, 6, m_Model->GetSRVs(curMatIdx));
+			gfxContext.SetDynamicDescriptors(3, 0, 6, m_Model->GetSRVs(curMatIdx));
 		}
 
 		gfxContext.SetConstants(2, vertexOffset, curMatIdx);

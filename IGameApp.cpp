@@ -3,6 +3,7 @@
 #include "Graphics.h"
 #include "CommandContext.h"
 #include "TextRenderer.h"	// TextContext
+#include "TextureManager.h"	// Graphics::s_TextureManager
 #include "GpuBuffer.h"
 #include "GameTimer.h"
 #include "Model.h"
@@ -13,6 +14,11 @@
 #pragma comment(lib, "dxgi.lib")
 
 using namespace MyDirectX;
+
+struct ConstantBuffer
+{
+	XMFLOAT3 _Color;
+};
 
 IGameApp* IGameApp::m_App = nullptr;
 
@@ -205,11 +211,17 @@ void IGameApp::CalculateFrameStats()
 // 
 void IGameApp::InitGeometryBuffers()
 {
+	Graphics::s_TextureManager.Init(L"Textures/");
 	m_Model->Create(Graphics::s_Device);
+
+	ConstantBuffer constantBuffer;
+	constantBuffer._Color = XMFLOAT3(0.6f, 0.6f, 0.6f);
+	m_ConstantBuffer.Create(Graphics::s_Device, L"ConstantBuffer", 1, sizeof(constantBuffer), &constantBuffer);
 }
 
 void IGameApp::InitCustom()
 {
+
 }
 
 void IGameApp::CustomUI(GraphicsContext &context)
@@ -226,7 +238,15 @@ void IGameApp::CustomUI(GraphicsContext &context)
 
 void IGameApp::InitPipelineStates()
 {
+	// 1.empty root signature
 	m_EmptyRS.Finalize(Graphics::s_Device, L"EmptyRootSignature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+	// 2.basic triangle root signature
+	m_BasicTriangleRS.Reset(2, 1);
+	m_BasicTriangleRS[0].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_PIXEL);
+	m_BasicTriangleRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+	m_BasicTriangleRS.InitStaticSampler(0, Graphics::s_CommonStates.SamplerLinearWrapDesc, D3D12_SHADER_VISIBILITY_PIXEL);
+	m_BasicTriangleRS.Finalize(Graphics::s_Device, L"BasicTriangleRS", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	const auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 	// 或者 直接画到 backbuffer
@@ -239,6 +259,7 @@ void IGameApp::InitPipelineStates()
 	{
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
 		{"COLOR", 0, DXGI_FORMAT_B8G8R8A8_UNORM, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
+		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
 
 		// DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_FORMAT_R10G10B10A2_UNORM
 		// 测试不同格式，
@@ -247,7 +268,7 @@ void IGameApp::InitPipelineStates()
 		// DXGI_FORMAT_R32G32B32A32_FLOAT	对应 XMFLOAT4
 	};
 
-	m_BasicTrianglePSO.SetRootSignature(m_EmptyRS);
+	m_BasicTrianglePSO.SetRootSignature(m_BasicTriangleRS);	// m_EmptyRS
 	m_BasicTrianglePSO.SetInputLayout(_countof(basicInputElements), basicInputElements);
 	m_BasicTrianglePSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 	m_BasicTrianglePSO.SetVertexShader(Graphics::s_ShaderManager.m_BasicTriangleVS);
@@ -274,7 +295,7 @@ void IGameApp::RenderTriangle()
 	// 这里需要 flushImmediate，ClearRenderTargetView 需要rt处于D3D12_RESOURCE_STATE_RENDER_TARGET状态
 	gfxContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 
-	gfxContext.SetRootSignature(m_EmptyRS);
+	gfxContext.SetRootSignature(m_BasicTriangleRS);	// m_EmptyRS
 	gfxContext.SetPipelineState(m_BasicTrianglePSO);
 	gfxContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -289,8 +310,15 @@ void IGameApp::RenderTriangle()
 		colorBuffer.GetRTV()
 	};
 	gfxContext.SetRenderTargets(_countof(rtvs), rtvs);
-
 	gfxContext.SetViewportAndScissor(0, 0, bufferWidth, bufferHeight);
+
+	// 对应 m_BasicTriangleRS，b0,t0, 如果使用m_EmptyRS，注释以下
+	gfxContext.SetConstantBuffer(0, m_ConstantBuffer.GetGpuVirtualAddress());
+	// 不用SetDescriptorTable，需要首先手动设置SetDescriptorHeap，而这个由CommandContext管理比较好
+	// gfxContext.SetDescriptorHeap()
+	// gfxContext.SetDescriptorTable()
+	// 使用SetDynamicDescriptor更加方便
+	gfxContext.SetDynamicDescriptor(1, 0, m_Model->GetDefaultSRV());
 
 	auto vertexBufferView = m_Model->m_VertexBuffer.VertexBufferView();
 	gfxContext.SetVertexBuffer(0, vertexBufferView);

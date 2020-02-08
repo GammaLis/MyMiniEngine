@@ -55,6 +55,7 @@
     <ClInclude Include="Core\Math\Scalar.h" />
     <ClInclude Include="Core\Math\Transform.h" />
     <ClInclude Include="Core\Math\Vector.h" />
+    <ClInclude Include="Core\stb_image.h" />
     <ClInclude Include="Core\Utility.h" />
     <ClInclude Include="Core\VectorMath.h" />
     <ClInclude Include="Core\PipelineState.h" />

@@ -155,6 +155,11 @@ namespace MyDirectX
 			return m_SRVs + materialIdx * 6;
 		}
 
+		D3D12_CPU_DESCRIPTOR_HANDLE GetDefaultSRV() const
+		{
+			return m_DefaultSRV;
+		}
+
 	protected:
 
 		virtual bool LoadFromAssimp(const std::string &fileName);
@@ -166,8 +171,10 @@ namespace MyDirectX
 
 		void ReleaseTextures();
 		void LoadTextures(ID3D12Device *pDevice);
+		void LoadTexturesBySTB_IMAGE(ID3D12Device* pDevice);
 
 		D3D12_CPU_DESCRIPTOR_HANDLE* m_SRVs;
+		D3D12_CPU_DESCRIPTOR_HANDLE m_DefaultSRV;
 
 	};
 

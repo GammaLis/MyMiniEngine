@@ -16,7 +16,7 @@ namespace MyDirectX
 
 		// create a 1-level 2D texture
 		void Create(ID3D12Device *pDevice, size_t pitch, size_t width, size_t height, DXGI_FORMAT format, const void* pInitData);
-		void Create(ID3D12Device* pDevice, size_t width, size_t height, DXGI_FORMAT format, const void* pInitData)
+		void Create(ID3D12Device *pDevice, size_t width, size_t height, DXGI_FORMAT format, const void* pInitData)
 		{
 			Create(pDevice, width, width, height, format, pInitData);
 		}
@@ -24,6 +24,7 @@ namespace MyDirectX
 		void CreateTGAFromMemory(ID3D12Device *pDevice, const void* memBuffer, size_t fileSize, bool sRGB);
 		bool CreateDDSFromMemory(ID3D12Device* pDevice, const void* memBuffer, size_t fileSize, bool sRGB);
 		void CreatePIXImageFromMemory(ID3D12Device* pDevice, const void* memBuffer, size_t fileSize);
+		void CreateTexBySTB_IMAGE(ID3D12Device* pDevice, const void* memBuffer, size_t fileSize, bool sRGB);
 
 		virtual void Destroy() override
 		{
@@ -70,10 +71,16 @@ namespace MyDirectX
 		const ManagedTexture* LoadDDSFromFile(ID3D12Device* pDevice, const std::wstring& fileName, bool sRGB = false);
 		const ManagedTexture* LoadTGAFromFile(ID3D12Device* pDevice, const std::wstring& fileName, bool sRGB = false);
 		const ManagedTexture* LoadPIXImageFromFile(ID3D12Device* pDevice, const std::wstring& fileName);
+		const ManagedTexture* LoadBySTB_IMAGE(ID3D12Device* pDevice, const std::wstring& fileName, bool sRGB = false);
 
 		const ManagedTexture* LoadFromFile(ID3D12Device* pDevice, const std::string& fileName, bool sRGB = false)
 		{
 			return LoadFromFile(pDevice, MakeWStr(fileName), sRGB);
+		}
+
+		const ManagedTexture* LoadBySTB_IMAGE(ID3D12Device* pDevice, const std::string& fileName, bool sRGB = false)
+		{
+			return LoadBySTB_IMAGE(pDevice, MakeWStr(fileName), sRGB);
 		}
 
 		const ManagedTexture* LoadDDSFromFile(ID3D12Device* pDevice, const std::string& fileName, bool sRGB = false)

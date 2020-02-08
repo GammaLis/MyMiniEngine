@@ -443,6 +443,13 @@ void CommandContext::PIXSetMarker(const wchar_t* label)
 #endif
 }
 
+/**
+	能够同时设置
+	D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV，
+	D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER，
+	2种
+	一般很少设置D3D12_DESCRIPTOR_HEAP_TYPE_RTV和D3D12_DESCRIPTOR_HEAP_TYPE_DSV（大概），-2020-2-7
+*/
 void CommandContext::BindDescriptorHeaps()
 {
 	UINT nonNullHeaps = 0;

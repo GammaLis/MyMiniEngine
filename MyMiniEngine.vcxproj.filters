@@ -202,6 +202,9 @@
     <ClInclude Include="ModelViewer.h">
       <Filter>Game</Filter>
     </ClInclude>
+    <ClInclude Include="Core\stb_image.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
