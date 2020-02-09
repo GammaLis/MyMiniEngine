@@ -31,8 +31,8 @@ VSOutput main(VSInput v)
 {
 	VSOutput o;
 
-	// o.position = mul(float4(v.position, 1.0), _ModelToProjection);
-	o.position = mul(_ModelToProjection, float4(v.position, 1.0));
+	o.position = mul(float4(v.position, 1.0), _ModelToProjection);
+	// o.position = mul(_ModelToProjection, float4(v.position, 1.0));
 	o.worldPos = v.position;
 	o.uv = v.uv;
 	o.viewDir = v.position - _CamPos;

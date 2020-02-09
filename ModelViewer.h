@@ -39,6 +39,7 @@ namespace MyDirectX
 		// root signature & PSOs
 		RootSignature m_RootSig;
 		GraphicsPSO m_DepthPSO;
+		GraphicsPSO m_CutoutDepthPSO;
 		GraphicsPSO m_ModelPSO;
 
 		Math::Vector3 m_SunDirection;

@@ -5,6 +5,8 @@
 #include "Model.h"
 
 // shaders
+#include "DepthViewerVS.h"
+#include "DepthViewerPS.h"
 #include "ModelViewerVS.h"
 #include "ModelViewerPS.h"
 
@@ -75,18 +77,63 @@ void ModelViewer::Render()
 
 	auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 	auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
-	gfxContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-	gfxContext.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
-	gfxContext.ClearColor(colorBuffer);
-	gfxContext.ClearDepth(depthBuffer);
-	gfxContext.SetRenderTarget(colorBuffer.GetRTV(), depthBuffer.GetDSV());	// GetDSV_DepthReadOnly
-	gfxContext.SetViewportAndScissor(m_MainViewport, m_MainScissor);
 
-	gfxContext.SetPipelineState(m_ModelPSO);
+	// z prepass
+	{
+		// opaque 
+		gfxContext.SetDynamicConstantBufferView(1, sizeof(psConstants), &psConstants);
 
-	gfxContext.SetDynamicConstantBufferView(1, sizeof(psConstants), &psConstants);
+		gfxContext.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
+		gfxContext.ClearDepth(depthBuffer);
 
-	RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kOpaque);
+		gfxContext.SetDepthStencilTarget(depthBuffer.GetDSV());
+		gfxContext.SetViewportAndScissor(m_MainViewport, m_MainScissor);
+
+		gfxContext.SetPipelineState(m_DepthPSO);
+		RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kOpaque);
+
+		// 暂时不用 -20-2-9
+		//// cutout
+		//gfxContext.SetPipelineState(m_CutoutDepthPSO);
+		//RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kCutout);
+	}
+
+	// main render
+	{
+		gfxContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+		gfxContext.ClearColor(colorBuffer);
+
+		// render shadow map
+
+		// render color
+		gfxContext.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+		
+		gfxContext.SetRenderTarget(colorBuffer.GetRTV(), depthBuffer.GetDSV_DepthReadOnly());
+		gfxContext.SetViewportAndScissor(m_MainViewport, m_MainScissor);
+
+		// ->opauqe
+		gfxContext.SetPipelineState(m_ModelPSO);
+		RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kOpaque);
+
+		// ->cutout
+		// ...
+	}
+	
+	//// 普通渲染顺序，不经z prepass
+	//{
+	//	gfxContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+	//	gfxContext.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
+	//	gfxContext.ClearColor(colorBuffer);
+	//	gfxContext.ClearDepth(depthBuffer);
+	//	gfxContext.SetRenderTarget(colorBuffer.GetRTV(), depthBuffer.GetDSV());	// GetDSV_DepthReadOnly
+	//	gfxContext.SetViewportAndScissor(m_MainViewport, m_MainScissor);
+
+	//	gfxContext.SetPipelineState(m_ModelPSO);
+
+	//	gfxContext.SetDynamicConstantBufferView(1, sizeof(psConstants), &psConstants);
+
+	//	RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kOpaque);
+	//}
 
 	gfxContext.Finish();
 }
@@ -122,22 +169,29 @@ void ModelViewer::InitPipelineStates()
 
 	// PSOs
 	// depth pso
+	// 只渲染深度，允许深度读写，不需PixelShader，不需颜色绘制
 	m_DepthPSO.SetRootSignature(m_RootSig);
 	m_DepthPSO.SetInputLayout(_countof(inputElements), inputElements);
 	m_DepthPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-	m_DepthPSO.SetVertexShader(CD3DX12_SHADER_BYTECODE(ModelViewerVS, sizeof(ModelViewerVS)));
+	m_DepthPSO.SetVertexShader(CD3DX12_SHADER_BYTECODE(DepthViewerVS, sizeof(DepthViewerVS)));
 	m_DepthPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerDefault);	// RasterizerDefault RasterizerDefaultWireframe
 	m_DepthPSO.SetBlendState(Graphics::s_CommonStates.BlendNoColorWrite);
 	m_DepthPSO.SetDepthStencilState(Graphics::s_CommonStates.DepthStateReadWrite);
 	m_DepthPSO.SetRenderTargetFormats(0, nullptr, depthFormat);
 	m_DepthPSO.Finalize(Graphics::s_Device);
 
+	// depth-only shading but with alpha-testing
+	m_CutoutDepthPSO = m_DepthPSO;
+	m_CutoutDepthPSO.SetPixelShader(CD3DX12_SHADER_BYTECODE(DepthViewerPS, sizeof(DepthViewerPS)));
+	m_CutoutDepthPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerTwoSided);
+	m_CutoutDepthPSO.Finalize(Graphics::s_Device);
+
 	// model viewer pso
 	m_ModelPSO = m_DepthPSO;
 	m_ModelPSO.SetVertexShader(CD3DX12_SHADER_BYTECODE(ModelViewerVS, sizeof(ModelViewerVS)));
 	m_ModelPSO.SetPixelShader(CD3DX12_SHADER_BYTECODE(ModelViewerPS, sizeof(ModelViewerPS)));
 	m_ModelPSO.SetBlendState(Graphics::s_CommonStates.BlendDisable);
-	// m_ModelPSO.SetDepthStencilState(Graphics::s_CommonStates.DepthStateTestEqual);
+	m_ModelPSO.SetDepthStencilState(Graphics::s_CommonStates.DepthStateTestEqual);
 	m_ModelPSO.SetRenderTargetFormats(1, &colorFormat, depthFormat);
 	m_ModelPSO.Finalize(Graphics::s_Device);
 }
@@ -162,8 +216,8 @@ void ModelViewer::InitCustom()
 void ModelViewer::RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4 viewProjMat, ObjectFilter filter)
 {
 	VSConstants vsConstants;
-	// vsConstants._ModelToProjection = Math::Transpose(viewProjMat);
-	vsConstants._ModelToProjection = (viewProjMat);
+	vsConstants._ModelToProjection = Math::Transpose(viewProjMat);	// HLSL - 对应 mul(float4(pos), mat)
+	// vsConstants._ModelToProjection = (viewProjMat);	// HLSL - 对应 mul(mat, float(pos))
 	XMStoreFloat3(&vsConstants._CamPos, m_Camera.GetPosition());
 
 	gfxContext.SetDynamicConstantBufferView(0, sizeof(vsConstants), &vsConstants);
