@@ -35,6 +35,9 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{96c2deb8-e87b-47ae-933f-3fa71f64759e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Effects">
+      <UniqueIdentifier>{26433081-57a6-496b-9791-66e6b2cd5c29}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\GpuResource.h">
@@ -205,6 +208,9 @@
     <ClInclude Include="Core\stb_image.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="Effects\ForwardPlusLighting.h">
+      <Filter>Effects</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -327,6 +333,9 @@
     <ClCompile Include="ModelViewer.cpp">
       <Filter>Game</Filter>
     </ClCompile>
+    <ClCompile Include="Effects\ForwardPlusLighting.cpp">
+      <Filter>Effects</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Core\Math\Functions.inl">
@@ -361,6 +370,12 @@
       <Filter>Core\Shaders\Misc</Filter>
     </None>
     <None Include="Shaders\ModelViewerRS.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\LightGrid.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\FillLightGridCS.hlsli">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
@@ -417,6 +432,18 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\DepthViewerPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\FillLightGridCS_8.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\FillLightGridCS_16.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\FillLightGridCS_24.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\FillLightGridCS_32.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

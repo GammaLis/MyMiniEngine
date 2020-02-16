@@ -137,6 +137,9 @@ void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferW
 	m_SceneColorBuffer.SetClearColor(Color(0.2f, 0.4f, 0.4f));
 	m_SceneDepthBuffer.Create(pDevice, L"Scene Depth Buffer", bufferWidth, bufferHeight, GfxStates::s_DefaultDSVFormat);
 
+	m_LinearDepth[0].Create(pDevice, L"Linear Depth 0", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16_UNORM);
+	m_LinearDepth[1].Create(pDevice, L"Linear Depth 1", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16_UNORM);
+
 	// UI overlay
 	m_OverlayBuffer.Create(pDevice, L"UI Overlay", GfxStates::s_DisplayWidth, GfxStates::s_DisplayHeight, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
 	m_OverlayBuffer.SetClearColor(Color(0.6f, 0.4f, 0.2f, 0.2f));
@@ -159,6 +162,9 @@ void BufferManager::DestroyRenderingBuffers()
 {
 	m_SceneColorBuffer.Destroy();
 	m_SceneDepthBuffer.Destroy();
+
+	m_LinearDepth[0].Destroy();
+	m_LinearDepth[1].Destroy();
 
 	// UI overlay
 	m_OverlayBuffer.Destroy();

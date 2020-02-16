@@ -41,6 +41,23 @@ namespace Math
             return std::uniform_int_distribution<int32_t>(MinVal, MaxVal)(m_gen);
         }
 
+        // my adding -20-2-11
+        // random uint32_t
+        uint32_t NextUint()
+        {
+            return std::uniform_int_distribution<uint32_t>()(m_gen);
+        }
+
+        uint32_t NextUint(uint32_t MaxVal)
+        {
+            return std::uniform_int_distribution<uint32_t>(0, MaxVal)(m_gen);
+        }
+
+        uint32_t NextUint(uint32_t MinVal, uint32_t MaxVal)
+        {
+            return std::uniform_int_distribution<uint32_t>(MinVal, MaxVal)(m_gen);
+        }
+
         // Default float range is [0.0f, 1.0f).  Max value is excluded.
         float NextFloat( float MaxVal = 1.0f )
         {

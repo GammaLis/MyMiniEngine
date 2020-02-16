@@ -3,6 +3,7 @@
 #include "CommandContext.h"
 #include "TextureManager.h"
 #include "Model.h"
+#include "Effects.h"
 
 // shaders
 #include "DepthViewerVS.h"
@@ -211,6 +212,9 @@ void ModelViewer::InitCustom()
 	m_Camera.SetEyeAtUp(eye, Math::Vector3(Math::kZero), Math::Vector3(Math::kYUnitVector));
 	m_Camera.SetZRange(1.0f, 10000.0f);
 	m_Camera.Update();
+
+	// effects
+
 }
 
 void ModelViewer::RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4 viewProjMat, ObjectFilter filter)

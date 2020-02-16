@@ -75,6 +75,7 @@ namespace MyDirectX
 		ColorBuffer m_HorizontalBuffer;		// for separable (bicubic) upsampling
 
 		// ...
+		ColorBuffer m_LinearDepth[2];
 
 	};
 

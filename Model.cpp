@@ -241,6 +241,12 @@ namespace MyDirectX
 				srcMat->Get(AI_MATKEY_SHININESS, shininess);
 				srcMat->Get(AI_MATKEY_SHININESS_STRENGTH, specularStrength);
 
+				// my test
+				float transparencyFactor = 0.0f;
+				srcMat->Get(AI_MATKEY_TRANSPARENCYFACTOR, transparencyFactor);
+
+				// test end
+
 				srcMat->Get(AI_MATKEY_TEXTURE(aiTextureType_DIFFUSE, 0), texDiffusePath);
 				srcMat->Get(AI_MATKEY_TEXTURE(aiTextureType_SPECULAR, 0), texSpecularPath);
 				srcMat->Get(AI_MATKEY_TEXTURE(aiTextureType_NORMALS, 0), texNormalPath);
