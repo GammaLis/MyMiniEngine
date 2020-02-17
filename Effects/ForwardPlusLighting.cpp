@@ -22,7 +22,8 @@ namespace MyDirectX
 		float _InvTileDim;
 		float _RcpZMagic;
 		uint32_t _TileCount;
-		Matrix4 _ViewProjMat;
+		//uint32_t _Padding[3];	// Matrix4 已经128位(16字节)对齐，不用补齐 -20-2-17
+		Matrix4 _ViewProjMat; 
 	};
 
 	void ForwardPlusLighting::Init(ID3D12Device* pDevice)
@@ -101,7 +102,7 @@ namespace MyDirectX
 				return y2;
 			}
 		};
-		auto randVecGaussian = [randGaussian]() -> Vector3
+		auto randVecGaussian = [&randGaussian]() -> Vector3
 		{
 			return Normalize(Vector3(randGaussian(), randGaussian(), randGaussian()));
 		};
@@ -109,7 +110,7 @@ namespace MyDirectX
 		for (uint32_t n = 0; n < MaxLights; ++n)
 		{
 			Vector3 pos = randVecUniform() * posScale + posBias;
-			float lightRadius = rng.NextFloat() * 800.0f * 200.0f;
+			float lightRadius = rng.NextFloat() * 800.0f + 200.0f;
 
 			Vector3 color = randVecUniform();
 			float colorScale = rng.NextFloat() * 0.3f + 0.3f;
@@ -117,6 +118,7 @@ namespace MyDirectX
 
 			uint32_t type;
 			// force types to match 32-bit boundaries for the BIT_MASK_SORTED case
+			// 0->31: type 0, 32->32*3-1: type 1, 32*3->+MaxLights: type 2 
 			if (n < 32 * 1)
 				type = 0;
 			else if (n < 32 * 3)
@@ -125,7 +127,7 @@ namespace MyDirectX
 				type = 2;
 
 			Vector3 coneDir = randVecGaussian();
-			float coneInner = (rng.NextFloat() * 0.2f * 0.025f) * Math::Pi;
+			float coneInner = (rng.NextFloat() * 0.2f + 0.025f) * Math::Pi;
 			float coneOuter = coneInner + rng.NextFloat() * 0.1f * Math::Pi;
 
 			if (type == 1 || type == 2)
@@ -134,6 +136,7 @@ namespace MyDirectX
 				color = color * 5.0f;
 			}
 
+			// 暂时没有用到 -20-2-17
 			Camera shadowCamera;
 			shadowCamera.SetEyeAtUp(pos, pos + coneDir, Vector3(0, 1, 0));
 			shadowCamera.SetPerspectiveMatrix(coneOuter * 2, 1.0f, lightRadius * 0.05f, lightRadius * 1.0f);
@@ -168,7 +171,7 @@ namespace MyDirectX
 		uint32_t lightGridSizeBytes = lightGridCells * (4 + MaxLights * 4);
 		m_LightGrid.Create(pDevice, L"m_LightGrid", lightGridSizeBytes, 1, nullptr);
 
-		uint32_t lightGridBitMaskSizeBytes = lightGridCells * 4 * 4;
+		uint32_t lightGridBitMaskSizeBytes = lightGridCells * 4 * 4;	// 4 uints
 		m_LightGridBitMask.Create(pDevice, L"m_LightGridBitMask", lightGridBitMaskSizeBytes, 1, nullptr);
 	}
 
@@ -197,10 +200,13 @@ namespace MyDirectX
 		context.TransitionResource(m_LightGrid, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		context.TransitionResource(m_LightGridBitMask, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
+		// rootIndex 1 - 2 SRVs
 		context.SetDynamicDescriptor(1, 0, m_LightBuffer.GetSRV());
-		context.SetDynamicDescriptor(1, 1, linearDepth.GetSRV());
-		// context.SetDynamicDescriptor(1, 1, depthBuffer.GetDepthSRV());
+		// 目前 没有实现LinearDepth -20-2-17
+		// context.SetDynamicDescriptor(1, 1, linearDepth.GetSRV());
+		context.SetDynamicDescriptor(1, 1, depthBuffer.GetDepthSRV());
 
+		// rootIndex 2 - 2 UAVs
 		context.SetDynamicDescriptor(2, 0, m_LightGrid.GetUAV());
 		context.SetDynamicDescriptor(2, 1, m_LightGridBitMask.GetUAV());
 
@@ -213,13 +219,15 @@ namespace MyDirectX
 		const float rcpZMagic = nearClipDist / (farClipDist - nearClipDist);
 
 		CSConstants csConstants;
+		const auto* p = &csConstants;
 		csConstants._ViewportWidth = colorBuffer.GetWidth();
 		csConstants._ViewportHeight = colorBuffer.GetHeight();
 		csConstants._InvTileDim = 1.0f / m_LightGridDim;
 		csConstants._RcpZMagic = rcpZMagic;
 		csConstants._TileCount = tileCountX;
-		csConstants._ViewProjMat = camera.GetViewProjMatrix();
+		csConstants._ViewProjMat = Math::Transpose(camera.GetViewProjMatrix());
 
+		// rootIndex 0 - 1 CBV
 		context.SetDynamicConstantBufferView(0, sizeof(csConstants), &csConstants);
 
 		context.Dispatch(tileCountX, tileCountY, 1);

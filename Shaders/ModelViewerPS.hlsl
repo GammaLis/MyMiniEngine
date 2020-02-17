@@ -1,4 +1,5 @@
 #include "ModelViewerRS.hlsli"
+#include "LightGrid.hlsli"
 
 // outdated warning about for-loop variable scope
 #pragma warning (disable: 3078)
@@ -10,7 +11,11 @@ cbuffer PSConstants	: register(b0)
 	float3 _SunDirection;
 	float3 _SunColor;
 	float3 _AmbientColor;
-}
+
+	float4 _InvTileDim;
+	uint4 _TileCount;
+	uint4 _FirstLightIndex;
+};
 
 Texture2D<float3> _TexDiffuse	: register(t0);
 Texture2D<float3> _TexSpecular 	: register(t1);
@@ -21,6 +26,11 @@ Texture2D<float3> _TexNormal 	: register(t2);
 
 Texture2D<float> _TexSSAO 	: register(t64);
 Texture2D<float> _TexShadow : register(t65);
+
+// light
+StructuredBuffer<LightData> _LightBuffer: register(t66);
+ByteAddressBuffer _LightGrid			: register(t67);
+ByteAddressBuffer _LightGridBitMask		: register(t68);
 
 SamplerState s_DefaultSampler			: register(s0);
 SamplerComparisonState s_ShadowSampler	: register(s1);
@@ -58,6 +68,14 @@ void FSchlick(inout float3 specular, inout float3 diffuse, float3 lightDir, floa
 	float fresnel = pow(1.0 - saturate(dot(lightDir, halfVec)), 5.0);
 	specular = lerp(specular, 1, fresnel);
 	diffuse = lerp(diffuse, 0, fresnel);
+}
+
+// diffuse - Diffuse albedo
+// ao - Pre-computed ambient-occlusion
+// lightColor - Radiance of ambient light
+float3 ApplyAmbientLight(float3 diffuse, float ao, float3 lightColor)
+{
+	return ao * diffuse * lightColor;
 }
 
 float3 ApplyLightCommon(
@@ -103,10 +121,119 @@ float3 ApplyDirectionalLight(
 		specularMask, gloss, normal, viewDir, lightDir, lightColor);
 }
 
+float3 ApplyPointLight(
+	float3 diffuseColor,	// Diffuse albedo
+	float3 specularColor,	// Specular albedo
+	float specularMask, 	// Where is it shiny or dingy?
+	float gloss,			// Specular power
+	float3 normal,			// World-space normal
+	float3 viewDir,			// World-space vector from eye to point
+	float3 worldPos,		// World-space fragment position
+	float3 lightPos,		// World-space light position
+	float lightRadiusSq,	// 
+	float3 lightColor		// Radiance of directional light
+	)
+{
+	float3 lightDir = lightPos - worldPos;
+	float lightDistSq = dot(lightDir, lightDir);
+	float invLightDist = rsqrt(lightDistSq);
+	lightDir *= invLightDist;
+
+	// modify 1/d^2 * R^2 to fall off at a fixed radius
+	// (R/d)^2 - d/R = [(1/d^2) - (1/R^2)*(d/R)] * R^2
+	float distanceFalloff = lightRadiusSq * (invLightDist * invLightDist);
+	distanceFalloff = max(0, distanceFalloff - rsqrt(distanceFalloff));
+
+	return distanceFalloff * ApplyLightCommon(
+		diffuseColor,
+		specularColor,
+		specularMask,
+		gloss,
+		normal,
+		viewDir,
+		lightDir,
+		lightColor
+		);
+}
+
+float3 ApplyConeLight(
+	float3 diffuseColor,	// Diffuse albedo
+	float3 specularColor, 	// Specular albedo
+	float specularMask,		// Where is it shiny or dingy?
+	float gloss,			// Specular power
+	float3 normal,			// World-space normal
+	float3 viewDir,			// World-space vector from eye to point
+	float3 worldPos,		// World-space fragment position
+	float3 lightPos,		// World-space light position
+	float lightRadiusSq,
+	float3 lightColor,		// Radiance of directional light
+	float3 coneDir,	
+	float2 coneAngles
+	)
+{
+	float3 lightDir = lightPos - worldPos;
+	float lightDistSq = dot(lightDir, lightDir);
+	float invLightDist = rsqrt(lightDistSq);
+	lightDir *= invLightDist;
+
+	// modify 1/d^2 * R^2 to fall off at a fixed radius
+	// (R/d)^2 - d/R = [(1/d^2) - (1/R^2)*(d/R)] * R^2
+	float distanceFalloff = lightRadiusSq * (invLightDist * invLightDist);
+	distanceFalloff = max(0, distanceFalloff - rsqrt(distanceFalloff));
+
+	float coneFalloff = dot(-lightDir, coneDir);
+	coneFalloff = saturate((coneFalloff - coneAngles.y) * coneAngles.x);
+
+	return (coneFalloff * distanceFalloff) * ApplyLightCommon(
+		diffuseColor,
+		specularColor,
+		specularMask,
+		gloss,
+		normal,
+		viewDir,
+		lightDir,
+		lightColor);
+}
+
+float3 ApplyConeShadowedLight(
+    float3 diffuseColor, 	// Diffuse albedo
+    float3 specularColor,	// Specular albedo
+    float specularMask,		// Where is it shiny or dingy?
+    float gloss,			// Specular power
+    float3 normal,			// World-space normal
+    float3 viewDir,			// World-space vector from eye to point
+    float3 worldPos,		// World-space fragment position
+    float3 lightPos,		// World-space light position
+    float lightRadiusSq,
+    float3 lightColor,		// Radiance of directional light
+    float3 coneDir,
+    float2 coneAngles,
+    float4x4 shadowTextureMatrix,
+    uint lightIndex
+    )
+{
+	float4 shadowCoord = mul(float4(worldPos, 1.0), shadowTextureMatrix);
+	shadowCoord.xyz *= rcp(shadowCoord.w);
+
+	// TO DO
+
+	return 0.0;
+}
+
+// helper function for iterating over a sparse list of bits. Gets the offset of the next
+// set bit, clears it, and returns the offset
+uint PullNextBit(inout uint bits)
+{
+	uint bitIndex = firstbitlow(bits);
+	bits ^= 1 << bitIndex;
+	return bitIndex;
+}
+
 [RootSignature(ModelViewer_RootSig)]
 float3 main(VSOutput i) : SV_TARGET
 {
 	uint2 pixelPos = i.position.xy;
+	float3 worldPos = i.worldPos;
 
 	float3 colorSum = float3(0.0, 0.0, 0.0);
 
@@ -131,8 +258,86 @@ float3 main(VSOutput i) : SV_TARGET
 	float3 viewDir = normalize(i.viewDir);
 	// 暂时空置shadow coord
 	float3 shadowCoord = 0.0;
+	// 0.2 - for debug
 	colorSum += ApplyDirectionalLight(diffuseAlbedo, specularAlbedo, 
 		specularMask, gloss, normal, viewDir, _SunDirection, _SunColor, shadowCoord);
+
+	// lighting
+	uint2 tilePos = GetTilePos(pixelPos, _InvTileDim.xy);
+	uint tileIndex = GetTileIndex(tilePos, _TileCount.x);
+	uint tileOffset = GetTileOffset(tileIndex);
+
+	// light grid preloading setup
+	uint lightBitMaskGroups[4] = {0, 0, 0, 0};
+#if defined(LIGHT_GRID_PRELOADING)
+	uint4 lightBitMask = lightGridBitMask.Load4(tileIndex * 16);
+
+	lightBitMaskGroups[0] = lightBitMask.x;
+	lightBitMaskGroups[1] = lightBitMask.y;
+	lightBitMaskGroups[2] = lightBitMask.z;
+	lightBitMaskGroups[3] = lightBitMask.w;
+#endif
+
+#define POINT_LIGHT_ARGS \
+	diffuseAlbedo, \
+	specularAlbedo, \
+	specularMask, \
+	gloss, \
+	normal, \
+	viewDir, \
+	worldPos, \
+	lightData.pos, \
+	lightData.radiusSq, \
+	lightData.color
+
+#define CONE_LIGHT_ARGS \
+	POINT_LIGHT_ARGS, \
+	lightData.coneDir, \
+	lightData.coneAngles
+
+// #define SHADOWED_LIGHT_ARGS
+// 	CONE_LIGHT_ARGS, \
+// 	lightData.shadowTextureMatrix, \
+// 	lightIndex
+
+	// SM 5.0 (no wave intrinsics)
+	{
+		// 4 bytes - light count 
+		uint tileLightCount = _LightGrid.Load(tileOffset + 0);
+		uint tileLightCountSphere = (tileLightCount >> 0) & 0xff;
+		uint tileLightCountCone = (tileLightCount >> 8) & 0xff;
+		uint tileLightCountConeShadowed = (tileLightCount >> 16) & 0xff;
+
+		uint tileLightLoadOffset = tileOffset + 4;
+
+		// sphere
+		for (uint n = 0; n < tileLightCountSphere; ++n, tileLightLoadOffset += 4)
+		{
+			uint lightIndex = _LightGrid.Load(tileLightLoadOffset);
+			LightData lightData = _LightBuffer[lightIndex];
+			colorSum += ApplyPointLight(POINT_LIGHT_ARGS);
+		}
+
+		// cone 
+		for (uint n = 0; n < tileLightCountCone; ++n, tileLightLoadOffset += 4)
+		{
+			uint lightIndex = _LightGrid.Load(tileLightLoadOffset);
+			LightData lightData = _LightBuffer[lightIndex];
+			colorSum += ApplyConeLight(CONE_LIGHT_ARGS);
+		}
+
+		// cone w/ shadow map
+		// for (uint n = 0; n < tileLightCountCone; ++n, tileLightLoadOffset += 4)
+		// {
+		// 	uint lightIndex = _LightGrid.Load(tileLightLoadOffset);
+		// 	LightData lightData = _LightBuffer[lightIndex];
+		// 	colorSum += ApplyConeShadowedLight(SHADOWED_LIGHT_ARGS);
+		// }
+
+		// debug
+		// float countFactor = (tileLightCountSphere + tileLightCountCone + tileLightCountConeShadowed) / 32.0;
+		// colorSum = lerp(float3(0, 1, 0), float3(1, 0, 0), countFactor);
+	}
 
 	return colorSum;
 }

@@ -142,7 +142,8 @@ void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferW
 
 	// UI overlay
 	m_OverlayBuffer.Create(pDevice, L"UI Overlay", GfxStates::s_DisplayWidth, GfxStates::s_DisplayHeight, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
-	m_OverlayBuffer.SetClearColor(Color(0.6f, 0.4f, 0.2f, 0.2f));
+	// for debug
+	// m_OverlayBuffer.SetClearColor(Color(0.6f, 0.4f, 0.2f, 0.2f));
 
 	// bicubic horizontal upsample intermediate buffer
 	m_HorizontalBuffer.Create(pDevice, L"Bicubic Intermediate", GfxStates::s_DisplayWidth, bufferHeight, 1, GfxStates::s_DefaultHdrColorFormat);

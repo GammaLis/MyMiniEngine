@@ -43,6 +43,8 @@ namespace MyDirectX
 		GraphicsPSO m_ModelPSO;
 
 		Math::Vector3 m_SunDirection;
+
+		D3D12_CPU_DESCRIPTOR_HANDLE m_ExtraTextures[6];
 		
 	};
 

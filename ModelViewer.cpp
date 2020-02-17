@@ -3,7 +3,7 @@
 #include "CommandContext.h"
 #include "TextureManager.h"
 #include "Model.h"
-#include "Effects.h"
+#include "Effect.h"
 
 // shaders
 #include "DepthViewerVS.h"
@@ -24,6 +24,10 @@ struct alignas(16) PSConstants
 	Math::Vector3 _SunDirection;
 	Math::Vector3 _SunLight;
 	Math::Vector3 _AmbientLight;
+
+	float _InvTileDim[4];
+	uint32_t _TileCount[4];	// x,y有效，后面字节对齐
+	uint32_t _FirstLightIndex[4];
 };
 
 ModelViewer::ModelViewer(HINSTANCE hInstance, const wchar_t* title, UINT width, UINT height)
@@ -58,10 +62,22 @@ void ModelViewer::Update(float deltaTime)
 
 void ModelViewer::Render()
 {
+	auto curFrameIndex = m_Gfx->GetCurrentFrameIndex();
+	auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
+	auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
+
 	PSConstants psConstants;
 	psConstants._SunDirection = m_SunDirection;
 	psConstants._SunLight = Math::Vector3(1.0f) * m_CommonStates.SunLightIntensity;
 	psConstants._AmbientLight = Math::Vector3(1.0f) * m_CommonStates.AmbientIntensity;
+
+	const auto& forwardPlusLighting = Effect::s_ForwardPlusLighting;
+	psConstants._InvTileDim[0] = 1.0f / forwardPlusLighting.m_LightGridDim;
+	psConstants._InvTileDim[1] = 1.0f / forwardPlusLighting.m_LightGridDim;
+
+	psConstants._TileCount[0] = Math::DivideByMultiple(colorBuffer.GetWidth(), forwardPlusLighting.m_LightGridDim);
+	psConstants._TileCount[1] = Math::DivideByMultiple(colorBuffer.GetHeight(), forwardPlusLighting.m_LightGridDim);
+	psConstants._FirstLightIndex[0] = forwardPlusLighting.m_FirstConeLight;
 	// ...
 
 	GraphicsContext &gfxContext = GraphicsContext::Begin(L"Scene Render");
@@ -75,9 +91,6 @@ void ModelViewer::Render()
 		gfxContext.SetIndexBuffer(m_Model->m_IndexBuffer.IndexBufferView());
 	};
 	pfnSetupGraphicsState();
-
-	auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
-	auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
 
 	// z prepass
 	{
@@ -99,10 +112,18 @@ void ModelViewer::Render()
 		//RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kCutout);
 	}
 
+	// 
+	{
+		// CS
+		Effect::s_ForwardPlusLighting.FillLightGrid(gfxContext, m_Camera, curFrameIndex);
+	}
+
 	// main render
 	{
 		gfxContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 		gfxContext.ClearColor(colorBuffer);
+
+		pfnSetupGraphicsState();
 
 		// render shadow map
 
@@ -111,6 +132,10 @@ void ModelViewer::Render()
 		
 		gfxContext.SetRenderTarget(colorBuffer.GetRTV(), depthBuffer.GetDSV_DepthReadOnly());
 		gfxContext.SetViewportAndScissor(m_MainViewport, m_MainScissor);
+
+		gfxContext.SetDynamicConstantBufferView(1, sizeof(psConstants), &psConstants);
+		// gfxContext.SetDynamicDescriptors(4, 0, _countof(m_ExtraTextures), m_ExtraTextures);
+		gfxContext.SetDynamicDescriptors(4, 2, 3, m_ExtraTextures + 2);
 
 		// ->opauqe
 		gfxContext.SetPipelineState(m_ModelPSO);
@@ -214,6 +239,19 @@ void ModelViewer::InitCustom()
 	m_Camera.Update();
 
 	// effects
+	// ...
+	m_ExtraTextures[0] = CD3DX12_CPU_DESCRIPTOR_HANDLE();	// 暂时为空
+	m_ExtraTextures[1] = CD3DX12_CPU_DESCRIPTOR_HANDLE();	// 暂时为空
+
+	// forward+ lighting
+	const auto &boundingBox = m_Model->GetBoundingBox();
+	auto& forwardPlusLighting = Effect::s_ForwardPlusLighting;
+	forwardPlusLighting.CreateRandomLights(Graphics::s_Device, boundingBox.min, boundingBox.max);
+
+	m_ExtraTextures[2] = forwardPlusLighting.m_LightBuffer.GetSRV();
+	m_ExtraTextures[3] = forwardPlusLighting.m_LightGrid.GetSRV();
+	m_ExtraTextures[4] = forwardPlusLighting.m_LightGridBitMask.GetSRV();
+	// m_ExtraTextures[5] = ;
 
 }
 
@@ -221,7 +259,7 @@ void ModelViewer::RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4
 {
 	VSConstants vsConstants;
 	vsConstants._ModelToProjection = Math::Transpose(viewProjMat);	// HLSL - 对应 mul(float4(pos), mat)
-	// vsConstants._ModelToProjection = (viewProjMat);	// HLSL - 对应 mul(mat, float(pos))
+	// vsConstants._ModelToProjection = (viewProjMat);	// HLSL - 对应 mul(mat, float4(pos))
 	XMStoreFloat3(&vsConstants._CamPos, m_Camera.GetPosition());
 
 	gfxContext.SetDynamicConstantBufferView(0, sizeof(vsConstants), &vsConstants);

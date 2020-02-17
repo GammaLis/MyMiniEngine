@@ -100,10 +100,10 @@ void main(
 
 	// after the minimum and maximum depth values for the current tile have been found, we can reinterrpret
 	// the unsigned integer back to a float.
-	// float tileMinDepth = asfloat(minDepthUInt);
-	// float tileMaxDepth = asfloat(maxDepthUint);
-	float tileMinDepth = (rcp(asfloat(maxDepthUInt)) - 1.0) * _RcpZMagic;
-	float tileMaxDepth = (rcp(asfloat(minDepthUInt)) - 1.0) * _RcpZMagic;
+	float tileMinDepth = asfloat(minDepthUInt);
+	float tileMaxDepth = asfloat(maxDepthUInt);
+	// float tileMinDepth = (rcp(asfloat(maxDepthUInt)) - 1.0) * _RcpZMagic;
+	// float tileMaxDepth = (rcp(asfloat(minDepthUInt)) - 1.0) * _RcpZMagic;
 	float tileDepthRange = tileMaxDepth - tileMinDepth;
 	tileDepthRange = max(tileDepthRange, FLT_MIN);	// don't allow a depth range of 0
 	float invTileDepthRange = rcp(tileDepthRange);
@@ -111,6 +111,7 @@ void main(
 
 	// construct transform from world space to tile space (projection space constrained to tile area)
 	/**
+	 * 将原本[-1, 1]中的tile 变换到[-1, 1]
 	 * |---------n tiles---------|
 	 * |	| 	|	|	...		 |
 	 * -1						 1
@@ -156,7 +157,7 @@ void main(
 	frustumPlanes[1] = tileMVP[3] - tileMVP[0];
 	frustumPlanes[2] = tileMVP[3] + tileMVP[1];
 	frustumPlanes[3] = tileMVP[3] - tileMVP[1];
-	frustumPlanes[4] = tileMVP[3] + tileMVP[2];
+	frustumPlanes[4] = tileMVP[3];// + tileMVP[2];
 	frustumPlanes[5] = tileMVP[3] - tileMVP[2];
 	// normalize planes
 	for (int n = 0; n < 6; ++n)
