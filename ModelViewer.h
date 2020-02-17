@@ -1,6 +1,8 @@
 #pragma once
 #include "IGameApp.h"
 #include "Camera.h"
+#include "CameraController.h"
+#include "GameInput.h"
 
 namespace MyDirectX
 {
@@ -34,6 +36,7 @@ namespace MyDirectX
 		void RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4 viewProjMat, ObjectFilter filter = ObjectFilter::kAll);
 
 		Math::Camera m_Camera;
+		std::unique_ptr<CameraController> m_CameraController;
 		Math::Matrix4 m_ViewProjMatrix;
 
 		// root signature & PSOs

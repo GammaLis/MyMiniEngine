@@ -11,6 +11,7 @@ namespace MyDirectX
 	class MyWindow;
 	class Graphics;
 	class GameTimer;
+	class GameInput;
 	class Model;
 	class GraphicsContext;
 
@@ -55,6 +56,7 @@ namespace MyDirectX
 		std::unique_ptr<MyWindow> m_Window;
 		std::unique_ptr<Graphics> m_Gfx;
 		std::unique_ptr<GameTimer> m_Timer;
+		std::unique_ptr<GameInput> m_Input;
 		std::unique_ptr<Model> m_Model;
 
 	private:

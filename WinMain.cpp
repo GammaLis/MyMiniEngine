@@ -40,7 +40,7 @@ int main(int argc, const char* argv[])
 #ifdef MINI_ENGINE
 	// 1. IGameApp
 	// MyDirectX::IGameApp gApp(hInst);
-	MyDirectX::ModelViewer gApp(hInst, L"ModelViewer");
+	MyDirectX::ModelViewer gApp(hInst, L"ModelViewer", 1280, 720);
 
 	int ret = 0;
 	if (gApp.Init())

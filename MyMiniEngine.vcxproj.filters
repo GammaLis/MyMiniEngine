@@ -211,6 +211,12 @@
     <ClInclude Include="Effects\ForwardPlusLighting.h">
       <Filter>Effects</Filter>
     </ClInclude>
+    <ClInclude Include="GameInput.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="CameraController.h">
+      <Filter>Game</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -335,6 +341,12 @@
     </ClCompile>
     <ClCompile Include="Effects\ForwardPlusLighting.cpp">
       <Filter>Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="GameInput.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="CameraController.cpp">
+      <Filter>Game</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

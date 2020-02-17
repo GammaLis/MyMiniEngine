@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CameraController.h" />
     <ClInclude Include="Core\CommandContext.h" />
     <ClInclude Include="Core\ColorBuffer.h" />
     <ClInclude Include="Core\Color.h" />
@@ -70,6 +71,7 @@
     <ClInclude Include="Core\GfxCommon.h" />
     <ClInclude Include="FileUtility.h" />
     <ClInclude Include="Effects\ForwardPlusLighting.h" />
+    <ClInclude Include="GameInput.h" />
     <ClInclude Include="IGameApp.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="Core\SamplerManager.h" />
@@ -78,6 +80,7 @@
     <ClInclude Include="ModelViewer.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CameraController.cpp" />
     <ClCompile Include="Core\CommandContext.cpp" />
     <ClCompile Include="Core\ColorBuffer.cpp" />
     <ClCompile Include="Core\Color.cpp" />
@@ -112,6 +115,7 @@
     <ClCompile Include="Core\GfxCommon.cpp" />
     <ClCompile Include="FileUtility.cpp" />
     <ClCompile Include="Effects\ForwardPlusLighting.cpp" />
+    <ClCompile Include="GameInput.cpp" />
     <ClCompile Include="IGameApp.cpp" />
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="Core\SamplerManager.cpp" />

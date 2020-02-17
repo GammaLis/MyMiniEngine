@@ -37,6 +37,9 @@ ModelViewer::ModelViewer(HINSTANCE hInstance, const wchar_t* title, UINT width, 
 
 void ModelViewer::Update(float deltaTime)
 {
+	IGameApp::Update(deltaTime);
+
+	m_CameraController->Update(deltaTime);
 	m_ViewProjMatrix = m_Camera.GetViewProjMatrix();
 
 	float cosTheta = cosf(m_CommonStates.SunOrientation);
@@ -237,6 +240,7 @@ void ModelViewer::InitCustom()
 	m_Camera.SetEyeAtUp(eye, Math::Vector3(Math::kZero), Math::Vector3(Math::kYUnitVector));
 	m_Camera.SetZRange(1.0f, 10000.0f);
 	m_Camera.Update();
+	m_CameraController.reset(new CameraController(m_Camera, Math::Vector3(Math::kYUnitVector), *m_Input));
 
 	// effects
 	// ...

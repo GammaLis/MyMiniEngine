@@ -6,6 +6,7 @@
 #include "TextureManager.h"	// Graphics::s_TextureManager
 #include "GpuBuffer.h"
 #include "GameTimer.h"
+#include "GameInput.h"
 #include "Model.h"
 #include <sstream>
 #include <windowsX.h>
@@ -33,6 +34,7 @@ IGameApp::IGameApp(HINSTANCE hInstance, const wchar_t* title, UINT width, UINT h
 	m_Window = std::make_unique<MyWindow>(hInstance, title, width, height);
 	m_Gfx = std::make_unique<Graphics>();
 	m_Timer = std::make_unique<GameTimer>();
+	m_Input = std::make_unique<GameInput>();
 	m_Model = std::make_unique<Model>();
 
 	// only one IGameApp can be constructed
@@ -55,6 +57,9 @@ bool IGameApp::Init()
 
 	m_Gfx->Init(hwnd, m_Width, m_Height);
 
+	// Ìí¼Ó GameInput Init
+	m_Input->Init(hwnd);
+
 	InitAssets();
 
 	return true;
@@ -67,7 +72,8 @@ void IGameApp::OnResize()
 
 void IGameApp::Update(float deltaTime)
 {
-
+	HWND hwnd = m_Window->GetWindow();
+	m_Input->Update(hwnd, deltaTime);
 }
 
 void IGameApp::Render()
@@ -100,6 +106,8 @@ void IGameApp::Cleanup()
 	m_Model->Cleanup();
 
 	m_Gfx->Shutdown();
+
+	m_Input->Shutdown();
 }
 
 int IGameApp::Run()
