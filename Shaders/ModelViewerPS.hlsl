@@ -11,7 +11,7 @@ cbuffer PSConstants	: register(b0)
 	float3 _SunDirection;		// 0 - 4 floats
 	float3 _SunColor;			// 4 - 4 floats
 	float3 _AmbientColor;		// 8 - 4 floats
-	float4 _ShadowTexelSize;	// 12 - 4 floats
+	float2 _ShadowTexelSize;	// 12 - 4 floats
 
 	float4 _InvTileDim;
 	uint4 _TileCount;

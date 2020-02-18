@@ -37,7 +37,8 @@ namespace MyDirectX
 
 			DirectX::XMFLOAT3 coneDir;
 			DirectX::XMFLOAT2 coneAngles;
-			Math::Matrix4 shadowTextureMatrix;
+			// Math::Matrix4 shadowTextureMatrix;		// WARNING:不能存为Math::Matrix4 - 16字节对齐 SIMD指令 ！！！
+			DirectX::XMFLOAT4X4 shadowTextureMatrix;
 		};
 		LightData m_LightData[MaxLights];
 

@@ -151,8 +151,9 @@ namespace MyDirectX
 			m_LightData[n].type = type;
 			m_LightData[n].coneDir = XMFLOAT3(coneDir.GetX(), coneDir.GetY(), coneDir.GetZ());
 			m_LightData[n].coneAngles = XMFLOAT2(1.0f / (cos(coneInner) - cos(coneOuter)), cos(coneOuter));
-			m_LightData[n].shadowTextureMatrix = Transpose(shadowTextureMatrix);
-
+			// WARNING:不能存为Math::Matrix4 - 16字节对齐 SIMD指令 ！！！
+			// m_LightData[n].shadowTextureMatrix = DirectX::XMMATRIX(Transpose(shadowTextureMatrix));
+			DirectX::XMStoreFloat4x4(&m_LightData[n].shadowTextureMatrix, DirectX::XMMATRIX(Transpose(shadowTextureMatrix)));
 		}
 
 		// 
