@@ -1,6 +1,7 @@
 #pragma once
 #include "IGameApp.h"
 #include "Camera.h"
+#include "ShadowCamera.h"
 #include "CameraController.h"
 #include "GameInput.h"
 
@@ -33,6 +34,8 @@ namespace MyDirectX
 		virtual void InitGeometryBuffers() override;
 		virtual void InitCustom() override;
 
+		void RenderLightShadows(GraphicsContext& gfxContext);
+
 		void RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4 viewProjMat, ObjectFilter filter = ObjectFilter::kAll);
 
 		Math::Camera m_Camera;
@@ -44,8 +47,10 @@ namespace MyDirectX
 		GraphicsPSO m_DepthPSO;
 		GraphicsPSO m_CutoutDepthPSO;
 		GraphicsPSO m_ModelPSO;
+		GraphicsPSO m_ShadowPSO;
 
 		Math::Vector3 m_SunDirection;
+		ShadowCamera m_SunShadow;
 
 		D3D12_CPU_DESCRIPTOR_HANDLE m_ExtraTextures[6];
 		

@@ -1,6 +1,8 @@
 #pragma once
 #include "pch.h"
 #include "GpuBuffer.h"
+#include "ColorBuffer.h"
+#include "ShadowBuffer.h"
 #include "RootSignature.h"
 #include "PipelineState.h"
 
@@ -35,7 +37,7 @@ namespace MyDirectX
 
 			DirectX::XMFLOAT3 coneDir;
 			DirectX::XMFLOAT2 coneAngles;
-			// XMFLOAT4X4 shadowTextureMatrix;
+			Math::Matrix4 shadowTextureMatrix;
 		};
 		LightData m_LightData[MaxLights];
 
@@ -47,7 +49,14 @@ namespace MyDirectX
 
 		ByteAddressBuffer m_LightGridBitMask;
 		uint32_t m_FirstConeLight;
-		// uint32_t m_FirstConeShadowedLight;
+		uint32_t m_FirstConeShadowedLight;
+
+		// shadow
+		ColorBuffer m_LightShadowArray;
+		ShadowBuffer m_LightShadowTempBuffer;
+		Math::Matrix4 m_LightShadowMatrix[MaxLights];
+
+		uint32_t m_ShadowDim = 512;
 
 		// root signature
 		RootSignature m_FillLightRS;

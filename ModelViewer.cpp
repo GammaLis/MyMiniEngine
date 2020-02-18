@@ -16,6 +16,7 @@ using namespace MyDirectX;
 struct VSConstants
 {
 	Math::Matrix4 _ModelToProjection;
+	Math::Matrix4 _ModelToShadow;
 	XMFLOAT3 _CamPos;
 };
 
@@ -24,6 +25,7 @@ struct alignas(16) PSConstants
 	Math::Vector3 _SunDirection;
 	Math::Vector3 _SunLight;
 	Math::Vector3 _AmbientLight;
+	float _ShadowTexelSize[4];
 
 	float _InvTileDim[4];
 	uint32_t _TileCount[4];	// x,y有效，后面字节对齐
@@ -68,11 +70,15 @@ void ModelViewer::Render()
 	auto curFrameIndex = m_Gfx->GetCurrentFrameIndex();
 	auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 	auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
+	auto& shadowBuffer = Graphics::s_BufferManager.m_ShadowBuffer;
 
 	PSConstants psConstants;
 	psConstants._SunDirection = m_SunDirection;
 	psConstants._SunLight = Math::Vector3(1.0f) * m_CommonStates.SunLightIntensity;
 	psConstants._AmbientLight = Math::Vector3(1.0f) * m_CommonStates.AmbientIntensity;
+	
+	psConstants._ShadowTexelSize[0] = 1.0f / shadowBuffer.GetWidth();
+	psConstants._ShadowTexelSize[1] = 1.0f / shadowBuffer.GetHeight();
 
 	const auto& forwardPlusLighting = Effect::s_ForwardPlusLighting;
 	psConstants._InvTileDim[0] = 1.0f / forwardPlusLighting.m_LightGridDim;
@@ -81,6 +87,7 @@ void ModelViewer::Render()
 	psConstants._TileCount[0] = Math::DivideByMultiple(colorBuffer.GetWidth(), forwardPlusLighting.m_LightGridDim);
 	psConstants._TileCount[1] = Math::DivideByMultiple(colorBuffer.GetHeight(), forwardPlusLighting.m_LightGridDim);
 	psConstants._FirstLightIndex[0] = forwardPlusLighting.m_FirstConeLight;
+	psConstants._FirstLightIndex[1] = forwardPlusLighting.m_FirstConeShadowedLight;
 	// ...
 
 	GraphicsContext &gfxContext = GraphicsContext::Begin(L"Scene Render");
@@ -94,6 +101,9 @@ void ModelViewer::Render()
 		gfxContext.SetIndexBuffer(m_Model->m_IndexBuffer.IndexBufferView());
 	};
 	pfnSetupGraphicsState();
+
+	// MaxLights 个 shadow pass，分帧进行，一帧一个
+	RenderLightShadows(gfxContext);
 
 	// z prepass
 	{
@@ -117,7 +127,7 @@ void ModelViewer::Render()
 
 	// 
 	{
-		// CS
+		// CS - fill light grid
 		Effect::s_ForwardPlusLighting.FillLightGrid(gfxContext, m_Camera, curFrameIndex);
 	}
 
@@ -128,24 +138,42 @@ void ModelViewer::Render()
 
 		pfnSetupGraphicsState();
 
+		auto& shadowBuffer = Graphics::s_BufferManager.m_ShadowBuffer;
 		// render shadow map
+		{
+			m_SunShadow.UpdateMatrix(-m_SunDirection, Math::Vector3(0, -500.0f, 0),
+				Math::Vector3(m_CommonStates.ShadowDimX, m_CommonStates.ShadowDimY, m_CommonStates.ShadowDimZ),
+				shadowBuffer.GetWidth(), shadowBuffer.GetHeight(), 16);
+
+			shadowBuffer.BeginRendering(gfxContext);
+
+			gfxContext.SetPipelineState(m_ShadowPSO);
+			RenderObjects(gfxContext, m_SunShadow.GetViewProjMatrix(), ObjectFilter::kOpaque);
+
+			// cutout objects
+			// ...
+
+			shadowBuffer.EndRendering(gfxContext);
+		}
 
 		// render color
-		gfxContext.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
-		
-		gfxContext.SetRenderTarget(colorBuffer.GetRTV(), depthBuffer.GetDSV_DepthReadOnly());
-		gfxContext.SetViewportAndScissor(m_MainViewport, m_MainScissor);
+		{
+			gfxContext.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
 
-		gfxContext.SetDynamicConstantBufferView(1, sizeof(psConstants), &psConstants);
-		// gfxContext.SetDynamicDescriptors(4, 0, _countof(m_ExtraTextures), m_ExtraTextures);
-		gfxContext.SetDynamicDescriptors(4, 2, 3, m_ExtraTextures + 2);
+			gfxContext.SetRenderTarget(colorBuffer.GetRTV(), depthBuffer.GetDSV_DepthReadOnly());
+			gfxContext.SetViewportAndScissor(m_MainViewport, m_MainScissor);
 
-		// ->opauqe
-		gfxContext.SetPipelineState(m_ModelPSO);
-		RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kOpaque);
+			gfxContext.SetDynamicConstantBufferView(1, sizeof(psConstants), &psConstants);
+			// gfxContext.SetDynamicDescriptors(4, 0, _countof(m_ExtraTextures), m_ExtraTextures);
+			gfxContext.SetDynamicDescriptors(4, 1, 5, m_ExtraTextures + 1);	// m_ExtraTextures 1~5
 
-		// ->cutout
-		// ...
+			// ->opauqe
+			gfxContext.SetPipelineState(m_ModelPSO);
+			RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kOpaque);
+
+			// ->cutout
+			// ...
+		}
 	}
 	
 	//// 普通渲染顺序，不经z prepass
@@ -185,6 +213,7 @@ void ModelViewer::InitPipelineStates()
 
 	DXGI_FORMAT colorFormat = Graphics::s_BufferManager.m_SceneColorBuffer.GetFormat();
 	DXGI_FORMAT depthFormat = Graphics::s_BufferManager.m_SceneDepthBuffer.GetFormat();
+	DXGI_FORMAT shadowFormat = Graphics::s_BufferManager.m_ShadowBuffer.GetFormat();
 
 	// input elements
 	D3D12_INPUT_ELEMENT_DESC inputElements[] =
@@ -215,6 +244,12 @@ void ModelViewer::InitPipelineStates()
 	m_CutoutDepthPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerTwoSided);
 	m_CutoutDepthPSO.Finalize(Graphics::s_Device);
 
+	// depth-only but with a depth bias and/or render only backfaces
+	m_ShadowPSO = m_DepthPSO;
+	m_ShadowPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerShadow);
+	m_ShadowPSO.SetRenderTargetFormats(0, nullptr, shadowFormat);
+	m_ShadowPSO.Finalize(Graphics::s_Device);
+
 	// model viewer pso
 	m_ModelPSO = m_DepthPSO;
 	m_ModelPSO.SetVertexShader(CD3DX12_SHADER_BYTECODE(ModelViewerVS, sizeof(ModelViewerVS)));
@@ -223,6 +258,7 @@ void ModelViewer::InitPipelineStates()
 	m_ModelPSO.SetDepthStencilState(Graphics::s_CommonStates.DepthStateTestEqual);
 	m_ModelPSO.SetRenderTargetFormats(1, &colorFormat, depthFormat);
 	m_ModelPSO.Finalize(Graphics::s_Device);
+
 }
 
 void ModelViewer::InitGeometryBuffers()
@@ -245,7 +281,7 @@ void ModelViewer::InitCustom()
 	// effects
 	// ...
 	m_ExtraTextures[0] = CD3DX12_CPU_DESCRIPTOR_HANDLE();	// 暂时为空
-	m_ExtraTextures[1] = CD3DX12_CPU_DESCRIPTOR_HANDLE();	// 暂时为空
+	m_ExtraTextures[1] = Graphics::s_BufferManager.m_ShadowBuffer.GetSRV();
 
 	// forward+ lighting
 	const auto &boundingBox = m_Model->GetBoundingBox();
@@ -255,8 +291,35 @@ void ModelViewer::InitCustom()
 	m_ExtraTextures[2] = forwardPlusLighting.m_LightBuffer.GetSRV();
 	m_ExtraTextures[3] = forwardPlusLighting.m_LightGrid.GetSRV();
 	m_ExtraTextures[4] = forwardPlusLighting.m_LightGridBitMask.GetSRV();
-	// m_ExtraTextures[5] = ;
+	m_ExtraTextures[5] = forwardPlusLighting.m_LightShadowArray.GetSRV();
 
+}
+
+// render light shadows
+// 先将shadow深度渲染到Light::m_LightShadowTempBuffer,然后将其CopySubResource到Light::m_LightShadowArray.
+void ModelViewer::RenderLightShadows(GraphicsContext& gfxContext)
+{
+	static uint32_t LightIndex = 0;
+
+	auto& forwardPlusLighting = Effect::s_ForwardPlusLighting;
+	if (LightIndex >= forwardPlusLighting.MaxLights)
+		return;
+
+	forwardPlusLighting.m_LightShadowTempBuffer.BeginRendering(gfxContext);
+	{
+		gfxContext.SetPipelineState(m_ShadowPSO);
+		RenderObjects(gfxContext, forwardPlusLighting.m_LightShadowMatrix[LightIndex]);
+	}
+	forwardPlusLighting.m_LightShadowTempBuffer.EndRendering(gfxContext);
+
+	gfxContext.TransitionResource(forwardPlusLighting.m_LightShadowTempBuffer, D3D12_RESOURCE_STATE_GENERIC_READ);
+	gfxContext.TransitionResource(forwardPlusLighting.m_LightShadowArray, D3D12_RESOURCE_STATE_COPY_DEST);
+
+	gfxContext.CopySubresource(forwardPlusLighting.m_LightShadowArray, LightIndex, forwardPlusLighting.m_LightShadowTempBuffer, 0);
+
+	gfxContext.TransitionResource(forwardPlusLighting.m_LightShadowArray, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+	++LightIndex;
 }
 
 void ModelViewer::RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4 viewProjMat, ObjectFilter filter)
@@ -264,6 +327,7 @@ void ModelViewer::RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4
 	VSConstants vsConstants;
 	vsConstants._ModelToProjection = Math::Transpose(viewProjMat);	// HLSL - 对应 mul(float4(pos), mat)
 	// vsConstants._ModelToProjection = (viewProjMat);	// HLSL - 对应 mul(mat, float4(pos))
+	vsConstants._ModelToShadow = Math::Transpose(m_SunShadow.GetShadowMatrix());
 	XMStoreFloat3(&vsConstants._CamPos, m_Camera.GetPosition());
 
 	gfxContext.SetDynamicConstantBufferView(0, sizeof(vsConstants), &vsConstants);
@@ -296,3 +360,10 @@ void ModelViewer::RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4
 	}
 
 }
+
+/**
+	当前渲染管线 (Forward+ / TiledBasedForward)
+	RenderLightShadows => ZPrePass (DepthOnly ->Depth) => FillLightGrid (CullLights) =>
+	ModelViewer
+
+*/

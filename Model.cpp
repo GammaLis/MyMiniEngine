@@ -171,6 +171,7 @@ namespace MyDirectX
 		// probably to request more postprocessing than we do in this example.
 		const aiScene* scene = importer.ReadFile(fileName,
 			aiProcess_CalcTangentSpace |
+			aiProcess_FlipUVs |
 			aiProcess_Triangulate |
 			aiProcess_JoinIdenticalVertices |
 			aiProcess_SortByPType);

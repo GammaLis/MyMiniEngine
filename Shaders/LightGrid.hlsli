@@ -12,6 +12,7 @@ struct LightData
 
 	float3 coneDir;
 	float2 coneAngles;	// x = 1.0f / (cos(coneInner) - cos(coneOuter)), y = cos(coneOuter)
+	float4x4 shadowTextureMatrix;
 };
 
 uint2 GetTilePos(float2 pos, float2 invTileDim)

@@ -148,6 +148,8 @@ void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferW
 	// bicubic horizontal upsample intermediate buffer
 	m_HorizontalBuffer.Create(pDevice, L"Bicubic Intermediate", GfxStates::s_DisplayWidth, bufferHeight, 1, GfxStates::s_DefaultHdrColorFormat);
 
+	m_ShadowBuffer.Create(pDevice, L"Shadow Map", 2048, 2048);
+
 }
 
 void BufferManager::ResizeDisplayDependentBuffers(ID3D12Device* pDevice, uint32_t bufferWidth, uint32_t bufferHeight)
@@ -172,6 +174,9 @@ void BufferManager::DestroyRenderingBuffers()
 
 	// bicubic horizontal upsample intermediate buffer
 	m_HorizontalBuffer.Destroy();
+
+	// shadow buffer
+	m_ShadowBuffer.Destroy();
 }
 
 void ShaderManager::CreateFromByteCode()

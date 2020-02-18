@@ -141,6 +141,9 @@ namespace MyDirectX
 			shadowCamera.SetEyeAtUp(pos, pos + coneDir, Vector3(0, 1, 0));
 			shadowCamera.SetPerspectiveMatrix(coneOuter * 2, 1.0f, lightRadius * 0.05f, lightRadius * 1.0f);
 			shadowCamera.Update();
+			m_LightShadowMatrix[n] = shadowCamera.GetViewProjMatrix();
+			Matrix4 shadowTextureMatrix = Matrix4(AffineTransform(Matrix3::MakeScale(0.5f, -0.5f, 1.0f), Vector3(0.5f, 0.5f, 0.0f))) *
+				m_LightShadowMatrix[n];
 
 			m_LightData[n].position = XMFLOAT3(pos.GetX(), pos.GetY(), pos.GetZ());
 			m_LightData[n].radiusSq = lightRadius * lightRadius;
@@ -148,6 +151,7 @@ namespace MyDirectX
 			m_LightData[n].type = type;
 			m_LightData[n].coneDir = XMFLOAT3(coneDir.GetX(), coneDir.GetY(), coneDir.GetZ());
 			m_LightData[n].coneAngles = XMFLOAT2(1.0f / (cos(coneInner) - cos(coneOuter)), cos(coneOuter));
+			m_LightData[n].shadowTextureMatrix = Transpose(shadowTextureMatrix);
 
 		}
 
@@ -157,6 +161,14 @@ namespace MyDirectX
 			if (m_LightData[n].type == 1)
 			{
 				m_FirstConeLight = n;
+				break;
+			}
+		}
+		for (uint32_t n = 0; n < MaxLights; ++n)
+		{
+			if (m_LightData[n].type == 2)
+			{
+				m_FirstConeShadowedLight = n;
 				break;
 			}
 		}
@@ -173,6 +185,9 @@ namespace MyDirectX
 
 		uint32_t lightGridBitMaskSizeBytes = lightGridCells * 4 * 4;	// 4 uints
 		m_LightGridBitMask.Create(pDevice, L"m_LightGridBitMask", lightGridBitMaskSizeBytes, 1, nullptr);
+
+		m_LightShadowArray.CreateArray(pDevice, L"m_LightShadowArray", m_ShadowDim, m_ShadowDim, MaxLights, DXGI_FORMAT_R16_UNORM);
+		m_LightShadowTempBuffer.Create(pDevice, L"m_LightShadowTempBuffer", m_ShadowDim, m_ShadowDim);
 	}
 
 	void ForwardPlusLighting::FillLightGrid(GraphicsContext& gfxContext, const Math::Camera& camera, UINT curFrameIndex)
@@ -219,7 +234,6 @@ namespace MyDirectX
 		const float rcpZMagic = nearClipDist / (farClipDist - nearClipDist);
 
 		CSConstants csConstants;
-		const auto* p = &csConstants;
 		csConstants._ViewportWidth = colorBuffer.GetWidth();
 		csConstants._ViewportHeight = colorBuffer.GetHeight();
 		csConstants._InvTileDim = 1.0f / m_LightGridDim;
@@ -241,5 +255,8 @@ namespace MyDirectX
 		m_LightBuffer.Destroy();
 		m_LightGrid.Destroy();
 		m_LightGridBitMask.Destroy();
+
+		m_LightShadowArray.Destroy();
+		m_LightShadowTempBuffer.Destroy();
 	}
 }

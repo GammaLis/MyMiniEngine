@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "ColorBuffer.h"
 #include "DepthBuffer.h"
+#include "ShadowBuffer.h"
 #include "SamplerManager.h"
 #include "CommandSignature.h"
 
@@ -73,6 +74,8 @@ namespace MyDirectX
 		//ColorBuffer m_PoseEffectsBuffer;	// R32_UINT (to support Read-Modify-Write with a UAV)
 		ColorBuffer m_OverlayBuffer;		// R8G8B8A8_UNORM
 		ColorBuffer m_HorizontalBuffer;		// for separable (bicubic) upsampling
+
+		ShadowBuffer m_ShadowBuffer;		// shadow buffer
 
 		// ...
 		ColorBuffer m_LinearDepth[2];

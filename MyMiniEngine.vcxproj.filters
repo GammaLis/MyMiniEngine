@@ -217,6 +217,12 @@
     <ClInclude Include="CameraController.h">
       <Filter>Game</Filter>
     </ClInclude>
+    <ClInclude Include="Core\ShadowBuffer.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\ShadowCamera.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -347,6 +353,12 @@
     </ClCompile>
     <ClCompile Include="CameraController.cpp">
       <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\ShadowBuffer.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\ShadowCamera.cpp">
+      <Filter>Core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

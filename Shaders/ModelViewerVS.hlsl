@@ -3,6 +3,7 @@
 cbuffer VSConstants : register(b0)
 {
 	float4x4 _ModelToProjection;
+	float4x4 _ModelToShadow;
 	float3 _CamPos;
 }
 
@@ -21,6 +22,7 @@ struct VSOutput
 	float3 worldPos : WorldPos;
 	float2 uv 		: TEXCOORD0;
 	float3 viewDir	: TEXCOORD1;
+	float3 shadowCoord	: TEXCOORD2;
 	float3 normal 	: NORMAL;
 	float3 tangent 	: TANGENT;
 	float3 bitangent: BITANGENT;
@@ -36,6 +38,9 @@ VSOutput main(VSInput v)
 	o.worldPos = v.position;
 	o.uv = v.uv;
 	o.viewDir = v.position - _CamPos;
+
+	float4 shadowCoord = mul(float4(o.worldPos, 1.0), _ModelToShadow);
+	o.shadowCoord = shadowCoord.xyz / shadowCoord.w;
 	o.normal = v.normal;
 	o.tangent = v.tangent;
 	o.bitangent = v.bitangent;
