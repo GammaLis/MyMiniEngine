@@ -101,7 +101,7 @@ void MotionBlur::GenerateCameraVelocityBuffer(CommandContext& context, const Mat
 
 	CSConstants csConstants;
 	csConstants._CurToPrevXForm = Transpose(curToPrevXForm);
-	computeContext.SetDynamicConstantBufferView(1, sizeof(CSConstants), &csConstants);
+	computeContext.SetDynamicConstantBufferView(1, sizeof(csConstants), &csConstants);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE depthSRV;
 	if (bUseLinearZ)

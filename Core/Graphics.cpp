@@ -191,6 +191,9 @@ namespace MyDirectX
 
         ++m_FrameIndex;
 
+        // 这是MS MiniEinge做法，移到ModelViewer::Update -20-2-22
+        // Effect::s_TemporalAA.Update(m_FrameIndex);
+
         // 可以动态改变 NativeResolution
         GfxStates::SetNativeResolution(m_Device.Get(), m_CurNativeRes);
     }
@@ -795,9 +798,17 @@ namespace MyDirectX
         auto& overlayBuffer = s_BufferManager.m_OverlayBuffer;
         context.TransitionResource(overlayBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         context.SetDynamicDescriptor(0, 0, overlayBuffer.GetSRV());
+
+        // debug
         // 显示 Default字体纹理 （调试使用） -20-1-28
         // auto& textRenderer = Effect::s_TextRenderer;
         // context.SetDynamicDescriptor(0, 0, textRenderer.GetDefaultFontTexture());
+        
+        // 显示 LinearDepth [n, f] / f
+        // auto& linearDepth = s_BufferManager.m_LinearDepth[m_FrameIndex % 2];
+        // context.SetDynamicDescriptor(0, 0, linearDepth.GetSRV());
+
+        // debug end
 
         context.SetPipelineState(m_BlendUIPSO);
         context.SetConstants(1, 1.0f / GfxStates::s_NativeWidth, 1.0f / GfxStates::s_NativeHeight);

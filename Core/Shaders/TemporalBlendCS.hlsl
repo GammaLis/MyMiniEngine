@@ -24,6 +24,7 @@ RWTexture2D<float4> OutTemporal	: register(u0);
 SamplerState s_LinearSampler	: register(s0);
 SamplerState s_PointSampler		: register(s1);
 
+// 共享内存，存储group内（+1 pixel border）depth和R, G, B
 groupshared float ldsDepth[kLdsPitch * kLdsRows];
 groupshared float ldsR[kLdsPitch * kLdsRows];
 groupshared float ldsG[kLdsPitch * kLdsRows];
@@ -192,6 +193,7 @@ void main(
 		uint X = (i % ldsHalfPitch) * 2;
 		uint Y = (i / ldsHalfPitch) * 2;
 		uint topLeftIdx = X + Y * kLdsPitch;
+        
 		float2 uv = _RcpBufferDim * (groupId.xy * uint2(8, 8) * float2(2, 1) + float2(X, Y) + 1);
 
 		// gather
@@ -226,7 +228,8 @@ void main(
 	uint2 st0 = dispatchThreadId.xy * uint2(2, 1);
 	ApplyTemporalBlend(st0, idx0, boxMin, boxMax);
 
-	uint2 st1 = st0 + 1;
+	// uint2 st1 = st0 + 1;		// 记：这里写错，搞得锯齿严重，唉 -20-2-22
+	uint2 st1 = st0 + uint2(1, 0);
 	ApplyTemporalBlend(st1, idx1, boxMin, boxMax);
 }
 

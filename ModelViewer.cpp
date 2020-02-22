@@ -70,8 +70,9 @@ void ModelViewer::Update(float deltaTime)
 	
 	auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 	auto bufferWidth = colorBuffer.GetWidth(), bufferHeight = colorBuffer.GetHeight();
-	// m_MainViewport.TopLeftX = m_MainViewport.TopLeftY = 0.0f;
+	
 	// test (改变Viewport位置，尺寸，Scissor位置，尺寸)
+	// m_MainViewport.TopLeftX = m_MainViewport.TopLeftY = 0.0f;
 	//m_MainViewport.TopLeftX = 10;
 	//m_MainViewport.TopLeftY = 10;
 	// test end
@@ -216,6 +217,17 @@ void ModelViewer::Render()
 			// ...
 		}
 	}
+
+	// effects
+	{
+		// some systems generate a per-pixel velocity buffer to better track dynamic and skinned meshes.
+		// everything is static in our scene, so we generate velocity from camera motion and the depth buffer.
+		// a velocity buffer is necessary for all temporal effects (and motion blur)
+		Effect::s_MotionBlur.GenerateCameraVelocityBuffer(gfxContext, m_Camera, frameIndex, true);
+
+		Effect::s_TemporalAA.ResolveImage(gfxContext);
+	}
+
 	
 	//// 普通渲染顺序，不经z prepass
 	//{

@@ -80,7 +80,7 @@ namespace MyDirectX
 
 		// reversed-Z [0, 1] - [far, near]
 		// linear-Z f*n / (n + (f-n)*z')
-		// 实际计算时，=1 / (1 + (f-n)/n * z')	(忽略分子f)	-20-2-20
+		// 实际计算时，=1 / (1 + (f-n)/n * z')	(忽略分子f)	-20-2-20	[n/f, 1] -> 近似 [0, 1]
 		ColorBuffer m_LinearDepth[2];		// normalized planar distance (0 at eye, 1 at far plane) computed from the SceneDepthBuffer
 
 		// temporal effects

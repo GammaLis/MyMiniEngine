@@ -161,12 +161,12 @@ void TemporalAA::ApplyTemporalAA(ComputeContext& context)
 		m_JitterDeltaX, m_JitterDeltaY
 	};
 	context.SetDynamicConstantBufferView(1, sizeof(csConstants), &csConstants);
-	context.SetDynamicDescriptor(1, 0, velocityBuffer.GetSRV());
-	context.SetDynamicDescriptor(1, 1, colorBuffer.GetSRV());
-	context.SetDynamicDescriptor(1, 2, prevTemporal.GetSRV());
-	context.SetDynamicDescriptor(1, 3, curDepth.GetSRV());
-	context.SetDynamicDescriptor(1, 4, prevDepth.GetSRV());
-	context.SetDynamicDescriptor(2, 0, curTemporal.GetUAV());
+	context.SetDynamicDescriptor(2, 0, velocityBuffer.GetSRV());
+	context.SetDynamicDescriptor(2, 1, colorBuffer.GetSRV());
+	context.SetDynamicDescriptor(2, 2, prevTemporal.GetSRV());
+	context.SetDynamicDescriptor(2, 3, curDepth.GetSRV());
+	context.SetDynamicDescriptor(2, 4, prevDepth.GetSRV());
+	context.SetDynamicDescriptor(3, 0, curTemporal.GetUAV());
 
 	context.Dispatch2D(colorBuffer.GetWidth(), colorBuffer.GetHeight(), 16, 8);
 
@@ -183,8 +183,8 @@ void TemporalAA::SharpenImage(ComputeContext& context, ColorBuffer& temporalColo
 	context.SetPipelineState(m_Sharpness >= 0.001f ? m_SharpenTAACS : m_ResolveTAACS);
 
 	context.SetConstants(0, 1.0f + m_Sharpness, 0.25f * m_Sharpness);
-	context.SetDynamicDescriptor(1, 0, temporalColor.GetSRV());
-	context.SetDynamicDescriptor(2, 0, colorBuffer.GetUAV());
+	context.SetDynamicDescriptor(2, 0, temporalColor.GetSRV());
+	context.SetDynamicDescriptor(3, 0, colorBuffer.GetUAV());
 
 	context.Dispatch2D(colorBuffer.GetWidth(), colorBuffer.GetHeight());
 	
