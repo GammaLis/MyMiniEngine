@@ -189,6 +189,8 @@ namespace MyDirectX
 
         m_SwapChain->Present(1, 0);
 
+        ++m_FrameIndex;
+
         // 可以动态改变 NativeResolution
         GfxStates::SetNativeResolution(m_Device.Get(), m_CurNativeRes);
     }

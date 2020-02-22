@@ -45,6 +45,7 @@ namespace MyDirectX
 		ColorBuffer& GetRenderTarget() { return m_BackBuffer[m_BackBufferIndex]; }
 		const ColorBuffer &GetRenderTarget() const { return m_BackBuffer[m_BackBufferIndex]; }
 		UINT GetCurrentFrameIndex() const { return m_BackBufferIndex; }
+		uint64_t GetFrameCount() const { return m_FrameIndex; }
 
 		// static members
 		static ID3D12Device* s_Device;
@@ -130,6 +131,8 @@ namespace MyDirectX
 		ColorBuffer m_PreDisplayBuffer;
 		ColorBuffer m_BackBuffer[SWAP_CHAIN_BUFFER_COUNT];
 		UINT m_BackBufferIndex = 0;
+
+		uint64_t m_FrameIndex = 0;
 
 		// features
 		D3D_FEATURE_LEVEL m_D3DMinFeatureLevel;

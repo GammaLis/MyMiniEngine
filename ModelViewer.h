@@ -34,6 +34,8 @@ namespace MyDirectX
 		virtual void InitGeometryBuffers() override;
 		virtual void InitCustom() override;
 
+		virtual void CleanCustom() override;
+
 		void RenderLightShadows(GraphicsContext& gfxContext);
 
 		void RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4 viewProjMat, ObjectFilter filter = ObjectFilter::kAll);
@@ -48,6 +50,10 @@ namespace MyDirectX
 		GraphicsPSO m_CutoutDepthPSO;
 		GraphicsPSO m_ModelPSO;
 		GraphicsPSO m_ShadowPSO;
+
+		// 临时设置，后面需要移到别处 -20-2-21
+		RootSignature m_LinearDepthRS;
+		ComputePSO m_LinearDepthCS;
 
 		Math::Vector3 m_SunDirection;
 		ShadowCamera m_SunShadow;

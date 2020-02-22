@@ -136,7 +136,6 @@ namespace MyDirectX
 				color = color * 5.0f;
 			}
 
-			// 暂时没有用到 -20-2-17
 			Camera shadowCamera;
 			shadowCamera.SetEyeAtUp(pos, pos + coneDir, Vector3(0, 1, 0));
 			shadowCamera.SetPerspectiveMatrix(coneOuter * 2, 1.0f, lightRadius * 0.05f, lightRadius * 1.0f);
@@ -191,7 +190,7 @@ namespace MyDirectX
 		m_LightShadowTempBuffer.Create(pDevice, L"m_LightShadowTempBuffer", m_ShadowDim, m_ShadowDim);
 	}
 
-	void ForwardPlusLighting::FillLightGrid(GraphicsContext& gfxContext, const Math::Camera& camera, UINT curFrameIndex)
+	void ForwardPlusLighting::FillLightGrid(GraphicsContext& gfxContext, const Math::Camera& camera, uint64_t frameIndex)
 	{
 		ComputeContext& context = gfxContext.GetComputeContext();
 
@@ -206,7 +205,7 @@ namespace MyDirectX
 		case 32:context.SetPipelineState(m_FillLightGridCS_32); break;
 		}
 
-		ColorBuffer& linearDepth = Graphics::s_BufferManager.m_LinearDepth[curFrameIndex % 2];
+		ColorBuffer& linearDepth = Graphics::s_BufferManager.m_LinearDepth[frameIndex % 2];
 		ColorBuffer& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 		DepthBuffer& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;		
 

@@ -11,6 +11,9 @@
 #include "ModelViewerVS.h"
 #include "ModelViewerPS.h"
 
+// 临时
+#include "LinearizeDepthCS.h"
+
 using namespace MyDirectX;
 
 struct VSConstants
@@ -51,9 +54,27 @@ void ModelViewer::Update(float deltaTime)
 	m_SunDirection = Math::Normalize(Math::Vector3(cosTheta * cosPhi, sinPhi, sinTheta * cosPhi));
 
 	//
+	// We use viewport offsets to jitter sample positions from frame to frame (for TAA.)
+	// D3D has a design quirk with fractional offsets such that the implicit scissor
+	// region of a viewport is floor(TopLeftXY) and floor(TopLeftXY + WidthHeight), so
+	// having a negative fractional top left, e.g. (-0.25, -0.25) would also shift the
+	// BottomRight corner up by a whole integer.  One solution is to pad your viewport
+	// dimensions with an extra pixel.  My solution is to only use positive fractional offsets,
+	// but that means that the average sample position is +0.5, which I use when I disable
+	// temporal AA.
+	// 注：MS MiniEngine - 在Graphics::Present之后调用TemporalEffects::Update，为什么？ -20-2-21
+	uint64_t frameIndex = m_Gfx->GetFrameCount();
+	Effect::s_TemporalAA.Update(frameIndex);
+
+	Effect::s_TemporalAA.GetJitterOffset(m_MainViewport.TopLeftX, m_MainViewport.TopLeftY);
+	
 	auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 	auto bufferWidth = colorBuffer.GetWidth(), bufferHeight = colorBuffer.GetHeight();
-	m_MainViewport.TopLeftX = m_MainViewport.TopLeftY = 0.0f;
+	// m_MainViewport.TopLeftX = m_MainViewport.TopLeftY = 0.0f;
+	// test (改变Viewport位置，尺寸，Scissor位置，尺寸)
+	//m_MainViewport.TopLeftX = 10;
+	//m_MainViewport.TopLeftY = 10;
+	// test end
 	m_MainViewport.Width = (float)bufferWidth;
 	m_MainViewport.Height = (float)bufferHeight;
 	m_MainViewport.MinDepth = 0.0f;
@@ -67,7 +88,7 @@ void ModelViewer::Update(float deltaTime)
 
 void ModelViewer::Render()
 {
-	auto curFrameIndex = m_Gfx->GetCurrentFrameIndex();
+	auto frameIndex = m_Gfx->GetFrameCount();
 	auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 	auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
 	auto& shadowBuffer = Graphics::s_BufferManager.m_ShadowBuffer;
@@ -127,8 +148,28 @@ void ModelViewer::Render()
 
 	// 
 	{
+		// 暂时先在这里 计算线性深度 （实际应在SSAO中计算，目前没有实现）
+		// linearize depth
+		{
+			auto& computeContext = gfxContext.GetComputeContext();
+			computeContext.SetRootSignature(m_LinearDepthRS);
+			computeContext.SetPipelineState(m_LinearDepthCS);
+
+			auto& linearDepth = Graphics::s_BufferManager.m_LinearDepth[frameIndex % 2];
+			computeContext.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			computeContext.TransitionResource(linearDepth, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			
+			float farClip = m_Camera.GetFarClip(), nearClip = m_Camera.GetNearClip();
+			const float zMagic = (farClip - nearClip) / nearClip;
+			computeContext.SetConstant(0, zMagic);
+			computeContext.SetDynamicDescriptor(1, 0, depthBuffer.GetDepthSRV());
+			computeContext.SetDynamicDescriptor(2, 0, linearDepth.GetUAV());
+			computeContext.Dispatch2D(linearDepth.GetWidth(), linearDepth.GetHeight(), 16, 16);
+
+		}
+
 		// CS - fill light grid
-		Effect::s_ForwardPlusLighting.FillLightGrid(gfxContext, m_Camera, curFrameIndex);
+		Effect::s_ForwardPlusLighting.FillLightGrid(gfxContext, m_Camera, frameIndex);
 	}
 
 	// main render
@@ -259,6 +300,19 @@ void ModelViewer::InitPipelineStates()
 	m_ModelPSO.SetRenderTargetFormats(1, &colorFormat, depthFormat);
 	m_ModelPSO.Finalize(Graphics::s_Device);
 
+	// ****************************************
+	// 临时设置，后面需要放到别处 -20-2-21
+	// linear depth
+	m_LinearDepthRS.Reset(3, 0);
+	m_LinearDepthRS[0].InitAsConstants(0, 1);
+	m_LinearDepthRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
+	m_LinearDepthRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
+	m_LinearDepthRS.Finalize(Graphics::s_Device, L"Linear Depth");
+
+	m_LinearDepthCS.SetRootSignature(m_LinearDepthRS);
+	m_LinearDepthCS.SetComputeShader(LinearizeDepthCS, sizeof(LinearizeDepthCS));
+	m_LinearDepthCS.Finalize(Graphics::s_Device);
+	// ****************************************
 }
 
 void ModelViewer::InitGeometryBuffers()
@@ -293,6 +347,11 @@ void ModelViewer::InitCustom()
 	m_ExtraTextures[4] = forwardPlusLighting.m_LightGridBitMask.GetSRV();
 	m_ExtraTextures[5] = forwardPlusLighting.m_LightShadowArray.GetSRV();
 
+}
+
+void ModelViewer::CleanCustom()
+{
+	m_Model->Cleanup();
 }
 
 // render light shadows

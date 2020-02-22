@@ -4,6 +4,9 @@
 #include "CommandContext.h"
 #include <d3dcompiler.h>
 
+#include "Effect.h"
+#include "TemporalAA.h"
+
 #include "ScreenQuadVS.h"
 
 /**
@@ -116,8 +119,7 @@ void GfxStates::SetNativeResolution(ID3D12Device* pDevice, Resolutions nativeRes
 
 void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferWidth, uint32_t bufferHeight)
 {
-	// 暂时不需要 initContext
-	// GraphicsContext& initContext = GraphicsContext::Begin();
+	GraphicsContext& initContext = GraphicsContext::Begin();
 
 	const uint32_t bufferWidth1 = (bufferWidth + 1) / 2;
 	const uint32_t bufferWidth2 = (bufferWidth + 3) / 4;
@@ -137,8 +139,19 @@ void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferW
 	m_SceneColorBuffer.SetClearColor(Color(0.2f, 0.4f, 0.4f));
 	m_SceneDepthBuffer.Create(pDevice, L"Scene Depth Buffer", bufferWidth, bufferHeight, GfxStates::s_DefaultDSVFormat);
 
+	m_VelocityBuffer.Create(pDevice, L"Motion Vectors", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R32_UINT);
+
 	m_LinearDepth[0].Create(pDevice, L"Linear Depth 0", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16_UNORM);
 	m_LinearDepth[1].Create(pDevice, L"Linear Depth 1", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16_UNORM);
+
+	m_ShadowBuffer.Create(pDevice, L"Shadow Map", 2048, 2048);
+
+	/// effects
+	
+	// temporal effects
+	m_TemporalColor[0].Create(pDevice, L"Temporal Color 0", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16B16A16_FLOAT);
+	m_TemporalColor[1].Create(pDevice, L"Temporal Color 1", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16B16A16_FLOAT);
+	Effect::s_TemporalAA.ClearHistory(initContext);		// 清空
 
 	// UI overlay
 	m_OverlayBuffer.Create(pDevice, L"UI Overlay", GfxStates::s_DisplayWidth, GfxStates::s_DisplayHeight, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
@@ -148,8 +161,7 @@ void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferW
 	// bicubic horizontal upsample intermediate buffer
 	m_HorizontalBuffer.Create(pDevice, L"Bicubic Intermediate", GfxStates::s_DisplayWidth, bufferHeight, 1, GfxStates::s_DefaultHdrColorFormat);
 
-	m_ShadowBuffer.Create(pDevice, L"Shadow Map", 2048, 2048);
-
+	initContext.Finish();
 }
 
 void BufferManager::ResizeDisplayDependentBuffers(ID3D12Device* pDevice, uint32_t bufferWidth, uint32_t bufferHeight)
@@ -166,17 +178,23 @@ void BufferManager::DestroyRenderingBuffers()
 	m_SceneColorBuffer.Destroy();
 	m_SceneDepthBuffer.Destroy();
 
+	m_VelocityBuffer.Destroy();
+
 	m_LinearDepth[0].Destroy();
 	m_LinearDepth[1].Destroy();
+
+	// shadow buffer
+	m_ShadowBuffer.Destroy();
+
+	// temporal effects
+	m_TemporalColor[0].Destroy();
+	m_TemporalColor[1].Destroy();
 
 	// UI overlay
 	m_OverlayBuffer.Destroy();
 
 	// bicubic horizontal upsample intermediate buffer
 	m_HorizontalBuffer.Destroy();
-
-	// shadow buffer
-	m_ShadowBuffer.Destroy();
 }
 
 void ShaderManager::CreateFromByteCode()

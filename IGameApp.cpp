@@ -100,14 +100,14 @@ void IGameApp::RenderUI()
 
 void IGameApp::Cleanup()
 {
-	// TO DO
+	// 确保GPU完成绘制
 	m_Gfx->Terminate();
 
-	m_Model->Cleanup();
-
-	m_Gfx->Shutdown();
+	CleanCustom();
 
 	m_Input->Shutdown();
+
+	m_Gfx->Shutdown();	
 }
 
 int IGameApp::Run()
@@ -242,6 +242,13 @@ void IGameApp::CustomUI(GraphicsContext &context)
 	textContext.DrawString("Hello, World!");
 
 	textContext.End();
+}
+
+void IGameApp::CleanCustom()
+{
+	m_Model->Cleanup();
+
+	m_ConstantBuffer.Destroy();
 }
 
 void IGameApp::InitPipelineStates()

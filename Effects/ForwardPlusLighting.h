@@ -24,7 +24,7 @@ namespace MyDirectX
 
 		void Init(ID3D12Device *pDevice);
 		void CreateRandomLights(ID3D12Device* pDevice, const Math::Vector3 minBound, const Math::Vector3 maxBound);
-		void FillLightGrid(GraphicsContext& gfxContext, const Math::Camera& camera, UINT curFrameIndex);
+		void FillLightGrid(GraphicsContext& gfxContext, const Math::Camera& camera, uint64_t frameIndex);
 		void Shutdown();
 
 		// must keep in sync with HLSL

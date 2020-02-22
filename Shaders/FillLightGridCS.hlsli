@@ -100,8 +100,11 @@ void main(
 
 	// after the minimum and maximum depth values for the current tile have been found, we can reinterrpret
 	// the unsigned integer back to a float.
+	// reversed-Z
 	float tileMinDepth = asfloat(minDepthUInt);
 	float tileMaxDepth = asfloat(maxDepthUInt);
+	// linear Z => zlin = 1 / (1 + ZMagic * z) (ZMagic = (f-n)/n)
+	// zc = (1/zlin - 1) * RcpZMagic
 	// float tileMinDepth = (rcp(asfloat(maxDepthUInt)) - 1.0) * _RcpZMagic;
 	// float tileMaxDepth = (rcp(asfloat(minDepthUInt)) - 1.0) * _RcpZMagic;
 	float tileDepthRange = tileMaxDepth - tileMinDepth;

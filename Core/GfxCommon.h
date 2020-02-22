@@ -72,13 +72,19 @@ namespace MyDirectX
 		DepthBuffer m_SceneDepthBuffer;		// D32_FLOAT_S8_UINT
 
 		//ColorBuffer m_PoseEffectsBuffer;	// R32_UINT (to support Read-Modify-Write with a UAV)
+		ColorBuffer m_VelocityBuffer;		// R10G10B10 (3D velocity)
 		ColorBuffer m_OverlayBuffer;		// R8G8B8A8_UNORM
 		ColorBuffer m_HorizontalBuffer;		// for separable (bicubic) upsampling
 
 		ShadowBuffer m_ShadowBuffer;		// shadow buffer
 
-		// ...
-		ColorBuffer m_LinearDepth[2];
+		// reversed-Z [0, 1] - [far, near]
+		// linear-Z f*n / (n + (f-n)*z')
+		// 实际计算时，=1 / (1 + (f-n)/n * z')	(忽略分子f)	-20-2-20
+		ColorBuffer m_LinearDepth[2];		// normalized planar distance (0 at eye, 1 at far plane) computed from the SceneDepthBuffer
+
+		// temporal effects
+		ColorBuffer m_TemporalColor[2];		// 犹豫是将相关资源统一管理还是各个效果各自管理？？？ -20-2-19
 
 	};
 

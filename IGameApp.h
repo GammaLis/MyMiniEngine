@@ -71,6 +71,8 @@ namespace MyDirectX
 		
 		virtual void CustomUI(GraphicsContext &context);
 
+		virtual void CleanCustom();
+
 		void RenderTriangle();
 
 		RootSignature m_EmptyRS;

@@ -38,6 +38,12 @@
     <Filter Include="Effects">
       <UniqueIdentifier>{26433081-57a6-496b-9791-66e6b2cd5c29}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Core\Shaders\Temporal">
+      <UniqueIdentifier>{18fd7bf6-0e83-4fbf-b17a-81fe7fb22b64}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core\Shaders\SSAO">
+      <UniqueIdentifier>{69b8c5a9-7577-4b60-8b8e-566068d42646}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\GpuResource.h">
@@ -223,6 +229,12 @@
     <ClInclude Include="Core\ShadowCamera.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="Effects\TemporalAA.h">
+      <Filter>Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="Effects\MotionBlur.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -360,6 +372,12 @@
     <ClCompile Include="Core\ShadowCamera.cpp">
       <Filter>Core</Filter>
     </ClCompile>
+    <ClCompile Include="Effects\TemporalAA.cpp">
+      <Filter>Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="Effects\MotionBlur.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Core\Math\Functions.inl">
@@ -401,6 +419,15 @@
     </None>
     <None Include="Shaders\FillLightGridCS.hlsli">
       <Filter>Shaders</Filter>
+    </None>
+    <None Include="Core\Shaders\TemporalRS.hlsli">
+      <Filter>Core\Shaders\Temporal</Filter>
+    </None>
+    <None Include="Core\Shaders\MotionBlurRS.hlsli">
+      <Filter>Core\Shaders\Temporal</Filter>
+    </None>
+    <None Include="Core\Shaders\SSAORS.hlsli">
+      <Filter>Core\Shaders\SSAO</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -469,6 +496,24 @@
     </FxCompile>
     <FxCompile Include="Shaders\FillLightGridCS_32.hlsl">
       <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\BoundNeighborhoodCS.hlsl">
+      <Filter>Core\Shaders\Temporal</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\ResolveTAACS.hlsl">
+      <Filter>Core\Shaders\Temporal</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\SharpenTAACS.hlsl">
+      <Filter>Core\Shaders\Temporal</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\TemporalBlendCS.hlsl">
+      <Filter>Core\Shaders\Temporal</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\CameraVelocityCS.hlsl">
+      <Filter>Core\Shaders\Temporal</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\LinearizeDepthCS.hlsl">
+      <Filter>Core\Shaders\SSAO</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
