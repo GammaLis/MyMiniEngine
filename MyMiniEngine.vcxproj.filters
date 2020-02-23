@@ -44,6 +44,9 @@
     <Filter Include="Core\Shaders\SSAO">
       <UniqueIdentifier>{69b8c5a9-7577-4b60-8b8e-566068d42646}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Core\Shaders\HDR">
+      <UniqueIdentifier>{569d706e-2461-4245-ac2f-b21c6e7579f7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\GpuResource.h">
@@ -205,9 +208,6 @@
     <ClInclude Include="Core\TextRenderer.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="Core\Effect.h">
-      <Filter>Core</Filter>
-    </ClInclude>
     <ClInclude Include="ModelViewer.h">
       <Filter>Game</Filter>
     </ClInclude>
@@ -233,6 +233,12 @@
       <Filter>Effects</Filter>
     </ClInclude>
     <ClInclude Include="Effects\MotionBlur.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Effects.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\PostEffects.h">
       <Filter>Core</Filter>
     </ClInclude>
   </ItemGroup>
@@ -351,9 +357,6 @@
     <ClCompile Include="Core\TextRenderer.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="Core\Effect.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
     <ClCompile Include="ModelViewer.cpp">
       <Filter>Game</Filter>
     </ClCompile>
@@ -376,6 +379,12 @@
       <Filter>Effects</Filter>
     </ClCompile>
     <ClCompile Include="Effects\MotionBlur.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Effects.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\PostEffects.cpp">
       <Filter>Core</Filter>
     </ClCompile>
   </ItemGroup>
@@ -428,6 +437,9 @@
     </None>
     <None Include="Core\Shaders\SSAORS.hlsli">
       <Filter>Core\Shaders\SSAO</Filter>
+    </None>
+    <None Include="Core\Shaders\PostEffectsRS.hlsli">
+      <Filter>Core\Shaders\HDR</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -514,6 +526,24 @@
     </FxCompile>
     <FxCompile Include="Core\Shaders\LinearizeDepthCS.hlsl">
       <Filter>Core\Shaders\SSAO</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\BloomExtractAndDownsampleHdrCS.hlsl">
+      <Filter>Core\Shaders\HDR</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\BloomExtractAndDownsampleLdrCS.hlsl">
+      <Filter>Core\Shaders\HDR</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\BlurCS.hlsl">
+      <Filter>Core\Shaders\HDR</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\DownsampleBloomAllCS.hlsl">
+      <Filter>Core\Shaders\HDR</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\DownsampleBloomCS.hlsl">
+      <Filter>Core\Shaders\HDR</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\UpsampleAndBlurCS.hlsl">
+      <Filter>Core\Shaders\HDR</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

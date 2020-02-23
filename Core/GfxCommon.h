@@ -86,6 +86,15 @@ namespace MyDirectX
 		// temporal effects
 		ColorBuffer m_TemporalColor[2];		// 犹豫是将相关资源统一管理还是各个效果各自管理？？？ -20-2-19
 
+		// post effects
+		// bloom
+		ColorBuffer m_aBloomUAV1[2];	// 1/3
+		ColorBuffer m_aBloomUAV2[2];	// 1/6
+		ColorBuffer m_aBloomUAV3[2];	// 1/12
+		ColorBuffer m_aBloomUAV4[2];	// 1/24
+		ColorBuffer m_aBloomUAV5[2];	// 1/48
+		ColorBuffer m_LumaLR;
+
 	};
 
 	class ShaderManager

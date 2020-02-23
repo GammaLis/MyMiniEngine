@@ -7,7 +7,7 @@
 
 namespace MyDirectX
 {
-	class Effect
+	class Effects
 	{
 	public:
 		static void Init(ID3D12Device* pDevice);

@@ -4,7 +4,7 @@
 #include "CommandContext.h"
 #include <d3dcompiler.h>
 
-#include "Effect.h"
+#include "Effects.h"
 #include "TemporalAA.h"
 
 #include "ScreenQuadVS.h"
@@ -151,7 +151,29 @@ void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferW
 	// temporal effects
 	m_TemporalColor[0].Create(pDevice, L"Temporal Color 0", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16B16A16_FLOAT);
 	m_TemporalColor[1].Create(pDevice, L"Temporal Color 1", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16B16A16_FLOAT);
-	Effect::s_TemporalAA.ClearHistory(initContext);		// 清空
+	Effects::s_TemporalAA.ClearHistory(initContext);		// 清空
+
+	// post effects
+
+	// bloom and tone mapping
+	// MS-MiniEngine 自己注释
+	// divisible by 128 so that after dividing by 16, we still have multiples of 8x8 tiles
+	// the bloom dimensions must be at least 1/4 natives resolution to avoid undersampling
+	//uint32_t kBloomWidth = bufferWidth > 2560 ? Math::AlignUp(bufferWidth / 4, 128) : 640;
+	//uint32_t kBloomHeight = bufferHeight > 1440 ? Math::AlignUp(bufferHeight / 4, 128) : 384;
+	uint32_t kBloomWidth = bufferWidth > 2560 ? 1280 : 640;
+	uint32_t kBloomHeight = bufferHeight > 1440 ? 768 : 384;
+	m_LumaLR.Create(pDevice, L"Luma Buffer", kBloomWidth, kBloomHeight, 1, DXGI_FORMAT_R8_UINT);
+	m_aBloomUAV1[0].Create(pDevice, L"Bloom Buffer 1a", kBloomWidth,	kBloomHeight,	 1, GfxStates::s_DefaultHdrColorFormat);
+	m_aBloomUAV1[1].Create(pDevice, L"Bloom Buffer 1b", kBloomWidth,	kBloomHeight,	 1, GfxStates::s_DefaultHdrColorFormat);
+	m_aBloomUAV2[0].Create(pDevice, L"Bloom Buffer 2a", kBloomWidth/2,	kBloomHeight/2,  1, GfxStates::s_DefaultHdrColorFormat);
+	m_aBloomUAV2[1].Create(pDevice, L"Bloom Buffer 2b", kBloomWidth/2,	kBloomHeight/2,  1, GfxStates::s_DefaultHdrColorFormat);
+	m_aBloomUAV3[0].Create(pDevice, L"Bloom Buffer 3a", kBloomWidth/4,	kBloomHeight/4,  1, GfxStates::s_DefaultHdrColorFormat);
+	m_aBloomUAV3[1].Create(pDevice, L"Bloom Buffer 3b", kBloomWidth/4,	kBloomHeight/4,  1, GfxStates::s_DefaultHdrColorFormat);
+	m_aBloomUAV4[0].Create(pDevice, L"Bloom Buffer 4a", kBloomWidth/8,	kBloomHeight/8,  1, GfxStates::s_DefaultHdrColorFormat);
+	m_aBloomUAV4[1].Create(pDevice, L"Bloom Buffer 4b", kBloomWidth/8,	kBloomHeight/8,  1, GfxStates::s_DefaultHdrColorFormat);
+	m_aBloomUAV5[0].Create(pDevice, L"Bloom Buffer 5a", kBloomWidth/16, kBloomHeight/16, 1, GfxStates::s_DefaultHdrColorFormat);
+	m_aBloomUAV5[1].Create(pDevice, L"Bloom Buffer 5b", kBloomWidth/16, kBloomHeight/16, 1, GfxStates::s_DefaultHdrColorFormat);
 
 	// UI overlay
 	m_OverlayBuffer.Create(pDevice, L"UI Overlay", GfxStates::s_DisplayWidth, GfxStates::s_DisplayHeight, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
@@ -189,6 +211,21 @@ void BufferManager::DestroyRenderingBuffers()
 	// temporal effects
 	m_TemporalColor[0].Destroy();
 	m_TemporalColor[1].Destroy();
+
+	// post effects
+	// bloom and tone mapping
+	m_LumaLR.Destroy();
+	m_aBloomUAV1[0].Destroy();
+	m_aBloomUAV1[1].Destroy();
+	m_aBloomUAV2[0].Destroy();
+	m_aBloomUAV2[1].Destroy();
+	m_aBloomUAV3[0].Destroy();
+	m_aBloomUAV3[1].Destroy();
+	m_aBloomUAV4[0].Destroy();
+	m_aBloomUAV4[1].Destroy();
+	m_aBloomUAV5[0].Destroy();
+	m_aBloomUAV5[1].Destroy();
+
 
 	// UI overlay
 	m_OverlayBuffer.Destroy();

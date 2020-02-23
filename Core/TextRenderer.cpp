@@ -3,7 +3,7 @@
 #include "Graphics.h"
 #include "GfxCommon.h"
 #include "CommandContext.h"
-#include "Effect.h"
+#include "Effects.h"
 #include "../FileUtility.h"
 #include "../Fonts/consola24.h"
 
@@ -267,7 +267,7 @@ namespace MyDirectX
 	void TextContext::SetFont(const std::wstring& fontName, float textSize)
 	{
 		// if that font is already set or doesn't exist, return
-		const TextRenderer::Font* nextFont = Effect::s_TextRenderer.GetOrLoadFont(fontName);
+		const TextRenderer::Font* nextFont = Effects::s_TextRenderer.GetOrLoadFont(fontName);
 		if (nextFont == m_CurFont || nextFont == nullptr)
 		{
 			if (textSize > 0.0f)
@@ -347,7 +347,7 @@ namespace MyDirectX
 
 		m_EnableShadow = bEnable;
 		m_GfxContext.SetPipelineState(m_EnableShadow ?
-			Effect::s_TextRenderer.m_ShadowPSO[m_HDR] : Effect::s_TextRenderer.m_ShadowPSO[m_HDR]);
+			Effects::s_TextRenderer.m_ShadowPSO[m_HDR] : Effects::s_TextRenderer.m_ShadowPSO[m_HDR]);
 	}
 
 	void TextContext::SetShadowOffset(float xPercent, float yPercent)
@@ -378,8 +378,8 @@ namespace MyDirectX
 
 		m_HDR = (BOOL)bEnableHDR;
 
-		m_GfxContext.SetRootSignature(Effect::s_TextRenderer.m_RootSignature);
-		m_GfxContext.SetPipelineState(Effect::s_TextRenderer.m_ShadowPSO[m_HDR]);
+		m_GfxContext.SetRootSignature(Effects::s_TextRenderer.m_RootSignature);
+		m_GfxContext.SetPipelineState(Effects::s_TextRenderer.m_ShadowPSO[m_HDR]);
 		m_GfxContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	}
 

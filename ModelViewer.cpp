@@ -3,7 +3,7 @@
 #include "CommandContext.h"
 #include "TextureManager.h"
 #include "Model.h"
-#include "Effect.h"
+#include "Effects.h"
 
 // shaders
 #include "DepthViewerVS.h"
@@ -64,9 +64,9 @@ void ModelViewer::Update(float deltaTime)
 	// temporal AA.
 	// 注：MS MiniEngine - 在Graphics::Present之后调用TemporalEffects::Update，为什么？ -20-2-21
 	uint64_t frameIndex = m_Gfx->GetFrameCount();
-	Effect::s_TemporalAA.Update(frameIndex);
+	Effects::s_TemporalAA.Update(frameIndex);
 
-	Effect::s_TemporalAA.GetJitterOffset(m_MainViewport.TopLeftX, m_MainViewport.TopLeftY);
+	Effects::s_TemporalAA.GetJitterOffset(m_MainViewport.TopLeftX, m_MainViewport.TopLeftY);
 	
 	auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 	auto bufferWidth = colorBuffer.GetWidth(), bufferHeight = colorBuffer.GetHeight();
@@ -102,7 +102,7 @@ void ModelViewer::Render()
 	psConstants._ShadowTexelSize[0] = 1.0f / shadowBuffer.GetWidth();
 	psConstants._ShadowTexelSize[1] = 1.0f / shadowBuffer.GetHeight();
 
-	const auto& forwardPlusLighting = Effect::s_ForwardPlusLighting;
+	const auto& forwardPlusLighting = Effects::s_ForwardPlusLighting;
 	psConstants._InvTileDim[0] = 1.0f / forwardPlusLighting.m_LightGridDim;
 	psConstants._InvTileDim[1] = 1.0f / forwardPlusLighting.m_LightGridDim;
 
@@ -170,7 +170,7 @@ void ModelViewer::Render()
 		}
 
 		// CS - fill light grid
-		Effect::s_ForwardPlusLighting.FillLightGrid(gfxContext, m_Camera, frameIndex);
+		Effects::s_ForwardPlusLighting.FillLightGrid(gfxContext, m_Camera, frameIndex);
 	}
 
 	// main render
@@ -223,9 +223,9 @@ void ModelViewer::Render()
 		// some systems generate a per-pixel velocity buffer to better track dynamic and skinned meshes.
 		// everything is static in our scene, so we generate velocity from camera motion and the depth buffer.
 		// a velocity buffer is necessary for all temporal effects (and motion blur)
-		Effect::s_MotionBlur.GenerateCameraVelocityBuffer(gfxContext, m_Camera, frameIndex, true);
+		Effects::s_MotionBlur.GenerateCameraVelocityBuffer(gfxContext, m_Camera, frameIndex, true);
 
-		Effect::s_TemporalAA.ResolveImage(gfxContext);
+		Effects::s_TemporalAA.ResolveImage(gfxContext);
 	}
 
 	
@@ -351,7 +351,7 @@ void ModelViewer::InitCustom()
 
 	// forward+ lighting
 	const auto &boundingBox = m_Model->GetBoundingBox();
-	auto& forwardPlusLighting = Effect::s_ForwardPlusLighting;
+	auto& forwardPlusLighting = Effects::s_ForwardPlusLighting;
 	forwardPlusLighting.CreateRandomLights(Graphics::s_Device, boundingBox.min, boundingBox.max);
 
 	m_ExtraTextures[2] = forwardPlusLighting.m_LightBuffer.GetSRV();
@@ -372,7 +372,7 @@ void ModelViewer::RenderLightShadows(GraphicsContext& gfxContext)
 {
 	static uint32_t LightIndex = 0;
 
-	auto& forwardPlusLighting = Effect::s_ForwardPlusLighting;
+	auto& forwardPlusLighting = Effects::s_ForwardPlusLighting;
 	if (LightIndex >= forwardPlusLighting.MaxLights)
 		return;
 

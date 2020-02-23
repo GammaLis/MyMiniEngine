@@ -2,7 +2,7 @@
 #include "CommandListManager.h"
 #include "CommandContext.h"
 #include "TextureManager.h"
-#include "Effect.h"
+#include "Effects.h"
 
 
 namespace MyDirectX
@@ -69,7 +69,7 @@ namespace MyDirectX
 
         // 考虑放在 Graphics里 还是 IGameApp里 -20-1-27
         // 目前 感觉放在 Graphics里 更加合适
-        Effect::Init(m_Device.Get());
+        Effects::Init(m_Device.Get());
     }
 
     void Graphics::Resize(uint32_t newWidth, uint32_t newHeight)
@@ -151,7 +151,7 @@ namespace MyDirectX
         s_TextureManager.Shutdown();
 
         // effects
-        Effect::Shutdown();
+        Effects::Shutdown();
 
         // back buffers
         for (UINT i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
@@ -453,6 +453,7 @@ namespace MyDirectX
                 // 3dgep.com
                 // this occurs when a render target is cleared using a clear color that is not the optimized color
                 // specified during resource creation.
+                // 忽略 ClearRenderTargetView clearValue 与设置值不一的warning
                 D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
 
                 // This occurs when there are uninitialized descriptors in a descriptor table, even when a

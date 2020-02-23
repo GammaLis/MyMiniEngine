@@ -130,7 +130,10 @@ void ApplyTemporalBlend(uint2 st, uint ldsIndex, float3 boxMin, float3 boxMax)
 	compareDepth += velocity.z;
 
 	// the temporal depth is the actual depth of the pixel found at the same reprojected location
+	// 注：因为这里使用Gather，采样不经滤波，所以需要加上_ViewportJitter，
+	// 如果使用Sample，应该不用再加，因为考虑了滤波，Jitter因素其实已经考虑进去（大概如此，尚不确定 -20-2-22） 
 	float temporalDepth = MaxOf(_PreDepth.Gather(s_LinearSampler, STtoUV(st + velocity.xy + _ViewportJitter))) + 1e-3;
+	// float temporalDepth = _PreDepth.SampleLevel(s_LinearSampler, STtoUV(st + velocity.xy), 0);	// 每帧都在变化
 
 	// fast-moving pixels cause motion blur and probably don't need TAA
 	float speedFactor = saturate(1.0 - length(velocity.xy) * _RcpSpeedLimiter);
@@ -150,6 +153,9 @@ void ApplyTemporalBlend(uint2 st, uint ldsIndex, float3 boxMin, float3 boxMax)
 	temporalColor = ClipColor(temporalColor, boxMin, boxMax, lerp(1.0, 4.0, speedFactor * speedFactor));
 
 	// update the confidence term based on speed and disocclusion
+	// ret step(y, x)
+	// 	= 1 if the x parameter is greater than or equal to the y parameter; otherwise, 0.
+	// temporalWeight 越小，变化越快，之前影响越小
 	temporalWeight *= speedFactor * step(compareDepth, temporalDepth);
 
 	// 这是关键，更新temporalColor
@@ -167,7 +173,7 @@ void ApplyTemporalBlend(uint2 st, uint ldsIndex, float3 boxMin, float3 boxMax)
 
 	// update weight
 	temporalWeight = saturate(rcp(2.0 - temporalWeight));
-	// 1.0 / (1.0 + RGBToLuminance(temporalColor));	// Karis
+	// temporalWeight = 1.0 / (1.0 + RGBToLuminance(temporalColor));	// Karis
 
 	// quantize weight to what is representable
 	temporalWeight = f16tof32(f32tof16(temporalWeight));
