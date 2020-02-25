@@ -18,9 +18,13 @@ namespace MyDirectX
 		void Init(ID3D12Device *pDevice, const RootSignature *postEffectRS = nullptr);
 		void Shutdown();
 
-		void GenerateBloom(ComputeContext &context, PostEffects &postEffects);
+		void Render(ComputeContext &context, PostEffects& postEffects);
+
+		void GenerateBloom(ComputeContext &context, PostEffects& postEffects);
 
 		void BlurBuffer(ComputeContext& context, ColorBuffer buffer[2], const ColorBuffer& lowerResBuf, float upsampleBlendFactor);
+
+		void ApplyBloom(ComputeContext& context, float bloomStrength = 1.0f);
 
 		ComputePSO m_BloomExtractAndDownsampleHdrCS;
 		ComputePSO m_BloomExtractAndDownsampleLdrCS;
@@ -32,12 +36,31 @@ namespace MyDirectX
 		ComputePSO m_BlurCS;
 		ComputePSO m_UpsampleAndBlurCS;
 
-		
+		// cached properties
+		bool m_EnableHDR = false;
+		bool m_bHighQualityBloom = false;
+		float m_BloomThreshold = 0.0f;
+		float m_BloomUpsampleFactor = 0.0f;
+		float m_BloomStrength = 1.0f;
+
+	};
+
+	class ToneMapper
+	{
+	public:
+		void Init(ID3D12Device* pDevice, const RootSignature* postEffectRS = nullptr);
+		void Shutdown();
+
+		void Render(ComputeContext& context, PostEffects& postEffects);
+
+		ComputePSO m_ToneMapCS;
+		ComputePSO m_ToneMapHDRCS;
 	};
 
 	class PostEffects
 	{
 		friend class BloomEffect;
+		friend class ToneMapper;
 
 	public:
 		void Init(ID3D12Device *pDevice);
@@ -64,7 +87,7 @@ namespace MyDirectX
 			// bloom parameters
 			bool EnableBloom = true;
 			// the threshold luminance above which a pixel will start to bloom
-			float BloomThreashold = 4.0f;		// [0.0f, 8.0f]
+			float BloomThreshold = 4.0f;		// [0.0f, 8.0f]
 			// a modulator controlling how much bloom is added back into the image
 			float BloomStrength = 0.1f;			// [0.0f, 2.0f]
 			// controls the "focus" of the blur. High values spread out more causing a haze
@@ -78,10 +101,21 @@ namespace MyDirectX
 		void ProcessHDR(ComputeContext& context);
 		void ProcessLDR(CommandContext& baseContext);
 
+		// Adaption其实也可单独作为一个effect，但是这里直接写在PostEffects里	-20-2-24
+		void ExtractLuma(ComputeContext& context);
+		void UpdateExposure(ComputeContext& context);
+
 		RootSignature m_PostEffectsRS;
+	
+		ComputePSO m_ExtractLumaCS;
+		ComputePSO m_GenerateHistogramCS;
+		ComputePSO m_AdaptExposureCS;
+		ComputePSO m_CopyBackPostBufferCS;
+
 		StructuredBuffer m_ExposureBuffer;
 
 		BloomEffect m_BloomEffect;
+		ToneMapper m_ToneMapper;
 	};
 
 }

@@ -1,5 +1,6 @@
 #pragma once
 #include "pch.h"
+#include "GpuBuffer.h"
 #include "ColorBuffer.h"
 #include "DepthBuffer.h"
 #include "ShadowBuffer.h"
@@ -42,6 +43,11 @@ namespace MyDirectX
 		static uint32_t s_DisplayWidth, s_DisplayHeight;
 		static uint32_t s_NativeWidth, s_NativeHeight;
 
+		static bool s_bEnableHDROutput;
+
+		static bool s_bTypedUAVLoadSupport_R11G11B10_FLOAT;
+		static bool s_bTypedUAVLoadSupport_R16G16B16A16_FLOAT;
+
 		static void SetNativeResolution(ID3D12Device *pDevice, Resolutions nativeRes);
 
 		static float s_HDRPaperWhite;				// 100.0 - 500.0	stepSize - 50.0
@@ -71,7 +77,7 @@ namespace MyDirectX
 		ColorBuffer m_SceneColorBuffer;		// R11G11B10_FLOAT
 		DepthBuffer m_SceneDepthBuffer;		// D32_FLOAT_S8_UINT
 
-		//ColorBuffer m_PoseEffectsBuffer;	// R32_UINT (to support Read-Modify-Write with a UAV)
+		ColorBuffer m_PoseEffectsBuffer;	// R32_UINT (to support Read-Modify-Write with a UAV)
 		ColorBuffer m_VelocityBuffer;		// R10G10B10 (3D velocity)
 		ColorBuffer m_OverlayBuffer;		// R8G8B8A8_UNORM
 		ColorBuffer m_HorizontalBuffer;		// for separable (bicubic) upsampling
@@ -95,6 +101,8 @@ namespace MyDirectX
 		ColorBuffer m_aBloomUAV5[2];	// 1/48
 		ColorBuffer m_LumaLR;
 
+		ColorBuffer m_LumaBuffer;
+		ByteAddressBuffer m_Histogram;
 	};
 
 	class ShaderManager

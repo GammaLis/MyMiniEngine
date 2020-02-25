@@ -2,6 +2,8 @@
 #include "MyWindow.h"
 #include "Graphics.h"
 #include "CommandContext.h"
+#include "Effects.h"
+#include "PostEffects.h"
 #include "TextRenderer.h"	// TextContext
 #include "TextureManager.h"	// Graphics::s_TextureManager
 #include "GpuBuffer.h"
@@ -131,6 +133,8 @@ int IGameApp::Run()
 			Update(deltaTime);
 
 			Render();
+
+			Effects::s_PostEffects.Render();
 
 			RenderUI();
 

@@ -137,8 +137,6 @@ namespace MyDirectX
 		// features
 		D3D_FEATURE_LEVEL m_D3DMinFeatureLevel;
 		D3D_FEATURE_LEVEL m_D3DFeatureLevel;
-		bool m_bTypedUAVLoadSupport_R11G11B10_FLOAT = false;
-		bool m_bTypedUAVLoadSupport_R16G16B16A16_FLOAT = false;
 		bool m_bEnableHDROutput = false;
 		bool m_bEnableVSync = false;
 		

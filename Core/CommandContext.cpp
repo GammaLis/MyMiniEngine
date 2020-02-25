@@ -391,10 +391,11 @@ void CommandContext::BeginResourceTransition(GpuResource& resource, D3D12_RESOUR
 		FlushResourceBarriers();
 }
 
+//  all UAV accesses (reads or writes ) must complete before any future UAV access (read or write) can begin
 void CommandContext::InsertUAVBarrier(GpuResource& resource, bool flushImmediate)
 {
 	ASSERT(m_NumBarriersToFlush < 16, "Exceeded arbitrary limit on buffered barriers");
-	D3D12_RESOURCE_BARRIER barrierDesc = m_ResourceBarrierBuffer[m_NumBarriersToFlush++];
+	D3D12_RESOURCE_BARRIER &barrierDesc = m_ResourceBarrierBuffer[m_NumBarriersToFlush++];
 
 	barrierDesc.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
 	barrierDesc.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;

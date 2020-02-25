@@ -45,6 +45,11 @@ using Microsoft::WRL::ComPtr;
 uint32_t GfxStates::s_DisplayWidth = 1280, GfxStates::s_DisplayHeight = 720;
 uint32_t GfxStates::s_NativeWidth = 0, GfxStates::s_NativeHeight = 0;
 
+bool GfxStates::s_bEnableHDROutput = false;
+
+bool GfxStates::s_bTypedUAVLoadSupport_R11G11B10_FLOAT = false;
+bool GfxStates::s_bTypedUAVLoadSupport_R16G16B16A16_FLOAT = false;
+
 float GfxStates::s_HDRPaperWhite = 200.0f;
 float GfxStates::s_MaxDisplayLuminance = 1000.0f;
 
@@ -141,6 +146,8 @@ void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferW
 
 	m_VelocityBuffer.Create(pDevice, L"Motion Vectors", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R32_UINT);
 
+	m_PoseEffectsBuffer.Create(pDevice, L"Post Effects Buffer", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R32_UINT);
+
 	m_LinearDepth[0].Create(pDevice, L"Linear Depth 0", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16_UNORM);
 	m_LinearDepth[1].Create(pDevice, L"Linear Depth 1", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16_UNORM);
 
@@ -154,6 +161,9 @@ void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferW
 	Effects::s_TemporalAA.ClearHistory(initContext);		// Çå¿Õ
 
 	// post effects
+	// this is useful for storing per-pixel weights such as motion strength or pixel luminance
+	m_LumaBuffer.Create(pDevice, L"Luminance", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R8_UNORM);
+	m_Histogram.Create(pDevice, L"Histogram", 256, 4);
 
 	// bloom and tone mapping
 	// MS-MiniEngine ×Ô¼º×¢ÊÍ
@@ -164,6 +174,7 @@ void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferW
 	uint32_t kBloomWidth = bufferWidth > 2560 ? 1280 : 640;
 	uint32_t kBloomHeight = bufferHeight > 1440 ? 768 : 384;
 	m_LumaLR.Create(pDevice, L"Luma Buffer", kBloomWidth, kBloomHeight, 1, DXGI_FORMAT_R8_UINT);
+
 	m_aBloomUAV1[0].Create(pDevice, L"Bloom Buffer 1a", kBloomWidth,	kBloomHeight,	 1, GfxStates::s_DefaultHdrColorFormat);
 	m_aBloomUAV1[1].Create(pDevice, L"Bloom Buffer 1b", kBloomWidth,	kBloomHeight,	 1, GfxStates::s_DefaultHdrColorFormat);
 	m_aBloomUAV2[0].Create(pDevice, L"Bloom Buffer 2a", kBloomWidth/2,	kBloomHeight/2,  1, GfxStates::s_DefaultHdrColorFormat);
@@ -202,6 +213,8 @@ void BufferManager::DestroyRenderingBuffers()
 
 	m_VelocityBuffer.Destroy();
 
+	m_PoseEffectsBuffer.Destroy();
+
 	m_LinearDepth[0].Destroy();
 	m_LinearDepth[1].Destroy();
 
@@ -213,6 +226,9 @@ void BufferManager::DestroyRenderingBuffers()
 	m_TemporalColor[1].Destroy();
 
 	// post effects
+	m_LumaBuffer.Destroy();
+	m_Histogram.Destroy();
+
 	// bloom and tone mapping
 	m_LumaLR.Destroy();
 	m_aBloomUAV1[0].Destroy();
@@ -225,7 +241,6 @@ void BufferManager::DestroyRenderingBuffers()
 	m_aBloomUAV4[1].Destroy();
 	m_aBloomUAV5[0].Destroy();
 	m_aBloomUAV5[1].Destroy();
-
 
 	// UI overlay
 	m_OverlayBuffer.Destroy();

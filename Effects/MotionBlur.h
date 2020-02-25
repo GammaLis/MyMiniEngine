@@ -20,9 +20,9 @@ namespace MyDirectX
 
 		void Shutdown();
 
-		void GenerateCameraVelocityBuffer(CommandContext& context, const Math::Camera& camera, uint32_t frameIndex, bool bUseLinearZ = true);
+		void GenerateCameraVelocityBuffer(CommandContext& context, const Math::Camera& camera, uint64_t frameIndex, bool bUseLinearZ = true);
 		void GenerateCameraVelocityBuffer(CommandContext& context, const Math::Matrix4& reprojectionMatrix,
-			float nearClip, float farClip, uint32_t frameIndex, bool bUseLinearZ = true);
+			float nearClip, float farClip, uint64_t frameIndex, bool bUseLinearZ = true);
 
 		bool m_Enabled = true;
 

@@ -52,7 +52,7 @@ You would think that it might be slower to use linear Z because we have to conve
 hyperbolic Z for the reprojection. Nevertheless, the reduced bandwidth and decompress eliminate
 make Linear Z the better choice. (The choice also lets you evict the depth buffer from ESRAM.)
 */ 
-void MotionBlur::GenerateCameraVelocityBuffer(CommandContext& context, const Math::Camera& camera, uint32_t frameIndex, bool bUseLinearZ)
+void MotionBlur::GenerateCameraVelocityBuffer(CommandContext& context, const Math::Camera& camera, uint64_t frameIndex, bool bUseLinearZ)
 {
 	GenerateCameraVelocityBuffer(context, camera.GetReprojectionMatrix(), camera.GetNearClip(), camera.GetFarClip(),
 		frameIndex, bUseLinearZ);
@@ -61,7 +61,7 @@ void MotionBlur::GenerateCameraVelocityBuffer(CommandContext& context, const Mat
 // reprojectionMatrix - Inverse(ViewProjMat) * Prev_ViewProjMat
 // 先将裁剪空间坐标逆变换到世界空间，再利用Prev_ViewProjMat变换到前一帧裁剪空间
 void MotionBlur::GenerateCameraVelocityBuffer(CommandContext& context, const Math::Matrix4& reprojectionMatrix, 
-	float nearClip, float farClip, uint32_t frameIndex, bool bUseLinearZ)
+	float nearClip, float farClip, uint64_t frameIndex, bool bUseLinearZ)
 {
 	// Generate Camera Velocity 
 	ComputeContext& computeContext = context.GetComputeContext();

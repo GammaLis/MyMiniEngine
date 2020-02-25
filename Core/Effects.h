@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "MotionBlur.h"
 #include "TemporalAA.h"
+#include "PostEffects.h"
 #include "TextRenderer.h"
 #include "ForwardPlusLighting.h"
 
@@ -16,6 +17,8 @@ namespace MyDirectX
 		// effects
 		static MotionBlur s_MotionBlur;
 		static TemporalAA s_TemporalAA;
+		// post effects
+		static PostEffects s_PostEffects;
 
 		// text
 		static TextRenderer s_TextRenderer;

@@ -545,6 +545,36 @@
     <FxCompile Include="Core\Shaders\UpsampleAndBlurCS.hlsl">
       <Filter>Core\Shaders\HDR</Filter>
     </FxCompile>
+    <FxCompile Include="Core\Shaders\ApplyBloomCS.hlsl">
+      <Filter>Core\Shaders\HDR</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\ApplyBloom2CS.hlsl">
+      <Filter>Core\Shaders\HDR</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\CopyBackPostBufferCS.hlsl">
+      <Filter>Core\Shaders\HDR</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\ExtractLumaCS.hlsl">
+      <Filter>Core\Shaders\HDR</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\ToneMapCS.hlsl">
+      <Filter>Core\Shaders\HDR</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\ToneMap2CS.hlsl">
+      <Filter>Core\Shaders\HDR</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\ToneMapHDRCS.hlsl">
+      <Filter>Core\Shaders\HDR</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\ToneMapHDR2CS.hlsl">
+      <Filter>Core\Shaders\HDR</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\GenerateHistogramCS.hlsl">
+      <Filter>Core\Shaders\HDR</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\AdaptExposureCS.hlsl">
+      <Filter>Core\Shaders\HDR</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MyMiniEngine.rc">

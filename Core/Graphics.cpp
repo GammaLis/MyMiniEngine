@@ -511,13 +511,13 @@ namespace MyDirectX
                 if (SUCCEEDED(m_Device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &support, sizeof(support))) &&
                     (support.Support2 & D3D12_FORMAT_SUPPORT2_UAV_TYPED_LOAD) != 0)
                 {
-                    m_bTypedUAVLoadSupport_R11G11B10_FLOAT = true;
+                    GfxStates::s_bTypedUAVLoadSupport_R11G11B10_FLOAT = true;
                 }
                 support.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
                 if (SUCCEEDED(m_Device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &support, sizeof(support))) &&
                     (support.Support2 & D3D12_FORMAT_SUPPORT2_UAV_TYPED_LOAD) != 0)
                 {
-                   m_bTypedUAVLoadSupport_R16G16B16A16_FLOAT = true;
+                    GfxStates::s_bTypedUAVLoadSupport_R16G16B16A16_FLOAT = true;
                 }
             }
         }
@@ -639,6 +639,7 @@ namespace MyDirectX
             SUCCEEDED(swapChain4->SetColorSpace1(DXGI_COLOR_SPACE_RGB_STUDIO_G2084_NONE_P2020)))
         {
             m_bEnableHDROutput = true;
+            GfxStates::s_bEnableHDROutput = true;
         }
 #endif
     }
@@ -756,15 +757,15 @@ namespace MyDirectX
         };
         context.SetRenderTargets(_countof(rtvs), rtvs);
         // debug
-        {
-            static bool b = true;
-            if (b == false)
-            {
-                GfxStates::s_NativeWidth /= 2;
-                GfxStates::s_NativeHeight /= 2;
-                b = true;
-            }
-        }
+        //{
+        //    static bool b = true;
+        //    if (b == false)
+        //    {
+        //        GfxStates::s_NativeWidth /= 2;
+        //        GfxStates::s_NativeHeight /= 2;
+        //        b = true;
+        //    }
+        //}
         // end debug
         context.SetViewportAndScissor(0, 0, GfxStates::s_NativeWidth, GfxStates::s_NativeHeight);
         // Note: -20-1-21
@@ -805,9 +806,14 @@ namespace MyDirectX
         // auto& textRenderer = Effect::s_TextRenderer;
         // context.SetDynamicDescriptor(0, 0, textRenderer.GetDefaultFontTexture());
         
-        // œ‘ æ LinearDepth [n, f] / f
+        // œ‘ æ LinearDepth [n, f] / f    -20-2-18
         // auto& linearDepth = s_BufferManager.m_LinearDepth[m_FrameIndex % 2];
         // context.SetDynamicDescriptor(0, 0, linearDepth.GetSRV());
+
+        // œ‘ æ BloomBuffer   -20-2-24
+        //auto& bloomBuffer = s_BufferManager.m_aBloomUAV1[1];
+        //context.TransitionResource(bloomBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        //context.SetDynamicDescriptor(0, 0, bloomBuffer.GetSRV());
 
         // debug end
 
