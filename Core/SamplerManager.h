@@ -19,6 +19,7 @@ namespace MyDirectX
 			AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 			MipLODBias = 0.0f;
 			MaxAnisotropy = 16;
+			ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;	// ∂‘”¶Filter = D3D12_FILTER_COMPARISON_XXXX	-20-2-28
 			BorderColor[0] = 1.0f;
 			BorderColor[1] = 1.0f;
 			BorderColor[2] = 1.0f;

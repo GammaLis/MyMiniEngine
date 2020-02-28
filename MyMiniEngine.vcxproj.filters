@@ -47,6 +47,12 @@
     <Filter Include="Core\Shaders\HDR">
       <UniqueIdentifier>{569d706e-2461-4245-ac2f-b21c6e7579f7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Effects\ParticleEffects">
+      <UniqueIdentifier>{091bf550-1a15-4b9b-a89a-479421cfebd0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core\Shaders\Particles">
+      <UniqueIdentifier>{ace5de86-c985-4b2c-a3c9-aef1b8abea1a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\GpuResource.h">
@@ -241,6 +247,18 @@
     <ClInclude Include="Core\PostEffects.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="Effects\ParticleShaderStructs.h">
+      <Filter>Effects\ParticleEffects</Filter>
+    </ClInclude>
+    <ClInclude Include="Effects\ParticleEffectProperties.h">
+      <Filter>Effects\ParticleEffects</Filter>
+    </ClInclude>
+    <ClInclude Include="Effects\ParticleEffect.h">
+      <Filter>Effects\ParticleEffects</Filter>
+    </ClInclude>
+    <ClInclude Include="Effects\ParticleEffectManager.h">
+      <Filter>Effects\ParticleEffects</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -387,6 +405,15 @@
     <ClCompile Include="Core\PostEffects.cpp">
       <Filter>Core</Filter>
     </ClCompile>
+    <ClCompile Include="Effects\ParticleShaderStructs.cpp">
+      <Filter>Effects\ParticleEffects</Filter>
+    </ClCompile>
+    <ClCompile Include="Effects\ParticleEffect.cpp">
+      <Filter>Effects\ParticleEffects</Filter>
+    </ClCompile>
+    <ClCompile Include="Effects\ParticleEffectManager.cpp">
+      <Filter>Effects\ParticleEffects</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Core\Math\Functions.inl">
@@ -440,6 +467,15 @@
     </None>
     <None Include="Core\Shaders\PostEffectsRS.hlsli">
       <Filter>Core\Shaders\HDR</Filter>
+    </None>
+    <None Include="Core\Shaders\ParticleRS.hlsli">
+      <Filter>Core\Shaders\Particles</Filter>
+    </None>
+    <None Include="Core\Shaders\ParticleUtility.hlsli">
+      <Filter>Core\Shaders\Particles</Filter>
+    </None>
+    <None Include="Core\Shaders\ParticleUpdateCommon.hlsli">
+      <Filter>Core\Shaders\Particles</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -574,6 +610,27 @@
     </FxCompile>
     <FxCompile Include="Core\Shaders\AdaptExposureCS.hlsl">
       <Filter>Core\Shaders\HDR</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\ParticleSpawnCS.hlsl">
+      <Filter>Core\Shaders\Particles</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\ParticleUpdateCS.hlsl">
+      <Filter>Core\Shaders\Particles</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\ParticleDispatchIndirectArgsCS.hlsl">
+      <Filter>Core\Shaders\Particles</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\ParticleFinalDispatchIndirectArgsCS.hlsl">
+      <Filter>Core\Shaders\Particles</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\ParticleVS.hlsl">
+      <Filter>Core\Shaders\Particles</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\ParticlePS.hlsl">
+      <Filter>Core\Shaders\Particles</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\ParticleNoSortVS.hlsl">
+      <Filter>Core\Shaders\Particles</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

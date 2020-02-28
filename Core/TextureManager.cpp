@@ -189,6 +189,11 @@ namespace MyDirectX
 	{
 		volatile D3D12_CPU_DESCRIPTOR_HANDLE& volHandle = (volatile D3D12_CPU_DESCRIPTOR_HANDLE&)m_hCpuDescriptorHandle;
 		volatile bool& volValid = (volatile bool&)m_IsValid;
+		// 等待加载- 1.加载成功 volHandle.ptr != D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN
+		// 2.加载失败 volHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN && volValid == false
+		// 这2个初始值 改变一个，即可返回，结束等待	
+		// 注：之前纠结 为什么是 volValid = true时等待，如果 volValid = false时等待，如果加载失败，
+		// volHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN && volValid == false 无法结束等待	-20-2-26
 		while (volHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN && volValid)
 			std::this_thread::yield();
 	}

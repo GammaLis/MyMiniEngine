@@ -88,11 +88,13 @@ namespace MyDirectX
 		if (m_pVertexData)
 		{
 			delete[] m_pVertexData;
+			// _aligned_free(m_pVertexData);	// 对应_aligned_malloc
 			m_pVertexData = nullptr;
 		}
 		if (m_pIndexData)
 		{
 			delete[] m_pIndexData;
+			// _aligned_free(m_pIndexData);	// 对应_aligned_malloc
 			m_pIndexData = nullptr;
 		}
 		if (m_SRVs)
@@ -105,14 +107,16 @@ namespace MyDirectX
 	void Model::Create(ID3D12Device* pDevice)
 	{
 		// vertex buffer & index buffer
-		Vertex vertices[] =
+		// _declspec(align(16)) - before VS 2015 or C++ 11
+		alignas(16)	Vertex vertices[] =
 		{
 			Vertex{XMFLOAT3( .0f, +.6f, 0.f), XMCOLOR(1.0f ,0.0f, 0.0f, 1.0f), XMFLOAT2(0.5f, 0.0f)},
 			Vertex{XMFLOAT3(-.6f, -.6f, 0.f), XMCOLOR(0.0f, 1.0f, 0.0f, 1.0f), XMFLOAT2(0.0f, 1.0f)},
 			Vertex{XMFLOAT3(+.6f, -.6f, 0.f), XMCOLOR(0.0f, 0.0f, 1.0f, 1.0f), XMFLOAT2(1.0f, 1.0f)},
 		};
 
-		uint16_t indices[] = { 0, 1, 2 };
+		// _declspec(align(16)) 
+		alignas(16) uint16_t indices[] = { 0, 1, 2 };
 
 		uint32_t vertexCount = _countof(vertices);
 		uint32_t vertexByteSize = sizeof(vertices);
@@ -144,9 +148,11 @@ namespace MyDirectX
 				m_IndexBuffer.Create(pDevice, L"IndexBuffer", m_IndexDataByteSize / sizeof(uint16_t), sizeof(uint16_t), m_pIndexData);
 
 				delete[] m_pVertexData;
+				// _aligned_free(m_pVertexData);	// 对应_aligned_malloc
 				m_pVertexData = nullptr;
 
 				delete[] m_pIndexData;
+				// _aligned_free(m_pIndexData);	// 对应_aligned_malloc
 				m_pIndexData = nullptr;
 			}
 
@@ -375,12 +381,29 @@ namespace MyDirectX
 			m_VertexStride = m_pMesh[0].vertexStride;
 
 			// allocate storage
+			/**
+				https://docs.microsoft.com/en-us/cpp/cpp/align-cpp?view=vs-2019
+				Note that ordinary allocators—for example, malloc, C++ operator new, and the Win32 allocators—
+			return memory that is usually not sufficiently aligned for __declspec(align(#)) structures or arrays of
+			structures.
+			*/
 			m_pVertexData = new unsigned char[m_VertexDataByteSize];
 			m_pIndexData = new unsigned char[m_IndexDataByteSize];
+			// new 默认内存对齐 ？？
+			// (注：C++17 显式支持对齐 void *operator new (std::size_t count, std::align_val al))
+			// or
+			// _aligned_malloc&_aligned_free 确保内存对齐	-20-2-26
+			//m_pVertexData = (unsigned char*)_aligned_malloc(m_VertexDataByteSize, 16);
+			//m_pIndexData = (unsigned char*)_aligned_malloc(m_IndexDataByteSize, 16);
 			
 			// -mf
 			memset(m_pVertexData, 0, m_VertexDataByteSize);
 			memset(m_pIndexData, 0, m_IndexDataByteSize);
+			// 改用 SIMD指令
+			// 好像不能使用new分配的内存，报错；采用_aligned_malloc没有问题	-20-2-26
+			//__m128 val = _mm_set1_ps(0);
+			//SIMDMemFill(m_pVertexData, val, Math::DivideByMultiple(m_VertexDataByteSize, 16));
+			//SIMDMemFill(m_pIndexData, val, Math::DivideByMultiple(m_IndexDataByteSize, 16));
 
 			// second pass, fill in vertex and index data
 			for (unsigned int meshIndex = 0; meshIndex < m_MeshCount; ++meshIndex)

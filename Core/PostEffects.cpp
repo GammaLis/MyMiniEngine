@@ -379,7 +379,9 @@ namespace MyDirectX
 		
 		// 
 		float exposure = m_CommonStates.Exposure;
-		float initExposure[8] =
+		// 首地址16字节对齐
+		// _declspec(align(16))	- before VS 2015 or C++ 11
+		alignas(16)	float initExposure[8] =
 		{
 			exposure, 1.0f / exposure, exposure, 0.0f,
 			kInitialMinLog, kInitialMaxLog, kInitialMaxLog - kInitialMinLog, 1.0f / (kInitialMaxLog - kInitialMinLog)
@@ -505,7 +507,9 @@ namespace MyDirectX
 		if (!m_CommonStates.EnableAdaption)
 		{
 			float exposure = m_CommonStates.Exposure;
-			float initExposure[8] =
+			// 首地址16字节对齐
+			// _declspec(align(16)) 
+			alignas(16)	float initExposure[8] =
 			{
 				exposure, 1.0f / exposure, exposure, 0.0f,
 				kInitialMinLog, kInitialMaxLog, kInitialMaxLog - kInitialMinLog, 1.0f / (kInitialMaxLog - kInitialMinLog)

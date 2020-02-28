@@ -40,6 +40,8 @@ namespace MyDirectX
 
 		void RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4 viewProjMat, ObjectFilter filter = ObjectFilter::kAll);
 
+		void CreateParticleEffects();
+
 		Math::Camera m_Camera;
 		std::unique_ptr<CameraController> m_CameraController;
 		Math::Matrix4 m_ViewProjMatrix;

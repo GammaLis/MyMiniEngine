@@ -21,7 +21,7 @@ void main( uint3 dtid : SV_DispatchThreadID )
 {
 	// we need the scale factor and the size of one pixel so that our 4 samples
 	// are right in the middle of the quadrant they are covering
-	float2 uv = dtid.xy * _InverseOutputSize;
+	float2 uv = (dtid.xy + 0.5) * _InverseOutputSize;
 	float2 offset = _InverseOutputSize * 0.25;
 	// 1x ->| 0.25 | 0.25 |
 	// 2x ->| 0.5  | 0.5  |	间距一个像素

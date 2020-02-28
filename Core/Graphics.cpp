@@ -192,7 +192,7 @@ namespace MyDirectX
         ++m_FrameIndex;
 
         // 这是MS MiniEinge做法，移到ModelViewer::Update -20-2-22
-        // Effect::s_TemporalAA.Update(m_FrameIndex);
+        // Effects::s_TemporalAA.Update(m_FrameIndex);
 
         // 可以动态改变 NativeResolution
         GfxStates::SetNativeResolution(m_Device.Get(), m_CurNativeRes);

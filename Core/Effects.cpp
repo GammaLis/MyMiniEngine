@@ -1,4 +1,5 @@
 #include "Effects.h"
+#include "GfxCommon.h"
 
 namespace MyDirectX
 {
@@ -16,6 +17,9 @@ namespace MyDirectX
 	// forward+ lighting
 	ForwardPlusLighting Effects::s_ForwardPlusLighting;
 
+	// particle effects
+	ParticleEffects::ParticleEffectManager Effects::s_ParticleEffectManager;
+
 	void Effects::Init(ID3D12Device* pDevice)
 	{
 		s_MotionBlur.Init(pDevice);
@@ -24,6 +28,10 @@ namespace MyDirectX
 
 		s_TextRenderer.Init(pDevice);
 		s_ForwardPlusLighting.Init(pDevice);
+
+		uint32_t maxWidth, maxHeight;
+		GfxStates::GetWHFromResolution(Resolutions::k2160p, maxWidth, maxHeight);
+		s_ParticleEffectManager.Init(pDevice, maxWidth, maxHeight);
 	}
 
 	void Effects::Shutdown()
@@ -34,5 +42,7 @@ namespace MyDirectX
 
 		s_TextRenderer.Shutdown();
 		s_ForwardPlusLighting.Shutdown();
+
+		s_ParticleEffectManager.Shutdown();
 	}
 }

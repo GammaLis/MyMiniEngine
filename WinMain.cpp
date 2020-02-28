@@ -33,8 +33,19 @@ int main(int argc, const char* argv[])
 	HINSTANCE hInst = GetModuleHandle(0);
 
 #pragma region Test
+	// float 
 	float f = 0.25f;	// B 0.01 -> 1E(-2) -> 1E(127 -2 = 125) <0 - ·ûºÅÎ»£¬ 125 - E£¬ 0 - D>
 	float* pf = &f;
+
+	// alignment
+	struct alignas(32) AA
+	{
+		float f[3];
+		int i;
+	};
+	AA a;
+	int sa = sizeof(AA);
+	bool bb = reinterpret_cast<uintptr_t>(&a) % alignof(AA) == 0;
 
 #pragma endregion
 
@@ -64,3 +75,11 @@ int main(int argc, const char* argv[])
 
 	return ret;
 }
+
+/**
+	alignment
+	align(C++)		https://docs.microsoft.com/en-us/cpp/cpp/align-cpp?view=vs-2019
+	alignment		https://docs.microsoft.com/en-us/cpp/cpp/alignment-cpp-declarations?view=vs-2019
+	_aligned_malloc https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/aligned-malloc?view=vs-2019
+	operator new	https://en.cppreference.com/w/cpp/memory/new/operator_new
+*/ 

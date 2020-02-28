@@ -108,7 +108,7 @@ void GfxStates::SetNativeResolution(ID3D12Device* pDevice, Resolutions nativeRes
 
 	case Resolutions::k2160p:
 		s_NativeWidth = 3840;
-		s_NativeHeight = 720;
+		s_NativeHeight = 2160;
 		break;
 	}
 
@@ -120,6 +120,48 @@ void GfxStates::SetNativeResolution(ID3D12Device* pDevice, Resolutions nativeRes
 
 	Graphics::s_BufferManager.InitRenderingBuffers(pDevice, s_NativeWidth, s_NativeHeight);
 
+}
+
+void GfxStates::GetWHFromResolution(Resolutions res, uint32_t& width, uint32_t &height)
+{
+	switch (res)
+	{
+	default:
+	case Resolutions::k480p:
+		width = 640;
+		height = 480;
+		break;
+
+	case Resolutions::k720p:
+		width = 1280;
+		height = 720;
+		break;
+
+	case Resolutions::k900p:
+		width = 1600;
+		height = 900;
+		break;
+
+	case Resolutions::k1080p:
+		width = 1920;
+		height = 1080;
+		break;
+
+	case Resolutions::k1440p:
+		width = 2560;
+		height = 1440;
+		break;
+
+	case Resolutions::k1800p:
+		width = 3200;
+		height = 1800;
+		break;
+
+	case Resolutions::k2160p:
+		width = 3840;
+		height = 2160;
+		break;
+	}
 }
 
 void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferWidth, uint32_t bufferHeight)

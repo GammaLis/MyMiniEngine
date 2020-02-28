@@ -145,6 +145,14 @@ namespace MyDirectX
             ASSERT_SUCCEEDED(D3D12SerializeRootSignature(&rootDesc, D3D_ROOT_SIGNATURE_VERSION_1,
                 pOutBlob.GetAddressOf(), pErrorBlob.GetAddressOf()));
 
+            // ´òÓ¡´íÎóÐÅÏ¢
+            //HRESULT hr = D3D12SerializeRootSignature(&rootDesc, D3D_ROOT_SIGNATURE_VERSION_1,
+            //    pOutBlob.GetAddressOf(), pErrorBlob.GetAddressOf());
+            //if (FAILED(hr))
+            //{
+            //    Utility::Print((const char*)pErrorBlob->GetBufferPointer());
+            //}
+
             ASSERT_SUCCEEDED(pDevice->CreateRootSignature(1, pOutBlob->GetBufferPointer(), pOutBlob->GetBufferSize(),
                 IID_PPV_ARGS(&m_Signature)));
 

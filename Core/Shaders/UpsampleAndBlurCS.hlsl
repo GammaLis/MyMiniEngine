@@ -17,7 +17,7 @@ Texture2D<float3> _LowerResBuf	: register(t1);
 
 RWTexture2D<float3> blurRes		: register(u0);
 
-SamplerState s_LinearBorderSamper	: register(s0);
+SamplerState s_LinearBorderSamper	: register(s1);
 
 // the gaussian blur weights (derived from Pascal's triangle)
 static const float Weights5[3] = {6.0 / 16.0, 4.0 / 16.0, 1.0 / 16.0};

@@ -18,7 +18,7 @@
 
 using namespace MyDirectX;
 
-struct ConstantBuffer
+struct alignas(16) ConstantBuffer
 {
 	XMFLOAT3 _Color;
 };

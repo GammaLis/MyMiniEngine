@@ -226,3 +226,32 @@ void TypedBuffer::CreateDerivedViews(ID3D12Device* pDevice)
 	}
 	pDevice->CreateUnorderedAccessView(m_pResource.Get(), nullptr, &uavDesc, m_UAV);
 }
+
+/**
+	https://docs.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12device-createunorderedaccessview
+	ID3d12Device::CreateUnorderedAccessView
+	>> create a view for unordered accessing
+	void CreateUnorderedAccessView(
+	  ID3D12Resource                         *pResource,
+	  ID3D12Resource                         *pCounterResource,
+	  const D3D12_UNORDERED_ACCESS_VIEW_DESC *pDesc,
+	  D3D12_CPU_DESCRIPTOR_HANDLE            DestDescriptor
+	);
+
+	> ID3D12Resource *pResource - a pointer to the ID3D12Resource object that represents the unordered access
+	at least one of pResource or pDesc must be provided. A null pResource is used to initialize a null descriptor,
+which guarantees D3D11-like null binding behavior (readings 0s, writes are discarded), but must have a valid 
+pDesc in order to determine the descriptor type.
+	> ID3D12Resource *pCounterResource - the ID3D12Resource for the counter (if any) associated with the UAV
+	if pCounterResource is not specified, the CounterOffsetInBytes member of the D3D12_BUFFER_UAV structure must be 0.
+	if pCounterResource is specified, then there is a counter associated with the UAV, and the runtime performs
+validation of the following requirements:
+		
+    1.The StructureByteStride member of the D3D12_BUFFER_UAV structure must be greater than 0.
+    2.The format must be DXGI_FORMAT_UNKNOWN.
+    3.The D3D12_BUFFER_UAV_FLAG_RAW flag (a D3D12_BUFFER_UAV_FLAGS enumeration constant) must not be set.
+    4.Both of the resources (pResource and pCounterResource) must be buffers.
+    5.The CounterOffsetInBytes member of the D3D12_BUFFER_UAV structure must be a multiple of 4 bytes, and must be within the range of the counter resource.
+    6.pResource cannot be NULL
+    7.pDesc cannot be NULL.
+*/

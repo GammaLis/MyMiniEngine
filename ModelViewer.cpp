@@ -85,6 +85,11 @@ void ModelViewer::Update(float deltaTime)
 	m_MainScissor.top = 0;
 	m_MainScissor.right = (LONG)bufferWidth;
 	m_MainScissor.bottom = (LONG)bufferHeight;
+
+	// update particles
+	ComputeContext& computeContext = ComputeContext::Begin(L"Particle Update");
+	Effects::s_ParticleEffectManager.Update(computeContext, deltaTime);
+	computeContext.Finish();
 }
 
 void ModelViewer::Render()
@@ -226,6 +231,10 @@ void ModelViewer::Render()
 		Effects::s_MotionBlur.GenerateCameraVelocityBuffer(gfxContext, m_Camera, frameIndex, true);
 
 		Effects::s_TemporalAA.ResolveImage(gfxContext);
+
+		// particle effects
+		auto& linearDepth = Graphics::s_BufferManager.m_LinearDepth[frameIndex % 2];
+		Effects::s_ParticleEffectManager.Render(gfxContext, m_Camera, colorBuffer, depthBuffer, linearDepth);
 	}
 
 	
@@ -359,6 +368,13 @@ void ModelViewer::InitCustom()
 	m_ExtraTextures[4] = forwardPlusLighting.m_LightGridBitMask.GetSRV();
 	m_ExtraTextures[5] = forwardPlusLighting.m_LightShadowArray.GetSRV();
 
+	// particle effects
+	CreateParticleEffects();
+
+	Effects::s_MotionBlur.m_Enabled = true;
+	Effects::s_TemporalAA.m_Enabled = true;
+	Effects::s_PostEffects.m_CommonStates.EnableHDR = true;
+	Effects::s_PostEffects.m_CommonStates.EnableAdaption = true;
 }
 
 void ModelViewer::CleanCustom()
@@ -430,6 +446,49 @@ void ModelViewer::RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4
 		gfxContext.DrawIndexed(indexCount, indexOffset, vertexOffset);
 	}
 
+}
+
+void ModelViewer::CreateParticleEffects()
+{
+	using namespace ParticleEffects;
+	auto& particleEffectManager = Effects::s_ParticleEffectManager;
+	Vector3 camPos = m_Camera.GetPosition();
+
+	ParticleEffectProperties effect;
+	effect.MinStartColor = effect.MaxStartColor = effect.MinEndColor = effect.MaxEndColor = Color(1.0f, 1.0f, 1.0f, 1.0f);
+	effect.TexturePath = L"sparkTex.dds";
+
+	effect.TotalActiveLifeTime = FLT_MAX;
+	effect.Size = Vector4(4.0f, 8.0f, 4.0f, 8.0f);	// startSize minmax, endSize minmax
+	effect.Velocity = Vector4(20.0f, 200.0f, 50.0f, 180.0f);	// x minmax, y minmax
+	effect.LifeMinMax = XMFLOAT2(1.0f, 3.0f);
+	effect.MassMinMax = XMFLOAT2(4.5f, 15.0f);
+	effect.EmitRate = 64.0f;
+	effect.Spread.x = 20.0f;
+	effect.Spread.y = 50.0f;
+	effect.EmitProperties.Gravity = XMFLOAT3(0.0f, -100.0f, 0.0f);
+	effect.EmitProperties.FloorHeight = -0.5f;
+	// effect.EmitProperties.EmitPosW = effect.EmitProperties.LastEmitPosW = XMFLOAT3(camPos.GetX(), camPos.GetY(), camPos.GetZ());
+	effect.EmitProperties.EmitPosW = effect.EmitProperties.LastEmitPosW = XMFLOAT3(-1200.0f, 185.0f, -445.0f);
+	effect.EmitProperties.MaxParticles = 800;
+	particleEffectManager.InstantiateEffect(effect);
+
+	// smoke
+	ParticleEffectProperties smoke;
+	smoke.TexturePath = L"smoke.dds";
+	smoke.TotalActiveLifeTime = FLT_MAX;
+	smoke.EmitProperties.MaxParticles = 25;
+	smoke.EmitProperties.EmitPosW = smoke.EmitProperties.LastEmitPosW = XMFLOAT3(camPos.GetX() + 10.0f, camPos.GetY(), camPos.GetZ() + 400.0f);
+	// smoke.EmitProperties.EmitPosW = smoke.EmitProperties.LastEmitPosW = XMFLOAT3(1120.0f, 185.0f, -445.0f);
+	smoke.EmitRate = 64.0f;
+	smoke.LifeMinMax = XMFLOAT2(2.5f, 4.0f);
+	smoke.Size = Vector4(60.0f, 108.0f, 30.0f, 208.0f);
+	smoke.Velocity = Vector4(30.0f, 30.0f, 10.0f, 40.0f);
+	smoke.MassMinMax = XMFLOAT2(1.0, 3.5);
+	smoke.Spread.x = 60.0f;
+	smoke.Spread.y = 70.0f;
+	smoke.Spread.z = 20.0f;
+	particleEffectManager.InstantiateEffect(smoke);
 }
 
 /**

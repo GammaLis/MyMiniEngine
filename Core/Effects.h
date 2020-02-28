@@ -5,6 +5,7 @@
 #include "PostEffects.h"
 #include "TextRenderer.h"
 #include "ForwardPlusLighting.h"
+#include "ParticleEffectManager.h"
 
 namespace MyDirectX
 {
@@ -25,6 +26,9 @@ namespace MyDirectX
 
 		// light
 		static ForwardPlusLighting s_ForwardPlusLighting;
+
+		// particle effects
+		static ParticleEffects::ParticleEffectManager s_ParticleEffectManager;
 	};
 
 }
