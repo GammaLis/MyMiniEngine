@@ -67,6 +67,7 @@ namespace MyDirectX
 		Vector3 posBias = minBound;
 
 		RandomNumberGenerator rng;
+		// rng.SetSeed(1);
 
 		auto randVecUniform = [&rng]() -> Vector3
 		{

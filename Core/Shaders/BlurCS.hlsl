@@ -14,7 +14,7 @@ Texture2D<float3> _InputBuffer	: register(t0);
 
 RWTexture2D<float3> blurRes		: register(u0);
 
-// the gaussian blur weights (derived from Pascal's triangles)
+// the gaussian blur weights (derived from Pascal's triangles -杨辉三角)
 static const float Weights[5] = {70.0 / 256.0, 56.0 / 256.0, 28.0 / 256.0, 8.0 / 256.0, 1.0 / 256.0};
 
 float3 BlurPixels(float3 a, float3 b, float3 c, float3 d, float3 e, float3 f, float3 g, float3 h, float3 i)

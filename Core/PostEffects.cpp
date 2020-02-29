@@ -124,7 +124,9 @@ namespace MyDirectX
 			context.SetPipelineState(m_EnableHDR ? m_BloomExtractAndDownsampleHdrCS : m_BloomExtractAndDownsampleLdrCS);
 
 			// set parameters
-			context.SetConstants(0, 1.0f / kBloomWidth, 1.0f / kBloomWidth, m_BloomThreshold);
+			// 注：RootConstants设置错误->(1/width, 1/<<width>>, bloomThread)
+			// 查了好久，更加仔细一点！！！	-20-2-29
+			context.SetConstants(0, 1.0f / kBloomWidth, 1.0f / kBloomHeight, m_BloomThreshold);
 			context.SetDynamicDescriptor(2, 0, colorBuffer.GetSRV());
 			context.SetDynamicDescriptor(2, 1, postEffects.m_ExposureBuffer.GetSRV());
 			context.SetDynamicDescriptor(3, 0, Graphics::s_BufferManager.m_aBloomUAV1[0].GetUAV());
@@ -248,7 +250,7 @@ namespace MyDirectX
 	void BloomEffect::ApplyBloom(ComputeContext& context, float bloomStrength)
 	{
 		auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
-		auto& postEffectsBuffer = Graphics::s_BufferManager.m_PoseEffectsBuffer;
+		auto& postEffectsBuffer = Graphics::s_BufferManager.m_PostEffectsBuffer;
 		uint32_t width = colorBuffer.GetWidth(), height = colorBuffer.GetHeight();
 		
 		if (GfxStates::s_bTypedUAVLoadSupport_R11G11B10_FLOAT)	// 支持 R11G11B10_FLOAT格式UAV加载
@@ -312,7 +314,7 @@ namespace MyDirectX
 
 		// tonemapping
 		auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
-		auto& postEffectsBuffer = Graphics::s_BufferManager.m_PoseEffectsBuffer;
+		auto& postEffectsBuffer = Graphics::s_BufferManager.m_PostEffectsBuffer;
 		uint32_t width = colorBuffer.GetWidth(), height = colorBuffer.GetHeight();
 
 		if (GfxStates::s_bTypedUAVLoadSupport_R11G11B10_FLOAT)
@@ -562,7 +564,7 @@ namespace MyDirectX
 		context.SetPipelineState(m_CopyBackPostBufferCS);
 
 		auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
-		auto& postEffectsBuffer = Graphics::s_BufferManager.m_PoseEffectsBuffer;
+		auto& postEffectsBuffer = Graphics::s_BufferManager.m_PostEffectsBuffer;
 		uint32_t width = colorBuffer.GetWidth(), height = colorBuffer.GetHeight();
 
 		context.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);

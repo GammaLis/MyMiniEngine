@@ -87,9 +87,9 @@ namespace MyDirectX
 			// bloom parameters
 			bool EnableBloom = true;
 			// the threshold luminance above which a pixel will start to bloom
-			float BloomThreshold = 4.0f;		// [0.0f, 8.0f]
+			float BloomThreshold = 2.0f;		// [0.0f, 8.0f]
 			// a modulator controlling how much bloom is added back into the image
-			float BloomStrength = 0.1f;			// [0.0f, 2.0f]
+			float BloomStrength = 0.4f;			// [0.0f, 2.0f]
 			// controls the "focus" of the blur. High values spread out more causing a haze
 			float BloomUpsampleFactor = 0.65f;	// [0.0f, 1.0f]
 			// high quality blurs 5 octaves of bloom, low quality only blurs 3

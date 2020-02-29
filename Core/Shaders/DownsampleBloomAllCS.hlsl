@@ -24,7 +24,7 @@ void main( uint3 dispatchThreadId : SV_DispatchThreadID, uint groupIndex : SV_Gr
     uint parity = dispatchThreadId.x | dispatchThreadId.y;
 
     // downsample and store the 8x8 block
-    float2 centerUV = (dispatchThreadId.xy * 2.0 + 1.0) * _InverseDimensions;
+    float2 centerUV = (float2(dispatchThreadId.xy) * 2.0 + 1.0) * _InverseDimensions;
     float3 avgPixel = _BloomBuffer.SampleLevel(s_LinearClampSampler, centerUV, 0);
     // 1/2
     sh_Tile[groupIndex] = avgPixel;
@@ -36,8 +36,11 @@ void main( uint3 dispatchThreadId : SV_DispatchThreadID, uint groupIndex : SV_Gr
     // 1/4
     if ((parity & 1) == 0)
     {
-    	avgPixel = (sh_Tile[groupIndex] + sh_Tile[groupIndex + 1] +
-    		sh_Tile[groupIndex + 8] + sh_Tile[groupIndex + 9]) * 0.25;
+        // 采用局部变量效率更高
+    	// avgPixel = (sh_Tile[groupIndex] + sh_Tile[groupIndex + 1] +
+    	// 	sh_Tile[groupIndex + 8] + sh_Tile[groupIndex + 9]) * 0.25;
+        avgPixel = (avgPixel + sh_Tile[groupIndex + 1] +
+            sh_Tile[groupIndex + 8] + sh_Tile[groupIndex + 9]) * 0.25;
     	sh_Tile[groupIndex] = avgPixel;
     	downsampleRes2[dispatchThreadId.xy >> 1] = avgPixel;
     }
@@ -48,8 +51,10 @@ void main( uint3 dispatchThreadId : SV_DispatchThreadID, uint groupIndex : SV_Gr
     // 1/8
     if ((parity & 3) == 0)
 	{
-		avgPixel = (sh_Tile[groupIndex] + sh_Tile[groupIndex + 2] + 
-			sh_Tile[groupIndex + 16] + sh_Tile[groupIndex + 18]) * 0.25;
+		// avgPixel = (sh_Tile[groupIndex] + sh_Tile[groupIndex + 2] + 
+		// 	sh_Tile[groupIndex + 16] + sh_Tile[groupIndex + 18]) * 0.25;
+        avgPixel = (avgPixel + sh_Tile[groupIndex + 2] + 
+            sh_Tile[groupIndex + 16] + sh_Tile[groupIndex + 18]) * 0.25;
 		sh_Tile[groupIndex] = avgPixel;
 		downsampleRes3[dispatchThreadId.xy >> 2] = avgPixel;
 	}
@@ -60,8 +65,10 @@ void main( uint3 dispatchThreadId : SV_DispatchThreadID, uint groupIndex : SV_Gr
 	// 1/16
 	if ((parity & 7) == 0)
 	{
-		avgPixel = (sh_Tile[groupIndex] + sh_Tile[groupIndex + 4] +
-			sh_Tile[groupIndex + 32] + sh_Tile[groupIndex + 36]) * 0.25;
-		downsampleRes2[dispatchThreadId.xy >> 3] = avgPixel;
+		// avgPixel = (sh_Tile[groupIndex] + sh_Tile[groupIndex + 4] +
+		// 	sh_Tile[groupIndex + 32] + sh_Tile[groupIndex + 36]) * 0.25;
+        avgPixel = (avgPixel + sh_Tile[groupIndex + 4] +
+            sh_Tile[groupIndex + 32] + sh_Tile[groupIndex + 36]) * 0.25;
+		downsampleRes4[dispatchThreadId.xy >> 3] = avgPixel;
 	}
 }

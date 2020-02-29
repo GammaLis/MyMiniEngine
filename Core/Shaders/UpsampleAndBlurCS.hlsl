@@ -19,7 +19,7 @@ RWTexture2D<float3> blurRes		: register(u0);
 
 SamplerState s_LinearBorderSamper	: register(s1);
 
-// the gaussian blur weights (derived from Pascal's triangle)
+// the gaussian blur weights (derived from Pascal's triangle - 杨辉三角)
 static const float Weights5[3] = {6.0 / 16.0, 4.0 / 16.0, 1.0 / 16.0};
 static const float Weights7[4] = {20.0 / 64.0, 15.0 / 64.0, 6.0 / 16.0, 1.0 / 64.0};
 static const float Weights9[5] = {70.0 / 256.0, 56.0 / 256.0, 28.0 / 256.0, 8.0 / 256.0, 1.0 / 256.0};
@@ -55,11 +55,15 @@ void Store2Pixels(uint index, float3 pixel1, float3 pixel2)
 
 void Load2Pixels(uint index, out float3 pixel1, out float3 pixel2)
 {
-	uint rr = sh_R[index];
-	uint gg = sh_G[index];
-	uint bb = sh_B[index];
-	pixel1 = float3(f16tof32(rr), f16tof32(gg), f16tof32(bb));
-	pixel2 = float3(f16tof32(rr >> 16), f16tof32(gg >> 16), f16tof32(bb >> 16));
+	// uint rr = sh_R[index];
+	// uint gg = sh_G[index];
+	// uint bb = sh_B[index];
+	// pixel1 = float3(f16tof32(rr), f16tof32(gg), f16tof32(bb));
+	// pixel2 = float3(f16tof32(rr >> 16), f16tof32(gg >> 16), f16tof32(bb >> 16));
+
+	uint3 rgb = uint3(sh_R[index], sh_G[index], sh_B[index]);
+	pixel1 = f16tof32(rgb);
+	pixel2 = f16tof32(rgb >> 16);
 }
 
 void Store1Pixel(uint index, float3 pixel)
@@ -85,7 +89,7 @@ void BlurHorizontally(uint outIndex, uint leftMostIndex)
 	Load2Pixels(leftMostIndex + 4, s8, s9);
 
 	Store1Pixel(outIndex, 	BlurPixels(s0, s1, s2, s3, s4, s5, s6, s7, s8));
-	Store1Pixel(outIndex+1,	BlurPixels(s1, s2, s3, s4, s5, s6, s7, s8, s9));
+    Store1Pixel(outIndex+1, BlurPixels(s1, s2, s3, s4, s5, s6, s7, s8, s9));
 }
 
 void BlurVertically(uint2 pixelCoord, uint topMostIndex)
@@ -128,7 +132,7 @@ void main(
 
 	float3 pixel1a = lerp(_HigherResBuf[threadTopLeft + uint2(0, 0)], _LowerResBuf.SampleLevel(s_LinearBorderSamper, uvUL, 0.0), _UpsampleBlendFactor);
 	float3 pixel1b = lerp(_HigherResBuf[threadTopLeft + uint2(1, 0)], _LowerResBuf.SampleLevel(s_LinearBorderSamper, uvUR, 0.0), _UpsampleBlendFactor);
-	Store2Pixels(destIdx+0, pixel1a, pixel1b);
+	Store2Pixels(destIdx+0, pixel1a, pixel1b);    
 
 	float3 pixel2a = lerp(_HigherResBuf[threadTopLeft + uint2(0, 1)], _LowerResBuf.SampleLevel(s_LinearBorderSamper, uvLL, 0.0), _UpsampleBlendFactor);
 	float3 pixel2b = lerp(_HigherResBuf[threadTopLeft + uint2(1, 1)], _LowerResBuf.SampleLevel(s_LinearBorderSamper, uvLR, 0.0), _UpsampleBlendFactor);
@@ -138,7 +142,7 @@ void main(
 
 	// horizontally blur the pixels in shared memory
 	uint row = groupThreadId.y << 4;	// groupThreadId.y * 8 * 2
-	BlurHorizontally(row + (groupThreadId.x << 1), row + groupThreadId.x + (groupThreadId.x & 4));	// +0 or +4
+    BlurHorizontally(row + (groupThreadId.x << 1), row + groupThreadId.x + (groupThreadId.x & 4));	// +0 or +4
 
 	GroupMemoryBarrierWithGroupSync();
 

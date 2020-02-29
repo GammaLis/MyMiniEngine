@@ -78,7 +78,7 @@ namespace MyDirectX
 		ColorBuffer m_SceneColorBuffer;		// R11G11B10_FLOAT
 		DepthBuffer m_SceneDepthBuffer;		// D32_FLOAT_S8_UINT
 
-		ColorBuffer m_PoseEffectsBuffer;	// R32_UINT (to support Read-Modify-Write with a UAV)
+		ColorBuffer m_PostEffectsBuffer;	// R32_UINT (to support Read-Modify-Write with a UAV)
 		ColorBuffer m_VelocityBuffer;		// R10G10B10 (3D velocity)
 		ColorBuffer m_OverlayBuffer;		// R8G8B8A8_UNORM
 		ColorBuffer m_HorizontalBuffer;		// for separable (bicubic) upsampling

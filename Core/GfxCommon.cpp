@@ -188,7 +188,7 @@ void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferW
 
 	m_VelocityBuffer.Create(pDevice, L"Motion Vectors", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R32_UINT);
 
-	m_PoseEffectsBuffer.Create(pDevice, L"Post Effects Buffer", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R32_UINT);
+	m_PostEffectsBuffer.Create(pDevice, L"Post Effects Buffer", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R32_UINT);
 
 	m_LinearDepth[0].Create(pDevice, L"Linear Depth 0", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16_UNORM);
 	m_LinearDepth[1].Create(pDevice, L"Linear Depth 1", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16_UNORM);
@@ -255,7 +255,7 @@ void BufferManager::DestroyRenderingBuffers()
 
 	m_VelocityBuffer.Destroy();
 
-	m_PoseEffectsBuffer.Destroy();
+	m_PostEffectsBuffer.Destroy();
 
 	m_LinearDepth[0].Destroy();
 	m_LinearDepth[1].Destroy();
