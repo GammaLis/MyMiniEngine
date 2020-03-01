@@ -134,7 +134,9 @@ int IGameApp::Run()
 
 			Render();
 
-			Effects::s_PostEffects.Render();
+			// 不在这里定义，子类自定义	-20-3-1
+			// Effects::s_PostEffects.Render();
+			PostProcess();
 
 			RenderUI();
 
@@ -232,6 +234,11 @@ void IGameApp::InitGeometryBuffers()
 }
 
 void IGameApp::InitCustom()
+{
+
+}
+
+void IGameApp::PostProcess()
 {
 
 }

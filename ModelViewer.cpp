@@ -377,6 +377,11 @@ void ModelViewer::InitCustom()
 	Effects::s_PostEffects.m_CommonStates.EnableAdaption = true;
 }
 
+void ModelViewer::PostProcess()
+{
+	Effects::s_PostEffects.Render();
+}
+
 void ModelViewer::CleanCustom()
 {
 	m_Model->Cleanup();

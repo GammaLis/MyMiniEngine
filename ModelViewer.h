@@ -34,6 +34,8 @@ namespace MyDirectX
 		virtual void InitGeometryBuffers() override;
 		virtual void InitCustom() override;
 
+		virtual void PostProcess() override;
+
 		virtual void CleanCustom() override;
 
 		void RenderLightShadows(GraphicsContext& gfxContext);
