@@ -68,6 +68,9 @@ namespace MyDirectX
 		virtual void InitPipelineStates();
 		virtual void InitGeometryBuffers();
 		virtual void InitCustom();
+
+		// 后处理，从Render当中分离，子类进行自定义
+		virtual void PostProcess();
 		
 		virtual void CustomUI(GraphicsContext &context);
 
