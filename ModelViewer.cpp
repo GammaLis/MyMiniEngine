@@ -350,7 +350,7 @@ void ModelViewer::InitCustom()
 	const Math::Vector3 eye = (m_Model->m_BoundingBox.min + m_Model->m_BoundingBox.max) * 0.5f + Math::Vector3(modelRadius * 0.5f, 0.0f, 0.0f);
 	m_Camera.SetEyeAtUp(eye, Math::Vector3(Math::kZero), Math::Vector3(Math::kYUnitVector));
 	m_Camera.SetZRange(1.0f, 10000.0f);
-	m_Camera.Update();
+	// m_Camera.Update();	// 若无CameraController，需要手动更新
 	m_CameraController.reset(new CameraController(m_Camera, Math::Vector3(Math::kYUnitVector), *m_Input));
 
 	// effects

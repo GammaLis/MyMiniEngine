@@ -259,6 +259,15 @@
     <ClInclude Include="Effects\ParticleEffectManager.h">
       <Filter>Effects\ParticleEffects</Filter>
     </ClInclude>
+    <ClInclude Include="glTFCommon.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="glTFImporter.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="glTFViewer.h">
+      <Filter>Game</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -414,6 +423,15 @@
     <ClCompile Include="Effects\ParticleEffectManager.cpp">
       <Filter>Effects\ParticleEffects</Filter>
     </ClCompile>
+    <ClCompile Include="glTFCommon.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="glTFImporter.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="glTFViewer.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Core\Math\Functions.inl">
@@ -476,6 +494,9 @@
     </None>
     <None Include="Core\Shaders\ParticleUpdateCommon.hlsli">
       <Filter>Core\Shaders\Particles</Filter>
+    </None>
+    <None Include="Shaders\CommonRS.hlsli">
+      <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -631,6 +652,12 @@
     </FxCompile>
     <FxCompile Include="Core\Shaders\ParticleNoSortVS.hlsl">
       <Filter>Core\Shaders\Particles</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\CommonVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\CommonPS.hlsl">
+      <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

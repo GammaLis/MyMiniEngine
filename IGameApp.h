@@ -59,12 +59,24 @@ namespace MyDirectX
 		std::unique_ptr<GameInput> m_Input;
 		std::unique_ptr<Model> m_Model;
 
+		RootSignature m_EmptyRS;
+		RootSignature m_CommonRS;
+
+		UINT m_Width;
+		UINT m_Height;
+		const wchar_t* m_Title;
+
+		D3D12_VIEWPORT m_MainViewport;
+		D3D12_RECT m_MainScissor;
+
 	private:
 		void CalculateFrameStats();
 
 		HINSTANCE m_HInstance;
 
 #pragma region Hello, Triangle
+		// 子类复写下列初始化函数
+		void InitViewportAndScissor();
 		virtual void InitPipelineStates();
 		virtual void InitGeometryBuffers();
 		virtual void InitCustom();
@@ -78,19 +90,10 @@ namespace MyDirectX
 
 		void RenderTriangle();
 
-		RootSignature m_EmptyRS;
 		RootSignature m_BasicTriangleRS;
 		GraphicsPSO m_BasicTrianglePSO;
 		StructuredBuffer m_ConstantBuffer;
 #pragma endregion
-
-	protected:
-		UINT m_Width;
-		UINT m_Height;
-		const wchar_t* m_Title;
-
-		D3D12_VIEWPORT m_MainViewport;
-		D3D12_RECT m_MainScissor;
+		
 	};
 }
-

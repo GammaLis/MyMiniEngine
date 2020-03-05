@@ -184,6 +184,8 @@ LRESULT IGameApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 void IGameApp::InitAssets()
 {
+	InitViewportAndScissor();
+
 	// a basic triangle
 	InitPipelineStates();
 
@@ -262,12 +264,43 @@ void IGameApp::CleanCustom()
 	m_ConstantBuffer.Destroy();
 }
 
+void IGameApp::InitViewportAndScissor()
+{
+	const auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
+
+	uint32_t bufferWidth = colorBuffer.GetWidth();
+	uint32_t bufferHeight = colorBuffer.GetHeight();
+	// main viewport
+	m_MainViewport.TopLeftX = m_MainViewport.TopLeftY = 0.0f;
+	m_MainViewport.Width = (float)bufferWidth;
+	m_MainViewport.Height = (float)bufferHeight;
+	m_MainViewport.MinDepth = 0.0f;
+	m_MainViewport.MaxDepth = 1.0f;
+	// main scissor
+	m_MainScissor.left = 0;
+	m_MainScissor.top = 0;
+	m_MainScissor.right = (LONG)bufferWidth;
+	m_MainScissor.bottom = (LONG)bufferHeight;
+}
+
 void IGameApp::InitPipelineStates()
 {
 	// 1.empty root signature
 	m_EmptyRS.Finalize(Graphics::s_Device, L"EmptyRootSignature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-	// 2.basic triangle root signature
+	// 2.common root signature
+	m_CommonRS.Reset(5, 2);
+	m_CommonRS[0].InitAsConstants(0, 4);
+	m_CommonRS[1].InitAsConstantBuffer(1);
+	m_CommonRS[2].InitAsConstantBuffer(2);
+	// m_CommonRS[3].InitAsConstantBuffer(3, D3D12_SHADER_VISIBILITY_PIXEL);
+	m_CommonRS[3].InitAsConstants(3, 8, D3D12_SHADER_VISIBILITY_PIXEL);
+	m_CommonRS[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_PIXEL);
+	m_CommonRS.InitStaticSampler(0, Graphics::s_CommonStates.SamplerLinearWrapDesc);
+	m_CommonRS.InitStaticSampler(1, Graphics::s_CommonStates.SamplerPointClampDesc);
+	m_CommonRS.Finalize(Graphics::s_Device, L"CommonRS", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+	// 3.basic triangle root signature
 	m_BasicTriangleRS.Reset(2, 1);
 	m_BasicTriangleRS[0].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_PIXEL);
 	m_BasicTriangleRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -305,7 +338,6 @@ void IGameApp::InitPipelineStates()
 	m_BasicTrianglePSO.SetSampleMask(0xFFFFFFFF);
 	m_BasicTrianglePSO.SetRenderTargetFormats(1, &colorFormat, depthFormat);
 	m_BasicTrianglePSO.Finalize(Graphics::s_Device);
-
 }
 
 void IGameApp::RenderTriangle()

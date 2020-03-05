@@ -29,9 +29,12 @@ namespace MyDirectX
 		char path[Size] = "Models/";
 
 		// ¿‡À∆ textures\\xxx.png
-		char* pStart = strrchr((char*)str, '\\');
+		const char* pStart = strrchr(str, '\\');
 		if (pStart == nullptr)
-			pStart = (char*)str;
+			pStart = strrchr(str, '/');
+
+		if (pStart == nullptr)
+			pStart = str;
 		else
 			++pStart;
 
