@@ -2,6 +2,7 @@
 #include "Graphics.h"
 #include "GfxCommon.h"
 #include "CommandContext.h"
+#include "TextureManager.h"
 
 // compiled shade bytecode
 #include "CommonVS.h"
@@ -18,6 +19,14 @@ struct alignas(16) CBPerObject
 struct alignas(16) CBPerCamera
 {
 	Math::Matrix4 _ViewProjMat;
+};
+
+struct alignas(16) PSConstants
+{
+	Math::Vector4 _BaseColorFactor;
+	Math::Vector4 _EmissiveFactor;
+	DirectX::XMUINT4 _Texcoords[2];
+	Math::Vector4 _Misc;
 };
 
 glTFViewer::glTFViewer(HINSTANCE hInstance, const std::string& glTFFileName, const wchar_t* title, UINT width, UINT height)
@@ -63,6 +72,7 @@ void glTFViewer::InitAssets()
 	using glTF::Attrib;
 
 	// 创建模型
+	Graphics::s_TextureManager.Init(L"Textures/");
 	ASSERT(m_Importer.Create(Graphics::s_Device));
 
 	// root signature & pso
@@ -72,9 +82,9 @@ void glTFViewer::InitAssets()
 		m_CommonRS[0].InitAsConstants(0, 4);
 		m_CommonRS[1].InitAsConstantBuffer(1);
 		m_CommonRS[2].InitAsConstantBuffer(2);
-		// m_CommonRS[3].InitAsConstantBuffer(3, D3D12_SHADER_VISIBILITY_PIXEL);
-		m_CommonRS[3].InitAsConstants(3, 8, D3D12_SHADER_VISIBILITY_PIXEL);
-		m_CommonRS[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_PIXEL);
+		m_CommonRS[3].InitAsConstantBuffer(3, D3D12_SHADER_VISIBILITY_PIXEL);
+		// m_CommonRS[3].InitAsConstants(3, 8, D3D12_SHADER_VISIBILITY_PIXEL);
+		m_CommonRS[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 8, D3D12_SHADER_VISIBILITY_PIXEL);
 		m_CommonRS.InitStaticSampler(0, Graphics::s_CommonStates.SamplerLinearWrapDesc);
 		m_CommonRS.InitStaticSampler(1, Graphics::s_CommonStates.SamplerPointClampDesc);
 		m_CommonRS.Finalize(Graphics::s_Device, L"CommonRS", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
@@ -99,7 +109,8 @@ void glTFViewer::InitAssets()
 		m_ModelViewerPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 		m_ModelViewerPSO.SetVertexShader(CommonVS, sizeof(CommonVS));
 		m_ModelViewerPSO.SetPixelShader(CommonPS, sizeof(CommonPS));
-		m_ModelViewerPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerDefaultWireframe);
+		m_ModelViewerPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerDefault);
+			// RasterizerDefaultWireframe
 		m_ModelViewerPSO.SetBlendState(Graphics::s_CommonStates.BlendDisable);
 		m_ModelViewerPSO.SetDepthStencilState(Graphics::s_CommonStates.DepthStateReadWrite);
 		m_ModelViewerPSO.SetSampleMask(0xFFFFFFFF);
@@ -144,31 +155,54 @@ void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 viewPro
 	CBPerCamera cbPerCamera;
 	cbPerCamera._ViewProjMat = Math::Transpose(viewProjMat);
 	gfx.SetDynamicConstantBufferView(2, sizeof(CBPerCamera), &cbPerCamera);
+
+	Math::Vector3 camPos = m_Camera.GetPosition();
+	gfx.SetConstants(0, (float)camPos.GetX(), (float)camPos.GetY(), (float)camPos.GetZ());	// root0, 0-2, camPos
 	
 	gfx.SetPipelineState(m_ModelViewerPSO);
 
 	CBPerObject cbPerObject;
+	PSConstants psConstants;
 
 	const auto& rMeshes = m_Importer.m_oMeshes;
 	for (int i = 0, imax = rMeshes.size(); i < imax; ++i)
 	{
 		const auto& curMesh = rMeshes[i];
-		
-		glTF::Matrix4x4 trans(std::move(m_Importer.GetMeshTransform(curMesh)));
-		cbPerObject._WorldMat = glm::transpose(trans);
-		cbPerObject._InvWorldMat = glm::transpose(glm::inverse(trans));
-		gfx.SetDynamicConstantBufferView(1, sizeof(CBPerObject), &cbPerObject);
 
-		Math::Vector3 camPos = m_Camera.GetPosition();
-		gfx.SetConstants(0, (float)camPos.GetX(), (float)camPos.GetY(), (float)camPos.GetZ(), curMesh.enabledAttribs);
+		int matIdx = curMesh.materialIndex;
+		if (m_Importer.IsValidMaterial(matIdx))
+		{
+			int activeMatIdx = m_Importer.m_ActiveMaterials[matIdx];
+			const auto& curMat = m_Importer.m_oMaterials[activeMatIdx];
 
-		if (curMesh.indexAccessor >= 0)
-		{
-			gfx.DrawIndexed(curMesh.indexCount, curMesh.indexDataByteOffset / sizeof(uint16_t), curMesh.vertexDataByteOffset / curMesh.vertexStride);
-		}
-		else
-		{
-			gfx.Draw(curMesh.vertexCount, curMesh.vertexDataByteOffset / curMesh.vertexStride);
+			// CBPerObject
+			glTF::Matrix4x4 trans(std::move(m_Importer.GetMeshTransform(curMesh)));
+			cbPerObject._WorldMat = glm::transpose(trans);
+			cbPerObject._InvWorldMat = glm::transpose(glm::inverse(trans));
+			gfx.SetDynamicConstantBufferView(1, sizeof(CBPerObject), &cbPerObject);
+
+			gfx.SetConstant(0, curMesh.enabledAttribs, 3);	// root0, 3 - enabledAttribs
+
+			// PSConstants
+			const auto& baseColorFactor = curMat.baseColorFactor;
+			psConstants._BaseColorFactor = Math::Vector4(baseColorFactor[0], baseColorFactor[1], baseColorFactor[2], baseColorFactor[3]);
+			const auto& emissiveFactor = curMat.emissiveFactor;
+			psConstants._EmissiveFactor = Math::Vector4(emissiveFactor[0], emissiveFactor[1], emissiveFactor[2], curMat.alphaCoutoff);
+			memcpy_s(psConstants._Texcoords, sizeof(psConstants._Texcoords), curMat.texcoords, sizeof(curMat.texcoords));
+			psConstants._Misc = Math::Vector4(curMat.metallic, curMat.roughness, curMat.normalScale, curMat.occlusionStrength);
+			gfx.SetDynamicConstantBufferView(3, sizeof(PSConstants), &psConstants);
+
+			// textures
+			gfx.SetDynamicDescriptors(4, 0, glTF::Material::TextureNum, m_Importer.GetSRVs(activeMatIdx));
+
+			if (curMesh.indexAccessor >= 0)
+			{
+				gfx.DrawIndexed(curMesh.indexCount, curMesh.indexDataByteOffset / sizeof(uint16_t), curMesh.vertexDataByteOffset / curMesh.vertexStride);
+			}
+			else
+			{
+				gfx.Draw(curMesh.vertexCount, curMesh.vertexDataByteOffset / curMesh.vertexStride);
+			}
 		}
 	}
 }

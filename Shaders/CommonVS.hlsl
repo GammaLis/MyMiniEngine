@@ -51,8 +51,15 @@ VSOutput main( VSInput v )
 
 	o.pos = cPos;
 	o.worldPos = wPos.xyz;
+#ifdef GL_UV_STARTS_AT_BOTTOMLEFT	// (貌似不用反转y轴)
+	// o.uv0 = float2(v.uv0.x, 1.0 - v.uv0.y);
+	// o.uv1 = float2(v.uv1.x, 1.0 - v.uv1.y);
 	o.uv0 = v.uv0;
 	o.uv1 = v.uv1;
+#else
+	o.uv0 = v.uv0;
+	o.uv1 = v.uv1;
+#endif
 	o.normal = wNormal;
 	o.tangent = wTangent;
 	o.bitangent = wBitangent;

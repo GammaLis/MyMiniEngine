@@ -7,7 +7,9 @@
 #include <deque>
 #include <algorithm>
 
+#include "Graphics.h"
 #include "FileUtility.h"
+#include "TextureManager.h"
 
 #define MATRIX_SIZE 16
 
@@ -256,6 +258,7 @@ namespace glTF
 
 	bool glTFImporter::Create(ID3D12Device* pDevice)
 	{
+		m_pDevice = pDevice;
 		bool bValid = BuildScenes();
 		if (bValid)
 		{
@@ -1018,10 +1021,14 @@ namespace glTF
 
 		InitVAttribFormats();
 
-		std::vector<int> activeNodes;
-		std::vector<int> activeMeshes;
-		std::vector<int> activeMaterials;
-		std::vector<int> activeImages;
+		return BuildMeshes() && BuildMaterials();
+	}
+
+	bool glTFImporter::BuildMeshes()
+	{
+		m_ActiveNodes.clear();
+		m_ActiveMeshes.clear();
+		m_ActiveMaterials.clear();
 
 		std::stack<int> nodeStack;
 		// main scene
@@ -1042,17 +1049,19 @@ namespace glTF
 		// 遍历node，存储mesh
 		uint32_t curVertexByteLength = 0;
 		uint32_t curIndexByteLength = 0;
+		int curActiveNum = 0;
 		while (!nodeStack.empty())
 		{
 			int curNodeIdx = nodeStack.top();
 			nodeStack.pop();
-			activeNodes.emplace_back(curNodeIdx);
+			m_ActiveNodes.emplace_back(curNodeIdx);
 
 			auto& curNode = m_Nodes[curNodeIdx];
 			if (curNode.meshIdx >= 0)
 			{
-				// build mesh
+				m_ActiveMeshes.emplace_back(curNode.meshIdx);
 
+				// build mesh
 				auto& curMesh = m_Meshes[curNode.meshIdx];
 
 				// primitives
@@ -1147,8 +1156,12 @@ namespace glTF
 						}
 					}
 
+					// 材质索引
 					int matIdx = curPrimitive.materialIdx;
 					newMesh.materialIndex = matIdx;
+
+					if (m_ActiveMaterials.find(matIdx) == m_ActiveMaterials.end())
+						m_ActiveMaterials[matIdx] = curActiveNum++;
 
 					// glTopology mode 默认采用TRIANGLE
 
@@ -1189,7 +1202,7 @@ namespace glTF
 			for (size_t i = 0, imax = m_oMeshes.size(); i < imax; ++i)
 			{
 				const auto& curMesh = m_oMeshes[i];
-				
+
 				// vertices
 				{
 					uint32_t curVertexCount = curMesh.vertexCount;
@@ -1197,7 +1210,7 @@ namespace glTF
 					uint32_t curVertexStride = curMesh.vertexStride;
 					uint32_t enabledAttribs = curMesh.enabledAttribs;
 					unsigned char* dstPos = m_VertexData.get() + curVertexByteOffset;
-					
+
 					for (size_t j = 0, jmax = Attrib::maxAttrib; j < jmax; ++j)
 					{
 						bool bEnabled = (enabledAttribs & (1 << j)) != 0;
@@ -1256,11 +1269,11 @@ namespace glTF
 								bufferStride = componentSize * numComponents;
 							}
 						}
-						
+
 						if (bufferStride > 0)
 						{
 							unsigned short* shDstPos = (unsigned short*)(dstPos);
-							
+
 							if (accessor.componentType == glDataType::UNSIGNED_SHORT)
 							{
 								unsigned short* shSrcPos = (unsigned short*)srcPos;
@@ -1299,6 +1312,74 @@ namespace glTF
 		return true;
 	}
 
+	bool glTFImporter::BuildMaterials()
+	{
+		m_ActiveImages.clear();
+
+		int activeMatNum = m_ActiveMaterials.size();
+		if (activeMatNum > 0)
+			m_oMaterials.resize(activeMatNum);
+		else
+			return true;
+
+		InitTextures();
+
+		for (auto iter = m_ActiveMaterials.begin(); iter != m_ActiveMaterials.end(); ++iter)
+		{
+			Material newMat;
+
+			int curMatIdx = (*iter).first;
+			int activeMatIdx = (*iter).second;
+			const auto& curMat = m_Materials[curMatIdx];
+			
+			// pbrMetallicRoughness
+			const auto& pbrMetallicRoughness = curMat.metallicRoughnessTex;
+			memcpy_s(newMat.baseColorFactor, 4 * sizeof(float), pbrMetallicRoughness.baseColorFactor, 4 * sizeof(float));
+			newMat.metallic = pbrMetallicRoughness.metallic;
+			newMat.roughness = pbrMetallicRoughness.roughness;
+			
+			const auto& baseColorTex = pbrMetallicRoughness.baseColorTex;
+			newMat.texBaseColorPath = GetImagePath(baseColorTex.index, m_DefaultBaseColor);
+			const auto& metallicRoughnessTex = pbrMetallicRoughness.metallicRoughnessTex;
+			newMat.texMetallicRoughnessPath = GetImagePath(metallicRoughnessTex.index);
+
+			// normal
+			const auto& normalTex = curMat.normalTex;
+			newMat.normalScale = normalTex.scale;
+			newMat.texNormalPath = GetImagePath(normalTex.index, m_DefaultNormal);
+
+			// occlusion
+			const auto& occlusionTex = curMat.occlusionTex;
+			newMat.occlusionStrength = occlusionTex.strength;
+			newMat.texOcclusionPath = GetImagePath(occlusionTex.index, m_DefaultOcclusion);
+
+			// emissive
+			memcpy_s(newMat.emissiveFactor, 3 * sizeof(float), curMat.emissiveFactor, 3 * sizeof(float));
+			const auto& emissiveTex = curMat.emissvieTex;
+			newMat.texEmissivePath = GetImagePath(emissiveTex.index, m_DefaultEmissive);
+
+			newMat.texcoords[0] = baseColorTex.texCoord;
+			newMat.texcoords[1] = metallicRoughnessTex.texCoord;
+			newMat.texcoords[2] = normalTex.texCoord;
+			newMat.texcoords[3] = occlusionTex.texCoord;
+			newMat.texcoords[4] = emissiveTex.texCoord;
+
+			// others
+			newMat.alphaCoutoff = curMat.alphaCutoff;
+
+			// settings
+			newMat.eAlphaMode = curMat.eAlphaMode;
+			newMat.doubleSided = curMat.doubleSided;
+		
+			// m_oMaterials.emplace_back(newMat);
+			m_oMaterials[activeMatIdx] = newMat;
+		}
+
+		LoadTextures(m_pDevice);
+
+		return true;
+	}
+
 	// 暂时不考虑变换
 	void glTFImporter::ComputeBoundingBox()
 	{
@@ -1309,6 +1390,107 @@ namespace glTF
 			const auto& curMesh = m_oMeshes[i];
 			m_BoundingBox.min = glm::min(m_BoundingBox.min, curMesh.boundingBox.min);
 			m_BoundingBox.max = glm::max(m_BoundingBox.max, curMesh.boundingBox.max);
+		}
+	}
+
+	std::string glTFImporter::GetImagePath(int curTexIdx, const std::string& defaultPath)
+	{
+		if (curTexIdx >= 0)
+		{
+			const auto& curTex = m_Textures[curTexIdx];
+			int imageIdx = curTex.sourceIdx;
+			if (imageIdx >= 0)
+			{
+				m_ActiveImages.insert(imageIdx);
+				const auto& curImage = m_Images[imageIdx];
+				if (!curImage.uri.empty())
+					return curImage.uri;
+			}
+		}
+		return defaultPath;
+	}
+
+	void glTFImporter::LoadTextures(ID3D12Device* pDevice)
+	{
+		using namespace MyDirectX;
+
+		uint32_t activeMatCount = m_ActiveMaterials.size();
+		if (activeMatCount > 0)
+		{
+			m_SRVs.reset(new D3D12_CPU_DESCRIPTOR_HANDLE[activeMatCount * Material::TextureNum]);
+
+			const ManagedTexture* matTextures[Material::TextureNum] = {};
+
+			for (size_t i = 0; i < activeMatCount; ++i)
+			{
+				const auto& curMat = m_oMaterials[i];
+				// base color
+				bool bValid = !curMat.texBaseColorPath.empty();
+				if (bValid)
+				{
+					matTextures[0] = Graphics::s_TextureManager.LoadFromFile(pDevice, curMat.texBaseColorPath);
+					bValid = matTextures[0]->IsValid();
+				}
+				if (!bValid)
+				{
+					matTextures[0] = dynamic_cast<const ManagedTexture*>(&TextureManager::GetWhiteTex2D());
+				}
+
+				// metallic roughness
+				bValid = !curMat.texMetallicRoughnessPath.empty();
+				if (bValid)
+				{
+					matTextures[1] = Graphics::s_TextureManager.LoadFromFile(pDevice, curMat.texMetallicRoughnessPath);
+					bValid = matTextures[1]->IsValid();
+				}
+				if (!bValid)
+				{
+					matTextures[1] = dynamic_cast<const ManagedTexture*>(&TextureManager::GetWhiteTex2D());
+				}
+
+				// normal
+				bValid = !curMat.texNormalPath.empty();
+				if (bValid)
+				{
+					matTextures[2] = Graphics::s_TextureManager.LoadFromFile(pDevice, curMat.texNormalPath);
+					bValid = matTextures[2]->IsValid();
+				}
+				if (!bValid)
+				{
+					matTextures[2] = dynamic_cast<const ManagedTexture*>(&TextureManager::GetWhiteTex2D());
+				}
+
+				//// occlusion
+				//bValid = !curMat.texOcclusionPath.empty();
+				//if (bValid)
+				//{
+				//	matTextures[3] = Graphics::s_TextureManager.LoadFromFile(pDevice, curMat.texOcclusionPath);
+				//	bValid = matTextures[3]->IsValid();
+				//}
+				//if (!bValid)
+				//{
+				//	matTextures[3] = dynamic_cast<const ManagedTexture*>(&TextureManager::GetWhiteTex2D());
+				//}
+
+				//// emissive
+				//bValid = !curMat.texEmissivePath.empty();
+				//if (bValid)
+				//{
+				//	matTextures[4] = Graphics::s_TextureManager.LoadFromFile(pDevice, curMat.texEmissivePath);
+				//	bValid = matTextures[4]->IsValid();
+				//}
+				//if (!bValid)
+				//{
+				//	matTextures[4] = dynamic_cast<const ManagedTexture*>(&TextureManager::GetBlackTex2D());
+				//}
+
+				uint32_t ind = i * Material::TextureNum;
+				m_SRVs[ind + 0] = matTextures[0]->GetSRV();
+				m_SRVs[ind + 1] = matTextures[1]->GetSRV();
+				m_SRVs[ind + 2] = matTextures[2]->GetSRV();
+				m_SRVs[ind + 3] = matTextures[0]->GetSRV();
+				m_SRVs[ind + 4] = matTextures[0]->GetSRV();				
+			}
 		}
 	}
 
@@ -1393,6 +1575,37 @@ namespace glTF
 		}
 		m_VertexStride = byteOffset;
 	}
+
+	void glTFImporter::InitTextures()
+	{
+		m_DefaultBaseColor = "default";
+		m_DefaultMetallicRoughness = "";
+		m_DefaultNormal = "default_normal";
+		m_DefaultOcclusion = "";
+		m_DefaultEmissive = "";
+
+		// 将文件夹名称修改为model名称
+		// 删除扩展名 （后续加载DDS图片不需要扩展名）
+		if (!m_Images.empty())
+		{
+			std::for_each(m_Images.begin(), m_Images.end(), [this](glImage &curImage) {
+				if (!curImage.uri.empty())
+				{
+					auto& filePath = curImage.uri;
+					filePath = filePath.substr(0, filePath.rfind('.'));
+					auto rpos = filePath.find_last_of("/\\");
+					if (rpos != filePath.npos)
+					{
+						filePath.replace(0, rpos, m_FileName);
+					}
+					else
+						filePath.insert(0, m_FileName);
+				}
+				});
+		}
+	}
+
+	
 }
 /**
 	Binary glTF files

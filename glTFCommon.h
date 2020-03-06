@@ -457,7 +457,7 @@ namespace glTF
 			// The occlusion values are sampled from the R channel. Higher values indicate areas that 
 			// should receive full indirect lighting and lower values indicate no indirect lighting.
 			// These values are linear. If other channels are present (GBA), they are ignored for
-			//occlusion calculations."
+			// occlusion calculations."
 
 		glTexureInfo emissvieTex;	// The emissive map controls the color and intensity of the light being 
 			// emitted by the material. This texture contains RGB components encoded with the sRGB transfer 
@@ -532,6 +532,36 @@ namespace glTF
 		int materialIndex = -1;
 		int nodeIndex = 0;	// 所属节点
 		BoundingBox boundingBox;
+	};
+
+	struct Material
+	{
+		static const uint32_t TextureNum = 5;
+
+		// properties
+		float baseColorFactor[4] = { 1, 1, 1, 1 };
+		float metallic = 1.0f;
+		float roughness = 1.0f;
+
+		float normalScale = 1.0f;
+		float occlusionStrength = 1.0f;
+
+		float emissiveFactor[3] = { 0 };
+		float alphaCoutoff = 0.5f;
+		
+		uint32_t texcoords[8] = { 0 };		// 贴图对应的uv (uv0, uv1, ...)
+
+		// textures
+		std::string texBaseColorPath;
+		std::string texMetallicRoughnessPath;
+		std::string texNormalPath;
+		std::string texOcclusionPath;
+		std::string texEmissivePath;
+
+		// settings
+		glAlphaMode eAlphaMode = glAlphaMode::kOPAQUE;
+		bool doubleSided = false;
+
 	};
 
 #pragma region FilePath

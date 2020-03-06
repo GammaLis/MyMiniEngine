@@ -3,9 +3,9 @@
 	"RootConstants(b0, num32BitConstants = 4)," \
 	"CBV(b1)," \
 	"CBV(b2)," \
-	// "CBV(b3, visibility = SHADER_VISIBILITY_PIXEL)," \
-	"RootConstants(b3, num32BitConstants = 8, visibility = SHADER_VISIBILITY_PIXEL)," \
-	"DescriptorTable(SRV(t0, numDescriptors = 2), visibility = SHADER_VISIBILITY_PIXEL)," \
+	"CBV(b3, visibility = SHADER_VISIBILITY_PIXEL)," \
+	// "RootConstants(b3, num32BitConstants = 8, visibility = SHADER_VISIBILITY_PIXEL)," \
+	"DescriptorTable(SRV(t0, numDescriptors = 8), visibility = SHADER_VISIBILITY_PIXEL)," \
 	// "DescriptorTable(UAV(u0, numDescriptors = 2))," \
 	"StaticSampler(s0, " \
 		"addressU = TEXTURE_ADDRESS_WRAP," \
@@ -17,6 +17,8 @@
 		"addressV = TEXTURE_ADDRESS_CLAMP," \
 		"addressW = TEXTURE_ADDRESS_CLAMP," \
 		"filter = FILTER_MIN_MAG_MIP_POINT)"
+
+#define GL_UV_STARTS_AT_BOTTOMLEFT
 
 // cbuffer CBConstants	: register(b0)
 // {
