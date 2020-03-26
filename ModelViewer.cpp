@@ -223,6 +223,9 @@ void ModelViewer::Render()
 		}
 	}
 
+	// skybox
+	m_Skybox.Render(gfxContext, m_Camera);
+
 	// effects
 	{
 		// some systems generate a per-pixel velocity buffer to better track dynamic and skinned meshes.
@@ -264,9 +267,9 @@ void ModelViewer::InitPipelineStates()
 
 	// root signature
 	m_RootSig.Reset(5, 2);
-	m_RootSig[0].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_VERTEX);
-	m_RootSig[1].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_PIXEL);
-	m_RootSig[2].InitAsConstants(1, 2, D3D12_SHADER_VISIBILITY_VERTEX);
+	m_RootSig[0].InitAsConstantBuffer(0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+	m_RootSig[1].InitAsConstantBuffer(0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+	m_RootSig[2].InitAsConstants(1, 2, 0, D3D12_SHADER_VISIBILITY_VERTEX);
 	m_RootSig[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 6, D3D12_SHADER_VISIBILITY_PIXEL);
 	m_RootSig[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 64, 6, D3D12_SHADER_VISIBILITY_PIXEL);
 	m_RootSig.InitStaticSampler(0, DefaultSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -368,6 +371,9 @@ void ModelViewer::InitCustom()
 	m_ExtraTextures[4] = forwardPlusLighting.m_LightGridBitMask.GetSRV();
 	m_ExtraTextures[5] = forwardPlusLighting.m_LightShadowArray.GetSRV();
 
+	// skybox
+	m_Skybox.Init(Graphics::s_Device, L"grasscube1024");
+
 	// particle effects
 	CreateParticleEffects();
 
@@ -385,6 +391,7 @@ void ModelViewer::PostProcess()
 void ModelViewer::CleanCustom()
 {
 	m_Model->Cleanup();
+	m_Skybox.Shutdown();
 }
 
 // render light shadows

@@ -459,7 +459,7 @@ namespace glTF
 			// These values are linear. If other channels are present (GBA), they are ignored for
 			// occlusion calculations."
 
-		glTexureInfo emissvieTex;	// The emissive map controls the color and intensity of the light being 
+		glTexureInfo emissiveTex;	// The emissive map controls the color and intensity of the light being 
 			// emitted by the material. This texture contains RGB components encoded with the sRGB transfer 
 			// function. If a fourth component (A) is present, it is ignored.
 		float emissiveFactor[3] = { 0, 0, 0 };	// default [0, 0, 0]
@@ -586,3 +586,57 @@ namespace glTF
 
 
 }
+
+/**
+	Materials
+	Extensions:
+	## Unlit
+	the common Unlit material is defined by adding the KHR_materials_unlit extension to any glTF material. 
+When present, the extension indicates that a material should be unlit and use available baseColor values,
+and vertex colors while ignoring all properties of the default PBR model to lighting or color. Alpha coverage
+and double sided still apply to unlit materials.
+	Definition
+	the Unlit material model describes a constantly shaded surface that is independent of lighting. The material
+is defined only by properties already present in the glTF 2.0 material specification. It is effectively 
+a boolean flag indicating use of an unlit shading model.
+	color = <baseColorTerm>
+
+	Implementation Note: for best fallback behavior in clients that do not implement the KHR_materials_unlit extensions,
+authoring tools may use:
+	metallicFactor is 0 and emissiveFactor is [0, 0, 0]
+	roughnessFactor is greater than 0.5
+	Omit metallicRoughnessTexture, occlusionTexture, emissiveTexture and normalTexture.
+
+	## SpecularGlossiness
+	the PBR specular-glossiness materials are defined by adding the KHR_materials_pbrSpecularGlossiness extension
+to any glTF material.
+	the specular-glossiness material model is defined by the following properties:
+	> diffse - reflected diffuse color of the material, `floa4`
+	> specular - specular color of the material, `float3`
+	> glossiness - glossiness of the material, `float`
+	the diffuse value represents the reflected diffuse color of the material. The specular value defines the specific
+measured reflectance value at normal incident (F0). The glossiness property is a factor between 0.0 (roughness surface)
+and 1.0 (smooth surface) and represents the surface irregularities that cause light diffusion.
+	the specular property from specular-glossiness material model is the same as the base color value from the metallic-
+roughness material model for metals. The glossiness property from specular-glossiness material is related with 
+the roughness property from the metallic-roughness material model and is defined as glossiness = 1 - roughness.
+	
+	The value for each property (diffuse, specular, glossiness) can be defined using factors or textures. 
+The specular and glossiness properties are packed together in a single texture called specularGlossinessTexture.
+If a texture is not given, all respective texture components within this material model are assumed to 
+have a value of 1.0. The factors (diffuseFactor, specularFactor, glossinessFactor) scale, in linear space,
+the components given in the respective textures (diffuseTexture, specularGlossinessTexture). Both textures
+are encoded with the sRGB transfer function and must be converted to linear space before they are used for
+any computations.
+	BRDF - (c_diff, F0, alpha), if a primitive specifies a vertex color using the attribute semantic property COLOR_O,
+then this value acts as an additional linear multiplier to diffuse.
+	c_diff = diffuse.rgb * (1 - max(specular.r, specular.g, specular.g))
+	F0 = specular
+	alpha = (1 - glossiness)^2	// roughness^2
+
+	>> Best practices
+	the PBR specular-glossiness extension can be used along with PBR metallic-roughness material model is glTF
+to enable support for both PBR workflows. Specular-glossiness can represent a broader range of materials compared 
+to metallic-roughness. However, supporting specular-glossiness on low-resource devices may not be possible as 
+it is more resource heavy than the metallic-roughness model.
+*/

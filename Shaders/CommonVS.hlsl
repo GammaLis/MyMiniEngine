@@ -12,6 +12,7 @@ cbuffer CBPerObject	: register(b1)
 cbuffer CBPerCamera	: register(b2)
 {
 	matrix _ViewProjMat;
+	float3 _CamPos;
 };
 
 struct VSInput

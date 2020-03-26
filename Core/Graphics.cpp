@@ -187,7 +187,7 @@ namespace MyDirectX
 
         m_BackBufferIndex = (m_BackBufferIndex + 1) % SWAP_CHAIN_BUFFER_COUNT;
 
-        m_SwapChain->Present(1, 0);
+        m_SwapChain->Present(0, 0);
 
         ++m_FrameIndex;
 
@@ -678,8 +678,8 @@ namespace MyDirectX
         // present RootSignature
         m_PresentRS.Reset(4, 2);
         m_PresentRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);    // SceanColorBuffer, OveralyBuffer
-        m_PresentRS[1].InitAsConstants(0, 6, D3D12_SHADER_VISIBILITY_ALL);
-        m_PresentRS[2].InitAsBufferSRV(2, D3D12_SHADER_VISIBILITY_PIXEL);
+        m_PresentRS[1].InitAsConstants(0, 6, 0, D3D12_SHADER_VISIBILITY_ALL);
+        m_PresentRS[2].InitAsBufferSRV(2, 0, D3D12_SHADER_VISIBILITY_PIXEL);
         m_PresentRS[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
         m_PresentRS.InitStaticSampler(0, s_CommonStates.SamplerLinearClampDesc);
         m_PresentRS.InitStaticSampler(1, s_CommonStates.SamplerPointClampDesc);
@@ -801,7 +801,7 @@ namespace MyDirectX
         context.TransitionResource(overlayBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         context.SetDynamicDescriptor(0, 0, overlayBuffer.GetSRV());
 
-        // debug
+        // ** Debug
         // 显示 Default字体纹理 （调试使用） -20-1-28
         // auto& textRenderer = Effect::s_TextRenderer;
         // context.SetDynamicDescriptor(0, 0, textRenderer.GetDefaultFontTexture());
@@ -815,7 +815,7 @@ namespace MyDirectX
         //context.TransitionResource(bloomBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         //context.SetDynamicDescriptor(0, 0, bloomBuffer.GetSRV());
 
-        // debug end
+        // ** Debug end
 
         context.SetPipelineState(m_BlendUIPSO);
         context.SetConstants(1, 1.0f / GfxStates::s_NativeWidth, 1.0f / GfxStates::s_NativeHeight);

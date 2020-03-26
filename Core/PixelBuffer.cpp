@@ -283,7 +283,7 @@ DXGI_FORMAT PixelBuffer::GetStencilFormat(DXGI_FORMAT format)
 }
 
 // return the bytes per pixel for a particular format
-size_t MyDirectX::PixelBuffer::BytesPerPixel(DXGI_FORMAT format)
+size_t PixelBuffer::BytesPerPixel(DXGI_FORMAT format)
 {
 	switch (format)
 	{

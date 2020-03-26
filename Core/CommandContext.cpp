@@ -219,7 +219,7 @@ void CommandContext::InitializeTexture(GpuResource& dest, UINT numSubresources, 
 
 	CommandContext& initContext = CommandContext::Begin();
 
-	// copy data to the intermediate upload heap and then schedule a copy from the upload heap to the defualt texture 
+	// copy data to the intermediate upload heap and then schedule a copy from the upload heap to the default texture 
 	DynAlloc mem = initContext.ReserveUploadMemory(uploadBufferSize);
 	UpdateSubresources(initContext.m_CommandList, dest.GetResource(), mem.buffer.GetResource(), 0, 0, numSubresources, subData);
 	initContext.TransitionResource(dest, D3D12_RESOURCE_STATE_GENERIC_READ);

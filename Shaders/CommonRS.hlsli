@@ -7,6 +7,7 @@
 	// "RootConstants(b3, num32BitConstants = 8, visibility = SHADER_VISIBILITY_PIXEL)," \
 	"DescriptorTable(SRV(t0, numDescriptors = 8), visibility = SHADER_VISIBILITY_PIXEL)," \
 	// "DescriptorTable(UAV(u0, numDescriptors = 2))," \
+	"SRV(t1, space = 1)," \
 	"StaticSampler(s0, " \
 		"addressU = TEXTURE_ADDRESS_WRAP," \
 		"addressV = TEXTURE_ADDRESS_WRAP," \

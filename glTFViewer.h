@@ -5,6 +5,9 @@
 #include "PipelineState.h"
 #include "Camera.h"
 #include "CameraController.h"
+#include "GpuBuffer.h"
+
+#define SHADING_MODEL_METALLIC_ROUGHNESS
 
 namespace MyDirectX
 {
@@ -32,6 +35,9 @@ namespace MyDirectX
 		GraphicsPSO m_ModelViewerPSO;
 
 		glTF::glTFImporter m_Importer;
+
+		// lights
+		StructuredBuffer m_LightBuffer;
 	};
 }
 

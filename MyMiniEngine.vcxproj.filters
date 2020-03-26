@@ -53,6 +53,9 @@
     <Filter Include="Core\Shaders\Particles">
       <UniqueIdentifier>{ace5de86-c985-4b2c-a3c9-aef1b8abea1a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Core\Shaders\Skybox">
+      <UniqueIdentifier>{98d493e1-e013-4c27-a59a-202dd84d86e2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\GpuResource.h">
@@ -268,6 +271,9 @@
     <ClInclude Include="glTFViewer.h">
       <Filter>Game</Filter>
     </ClInclude>
+    <ClInclude Include="Core\Skybox.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -432,6 +438,9 @@
     <ClCompile Include="glTFViewer.cpp">
       <Filter>Game</Filter>
     </ClCompile>
+    <ClCompile Include="Core\Skybox.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Core\Math\Functions.inl">
@@ -497,6 +506,15 @@
     </None>
     <None Include="Shaders\CommonRS.hlsli">
       <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\PBRUtility.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\ColorUtility.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Core\Shaders\SkyboxRS.hlsli">
+      <Filter>Core\Shaders\Skybox</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -658,6 +676,12 @@
     </FxCompile>
     <FxCompile Include="Shaders\CommonPS.hlsl">
       <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\SkyboxPS.hlsl">
+      <Filter>Core\Shaders\Skybox</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\SkyboxVS.hlsl">
+      <Filter>Core\Shaders\Skybox</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

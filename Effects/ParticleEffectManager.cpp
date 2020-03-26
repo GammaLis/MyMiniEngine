@@ -276,7 +276,7 @@ void ParticleEffectManager::Update(ComputeContext& context, float deltaTime)
 	context.SetDynamicDescriptor(4, 0, m_SpriteVertexBuffer.GetUAV());
 
 	// update active effects
-	for (uint32_t i = 0, imax = m_ActiveParticleEffects.size(); i < imax; ++i)
+	for (size_t i = 0, imax = m_ActiveParticleEffects.size(); i < imax; ++i)
 	{
 		m_ActiveParticleEffects[i]->Update(context, deltaTime);
 
@@ -366,7 +366,7 @@ void ParticleEffectManager::MaintainTextureList(ParticleEffectProperties& effect
 {
 	std::wstring name = effectProperties.TexturePath;
 
-	for (uint32_t i = 0, imax = m_TextureNameArray.size(); i < imax; ++i)
+	for (size_t i = 0, imax = m_TextureNameArray.size(); i < imax; ++i)
 	{
 		if (name.compare(m_TextureNameArray[i]) == 0)
 		{

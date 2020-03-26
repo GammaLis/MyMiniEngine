@@ -310,7 +310,7 @@ namespace glTF
 			if (dom.HasMember("scenes") && dom["scenes"].IsArray())
 			{
 				const Value& scenes = dom["scenes"];
-				for (int i = 0, imax = scenes.Size(); i < imax; ++i)
+				for (unsigned i = 0, imax = scenes.Size(); i < imax; ++i)
 				{
 					glScene newScene;
 					
@@ -320,7 +320,7 @@ namespace glTF
 					if (curScene.HasMember("nodes") && curScene["nodes"].IsArray())
 					{
 						const Value& nodes = curScene["nodes"];
-						for (int j = 0, jmax = nodes.Size(); j < jmax; ++j)
+						for (unsigned j = 0, jmax = nodes.Size(); j < jmax; ++j)
 						{
 							if (nodes[j].IsInt())
 								newScene.nodes.emplace_back(nodes[j].GetInt());
@@ -791,7 +791,7 @@ namespace glTF
 				}
 				if (curMat.HasMember("emissiveTexture"))
 				{
-					glTexureInfo& emissiveTex = newMat.emissvieTex;
+					glTexureInfo& emissiveTex = newMat.emissiveTex;
 
 					const Value& emissiveTexDom = curMat["emissiveTexture"];
 					if (emissiveTexDom.HasMember("index") && emissiveTexDom["index"].IsInt())
@@ -970,7 +970,7 @@ namespace glTF
 		{
 			Matrix4x4 mat;
 			std::deque<int> nodeQueue;
-			for (int i = 0, imax = m_RootNodes.size(); i < imax; ++i)
+			for (size_t i = 0, imax = m_RootNodes.size(); i < imax; ++i)
 			{
 				int curRootIdx = m_RootNodes[i];
 				auto& rootNode = m_Nodes[curRootIdx];
@@ -990,7 +990,7 @@ namespace glTF
 					if (curNode.bDirty)
 					{
 						mat = curNode.parentTransCache * curNode.transform;
-						for (int j = 0, jmax = children.size(); j < jmax; ++j)
+						for (size_t j = 0, jmax = children.size(); j < jmax; ++j)
 						{
 							int childIdx = children[j];
 							m_Nodes[childIdx].parentTransCache = mat;
@@ -999,7 +999,7 @@ namespace glTF
 					}
 					else
 					{
-						for (int j = 0, jmax = children.size(); j < jmax; ++j)
+						for (size_t j = 0, jmax = children.size(); j < jmax; ++j)
 						{
 							int childIdx = children[j];
 							nodeQueue.push_back(childIdx);
@@ -1355,7 +1355,7 @@ namespace glTF
 
 			// emissive
 			memcpy_s(newMat.emissiveFactor, 3 * sizeof(float), curMat.emissiveFactor, 3 * sizeof(float));
-			const auto& emissiveTex = curMat.emissvieTex;
+			const auto& emissiveTex = curMat.emissiveTex;
 			newMat.texEmissivePath = GetImagePath(emissiveTex.index, m_DefaultEmissive);
 
 			newMat.texcoords[0] = baseColorTex.texCoord;
@@ -1460,36 +1460,36 @@ namespace glTF
 					matTextures[2] = dynamic_cast<const ManagedTexture*>(&TextureManager::GetWhiteTex2D());
 				}
 
-				//// occlusion
-				//bValid = !curMat.texOcclusionPath.empty();
-				//if (bValid)
-				//{
-				//	matTextures[3] = Graphics::s_TextureManager.LoadFromFile(pDevice, curMat.texOcclusionPath);
-				//	bValid = matTextures[3]->IsValid();
-				//}
-				//if (!bValid)
-				//{
-				//	matTextures[3] = dynamic_cast<const ManagedTexture*>(&TextureManager::GetWhiteTex2D());
-				//}
+				// occlusion
+				bValid = !curMat.texOcclusionPath.empty();
+				if (bValid)
+				{
+					matTextures[3] = Graphics::s_TextureManager.LoadFromFile(pDevice, curMat.texOcclusionPath);
+					bValid = matTextures[3]->IsValid();
+				}
+				if (!bValid)
+				{
+					matTextures[3] = dynamic_cast<const ManagedTexture*>(&TextureManager::GetWhiteTex2D());
+				}
 
-				//// emissive
-				//bValid = !curMat.texEmissivePath.empty();
-				//if (bValid)
-				//{
-				//	matTextures[4] = Graphics::s_TextureManager.LoadFromFile(pDevice, curMat.texEmissivePath);
-				//	bValid = matTextures[4]->IsValid();
-				//}
-				//if (!bValid)
-				//{
-				//	matTextures[4] = dynamic_cast<const ManagedTexture*>(&TextureManager::GetBlackTex2D());
-				//}
+				// emissive
+				bValid = !curMat.texEmissivePath.empty();
+				if (bValid)
+				{
+					matTextures[4] = Graphics::s_TextureManager.LoadFromFile(pDevice, curMat.texEmissivePath);
+					bValid = matTextures[4]->IsValid();
+				}
+				if (!bValid)
+				{
+					matTextures[4] = dynamic_cast<const ManagedTexture*>(&TextureManager::GetBlackTex2D());
+				}
 
 				uint32_t ind = i * Material::TextureNum;
 				m_SRVs[ind + 0] = matTextures[0]->GetSRV();
 				m_SRVs[ind + 1] = matTextures[1]->GetSRV();
 				m_SRVs[ind + 2] = matTextures[2]->GetSRV();
-				m_SRVs[ind + 3] = matTextures[0]->GetSRV();
-				m_SRVs[ind + 4] = matTextures[0]->GetSRV();				
+				m_SRVs[ind + 3] = matTextures[3]->GetSRV();
+				m_SRVs[ind + 4] = matTextures[4]->GetSRV();
 			}
 		}
 	}

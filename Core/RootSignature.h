@@ -24,35 +24,35 @@ namespace MyDirectX
 		}
 
 		// reg - register
-		void InitAsConstants(UINT reg, UINT numDwords, D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL)
+		void InitAsConstants(UINT reg, UINT numDwords, UINT space = 0, D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL)
 		{
 			m_RootParam.Constants.Num32BitValues = numDwords;
 			m_RootParam.Constants.ShaderRegister = reg;
-			m_RootParam.Constants.RegisterSpace = 0;
+			m_RootParam.Constants.RegisterSpace = space;
 			m_RootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
 			m_RootParam.ShaderVisibility = visibility;
 		}
 
-		void InitAsConstantBuffer(UINT reg, D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL)
+		void InitAsConstantBuffer(UINT reg, UINT space = 0, D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL)
 		{
 			m_RootParam.Descriptor.ShaderRegister = reg;
-			m_RootParam.Descriptor.RegisterSpace = 0;
+			m_RootParam.Descriptor.RegisterSpace = space;
 			m_RootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 			m_RootParam.ShaderVisibility = visibility;
 		}
 
-		void InitAsBufferSRV(UINT reg, D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL)
+		void InitAsBufferSRV(UINT reg, UINT space = 0, D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL)
 		{
 			m_RootParam.Descriptor.ShaderRegister = reg;
-			m_RootParam.Descriptor.RegisterSpace = 0;
+			m_RootParam.Descriptor.RegisterSpace = space;
 			m_RootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
 			m_RootParam.ShaderVisibility = visibility;
 		}
 
-		void InitAsBufferUAV(UINT reg, D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL)
+		void InitAsBufferUAV(UINT reg, UINT space = 0, D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL)
 		{
 			m_RootParam.Descriptor.ShaderRegister = reg;
-			m_RootParam.Descriptor.RegisterSpace = 0;
+			m_RootParam.Descriptor.RegisterSpace = space;
 			m_RootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
 			m_RootParam.ShaderVisibility = visibility;
 		}

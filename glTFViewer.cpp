@@ -9,6 +9,20 @@
 #include "CommonPS.h"
 
 using namespace MyDirectX;
+using namespace DirectX;
+
+// StructuredBuffer - 不须对齐，但是SIMDMemcpy需要对齐，还是地址对齐，对应的，HLSL需要补齐
+struct alignas(16) TLight
+{
+	XMFLOAT3 color = XMFLOAT3(1.0f, 1.0f, 1.0f);		// the color of emitted light, as a linear RGB color
+	float intensity = 1.0f;	// the light's brighness. The unit depends on the type of light
+	XMFLOAT3 positionOrDirection = XMFLOAT3(1.0f, 1.0f, 1.0f);
+	float type = 0;			// 0 - directional lights, 1 - punctual lights
+	XMFLOAT3 spotDirection = XMFLOAT3(0.0f, -1.0f, 0.0f);
+	float falloffRadius = 50.0f;	// maximum distance of influence
+	XMFLOAT2 spotAttenScaleOffset = XMFLOAT2(0.0f, 1.0f);	// Dot(...) * scaleOffset.x + scaleOffset.y
+	// or float2 spotAngles;		// x - innerAngle, y - outerAngle
+};
 
 struct alignas(16) CBPerObject
 {
@@ -19,14 +33,26 @@ struct alignas(16) CBPerObject
 struct alignas(16) CBPerCamera
 {
 	Math::Matrix4 _ViewProjMat;
+	Math::Vector3 _CamPos;
 };
 
 struct alignas(16) PSConstants
 {
 	Math::Vector4 _BaseColorFactor;
-	Math::Vector4 _EmissiveFactor;
+	DirectX::XMFLOAT3 _EmissiveFactor;
+	float _AlphaCutout;
 	DirectX::XMUINT4 _Texcoords[2];
-	Math::Vector4 _Misc;
+#if defined(SHADING_MODEL_METALLIC_ROUGHNESS)
+	float _Metallic;
+	float _Roughness;
+	float _F0;
+	float _Padding;
+#elif defined(SHADING_MODEL_SPECULAR_GLOSSINESS)
+	DirectX::XMFLOAT3 _SpecularColor;
+	float _Glossiness;
+#endif
+	float _NormalScale;
+	float _OcclusionStrength;
 };
 
 glTFViewer::glTFViewer(HINSTANCE hInstance, const std::string& glTFFileName, const wchar_t* title, UINT width, UINT height)
@@ -78,13 +104,14 @@ void glTFViewer::InitAssets()
 	// root signature & pso
 	{
 		// root signature
-		m_CommonRS.Reset(5, 2);
+		m_CommonRS.Reset(6, 2);
 		m_CommonRS[0].InitAsConstants(0, 4);
 		m_CommonRS[1].InitAsConstantBuffer(1);
 		m_CommonRS[2].InitAsConstantBuffer(2);
-		m_CommonRS[3].InitAsConstantBuffer(3, D3D12_SHADER_VISIBILITY_PIXEL);
-		// m_CommonRS[3].InitAsConstants(3, 8, D3D12_SHADER_VISIBILITY_PIXEL);
+		m_CommonRS[3].InitAsConstantBuffer(3, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+		// m_CommonRS[3].InitAsConstants(3, 8, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 		m_CommonRS[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 8, D3D12_SHADER_VISIBILITY_PIXEL);
+		m_CommonRS[5].InitAsBufferSRV(1, 1);
 		m_CommonRS.InitStaticSampler(0, Graphics::s_CommonStates.SamplerLinearWrapDesc);
 		m_CommonRS.InitStaticSampler(1, Graphics::s_CommonStates.SamplerPointClampDesc);
 		m_CommonRS.Finalize(Graphics::s_Device, L"CommonRS", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
@@ -143,6 +170,32 @@ void glTFViewer::InitAssets()
 		// m_Camera.Update();	// 若无CameraController，需要手动更新
 		m_CameraController.reset(new CameraController(m_Camera, Math::Vector3(Math::kYUnitVector), *m_Input));
 	}
+
+	// lights
+	{
+		std::vector<TLight> lights;
+		{
+			TLight newLight;
+			newLight.color = XMFLOAT3(0.2f, 0.4f, 0.7f);
+			newLight.intensity = 1.0f;
+			newLight.positionOrDirection = XMFLOAT3(-1.0f, -1.0f, 1.0f);
+			newLight.type = 0;
+			newLight.falloffRadius = 50.0f;
+			lights.emplace_back(newLight);
+		}
+		{
+			TLight newLight;
+			newLight.color = XMFLOAT3(0.4f, 0.8f, 0.6f);
+			newLight.intensity = 2.0f;
+			newLight.positionOrDirection = XMFLOAT3(1.0f, -1.0f, 1.0f);
+			newLight.type = 0;
+			newLight.falloffRadius = 50.0f;
+			lights.emplace_back(newLight);
+		}
+
+		m_LightBuffer.Create(Graphics::s_Device, L"LightBuffer",
+			lights.size(), sizeof(TLight), lights.data());
+	}
 }
 
 void glTFViewer::CleanCustom()
@@ -152,12 +205,15 @@ void glTFViewer::CleanCustom()
 
 void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 viewProjMat, ObjectFilter filter)
 {
+	// camera
 	CBPerCamera cbPerCamera;
 	cbPerCamera._ViewProjMat = Math::Transpose(viewProjMat);
+	cbPerCamera._CamPos = m_Camera.GetPosition();
 	gfx.SetDynamicConstantBufferView(2, sizeof(CBPerCamera), &cbPerCamera);
-
-	Math::Vector3 camPos = m_Camera.GetPosition();
-	gfx.SetConstants(0, (float)camPos.GetX(), (float)camPos.GetY(), (float)camPos.GetZ());	// root0, 0-2, camPos
+	// constants
+	gfx.SetConstants(0, 2, 0, 0, 0);	// root0
+	// lights
+	gfx.SetBufferSRV(5, m_LightBuffer);
 	
 	gfx.SetPipelineState(m_ModelViewerPSO);
 
@@ -165,7 +221,7 @@ void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 viewPro
 	PSConstants psConstants;
 
 	const auto& rMeshes = m_Importer.m_oMeshes;
-	for (int i = 0, imax = rMeshes.size(); i < imax; ++i)
+	for (size_t i = 0, imax = rMeshes.size(); i < imax; ++i)
 	{
 		const auto& curMesh = rMeshes[i];
 
@@ -187,9 +243,20 @@ void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 viewPro
 			const auto& baseColorFactor = curMat.baseColorFactor;
 			psConstants._BaseColorFactor = Math::Vector4(baseColorFactor[0], baseColorFactor[1], baseColorFactor[2], baseColorFactor[3]);
 			const auto& emissiveFactor = curMat.emissiveFactor;
-			psConstants._EmissiveFactor = Math::Vector4(emissiveFactor[0], emissiveFactor[1], emissiveFactor[2], curMat.alphaCoutoff);
+			psConstants._EmissiveFactor = DirectX::XMFLOAT3(emissiveFactor[0], emissiveFactor[1], emissiveFactor[2]);
+			psConstants._AlphaCutout = curMat.alphaCoutoff;
 			memcpy_s(psConstants._Texcoords, sizeof(psConstants._Texcoords), curMat.texcoords, sizeof(curMat.texcoords));
-			psConstants._Misc = Math::Vector4(curMat.metallic, curMat.roughness, curMat.normalScale, curMat.occlusionStrength);
+
+			psConstants._NormalScale = curMat.normalScale;
+			psConstants._OcclusionStrength = curMat.occlusionStrength;
+#if defined(SHADING_MODEL_METALLIC_ROUGHNESS)
+			psConstants._Metallic = curMat.metallic;
+			psConstants._Roughness = curMat.roughness;
+			psConstants._F0 = 0.04f;
+#elif defined(SHADING_MODEL_SPECULAR_GLOSSINESS)
+			DirectX::XMFLOAT3 _SpecularColor;
+			float _Glossiness;
+#endif
 			gfx.SetDynamicConstantBufferView(3, sizeof(PSConstants), &psConstants);
 
 			// textures

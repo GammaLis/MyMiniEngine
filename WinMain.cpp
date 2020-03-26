@@ -53,9 +53,8 @@ int main(int argc, const char* argv[])
 #ifdef MINI_ENGINE
 	// 1. IGameApp
 	// MyDirectX::IGameApp gApp(hInst);
-	// MyDirectX::ModelViewer gApp(hInst, L"ModelViewer", 1280, 720);
-	MyDirectX::glTFViewer gApp(hInst, "Models/buster_drone.gltf", L"glTFViewer", 1280, 720);
-	// buster_drone little_witch_academia city cube
+	MyDirectX::ModelViewer gApp(hInst, L"ModelViewer", 1280, 720);
+	// MyDirectX::glTFViewer gApp(hInst, "Models/buster_drone.gltf", L"glTFViewer", 1280, 720);
 
 	int ret = 0;
 	if (gApp.Init())

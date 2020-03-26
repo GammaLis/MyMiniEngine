@@ -4,6 +4,7 @@
 #include "ShadowCamera.h"
 #include "CameraController.h"
 #include "GameInput.h"
+#include "Skybox.h"
 
 namespace MyDirectX
 {
@@ -64,6 +65,8 @@ namespace MyDirectX
 
 		D3D12_CPU_DESCRIPTOR_HANDLE m_ExtraTextures[6];
 		
+		// skybox
+		Skybox m_Skybox;
 	};
 
 }

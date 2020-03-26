@@ -178,8 +178,8 @@ namespace MyDirectX
 	{
 		// root signatures
 		m_RootSignature.Reset(3, 1);
-		m_RootSignature[0].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_VERTEX);
-		m_RootSignature[1].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_PIXEL);
+		m_RootSignature[0].InitAsConstantBuffer(0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+		m_RootSignature[1].InitAsConstantBuffer(0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 		m_RootSignature[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
 		m_RootSignature.InitStaticSampler(0, Graphics::s_CommonStates.SamplerLinearClampDesc, D3D12_SHADER_VISIBILITY_PIXEL);
 		m_RootSignature.Finalize(pDevice, L"TextRenderer", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
