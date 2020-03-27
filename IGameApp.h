@@ -4,8 +4,6 @@
 #include "PipelineState.h"
 #include "GpuBuffer.h"
 
-#define MINI_ENGINE
-
 namespace MyDirectX
 {
 	class MyWindow;

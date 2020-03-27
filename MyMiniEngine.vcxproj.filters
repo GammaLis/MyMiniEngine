@@ -56,6 +56,9 @@
     <Filter Include="Core\Shaders\Skybox">
       <UniqueIdentifier>{98d493e1-e013-4c27-a59a-202dd84d86e2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="CommonCompute">
+      <UniqueIdentifier>{201cf622-390d-4df0-ac22-2cba3fd73a05}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\GpuResource.h">
@@ -274,6 +277,17 @@
     <ClInclude Include="Core\Skybox.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="CommonCompute.h">
+      <Filter>CommonCompute</Filter>
+    </ClInclude>
+    <ClInclude Include="CubemapIBLApp.h" />
+    <ClInclude Include="ReadbackBuffer.h" />
+    <ClInclude Include="Core\stb_image_write.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\IComputingApp.h">
+      <Filter>CommonCompute</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -441,6 +455,11 @@
     <ClCompile Include="Core\Skybox.cpp">
       <Filter>Core</Filter>
     </ClCompile>
+    <ClCompile Include="CommonCompute.cpp">
+      <Filter>CommonCompute</Filter>
+    </ClCompile>
+    <ClCompile Include="CubemapIBLApp.cpp" />
+    <ClCompile Include="ReadbackBuffer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Core\Math\Functions.inl">
@@ -515,6 +534,9 @@
     </None>
     <None Include="Core\Shaders\SkyboxRS.hlsli">
       <Filter>Core\Shaders\Skybox</Filter>
+    </None>
+    <None Include="CommonCompute\PreComputing.hlsli">
+      <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -682,6 +704,9 @@
     </FxCompile>
     <FxCompile Include="Core\Shaders\SkyboxVS.hlsl">
       <Filter>Core\Shaders\Skybox</Filter>
+    </FxCompile>
+    <FxCompile Include="CommonCompute\CubemapIBL.hlsl">
+      <Filter>CommonCompute</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

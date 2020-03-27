@@ -20,7 +20,9 @@ namespace MyDirectX
 
 		// write the raw pixel buffer contents to a file
 		// note that data is preceded by a 16-byte header: {DXGI_FORMAT, Pitch(in pixels), Width(in pixels), Height}
-		void ExportToFile(const std::wstring& filePath);
+		void ExportToFile(ID3D12Device *pDevice, const std::wstring& filePath);
+
+		int ExportToImage(ID3D12Device* pDevice, const std::string& filePath);
 
 	protected:
 		D3D12_RESOURCE_DESC DescribeTex2D(uint32_t width, uint32_t height, uint32_t depthOrArraySize,

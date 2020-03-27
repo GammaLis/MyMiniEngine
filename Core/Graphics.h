@@ -70,10 +70,10 @@ namespace MyDirectX
 			return s_DescriptorAllocator[type].Allocate(s_Device, count);
 		}
 
-	private:
 		void CreateDeviceResources();
 		void CreateWindowSizeDependentResources();
 
+	private:
 		// CreateDeviceResources
 		void EnableDebugLayer();
 		Microsoft::WRL::ComPtr<IDXGIFactory4> CreateFactory();

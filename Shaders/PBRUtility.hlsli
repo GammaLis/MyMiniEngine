@@ -80,6 +80,7 @@ float D_GGX_Optimized(float roughness, float NdotH, const float3 n, const float3
 	return saturateMediump(d);
 }
 
+// ** unused **
 // Estevez and Kulla 2017, "Production Friendly Microfacet Sheen BRDF"
 float D_Charlie(float roughness, float NdotH)
 {
@@ -88,6 +89,17 @@ float D_Charlie(float roughness, float NdotH)
 	float sin2h = max(1.0 - cos2h, 0.0078125);	// 2^(-14/2), so sin2h^2 > 0 in fp16
 	return (2.0 + invAlpha) * pow(sin2h, invAlpha * 0.5) / (2.0 * PI);
 }
+
+float D_Ashikhmin(float NdotH, float roughness)
+{
+	float a = roughness;
+	float a2 = a * a;
+	float cos2h = NdotH * NdotH;
+	float sin2h = 1 - cos2h;
+	float sin4h = sin2h * sin2h;
+	return 1.0 / (PI * (1 + 4 * a2)) * (sin4h + 4 * exp(-cos2h / (a2 * sin2h)));
+}
+// ** end **
 
 /// G
 // G(v, l, a) = G1(l, a) * G1(v, a)
@@ -152,6 +164,12 @@ float3 F_Schlick(float VdotH, float3 F0)
 float F_Schlick(float VdotH, float F0, float F90)
 {
 	return F0 + (F90 - F0) * pow(1.0 - VdotH, 5.0);
+}
+
+// https://learnopengl.com/PBR/IBL/Diffuse-irradiance
+float F_SchlickRoughness(float VdotH, float3 F0, float roughness)
+{
+	return F0 + (max(1.0 - roughness, F0) - F0) * pow(1.0 - VdotH, 5.0);
 }
 
 // ************************************************************
@@ -385,6 +403,32 @@ float3 BRDF(float3 lightDir, float3 viewDir, float3 normal, const TMaterial mat)
 
 	return Fr + Fd;
 }
+
+// ************************************************************
+// Indirect lighting
+// 
+// static const float MAX_REFLECTION_LOD = 4.0;
+
+// float3 ApproximateDiffuseIBL(float3 N, float3 ks, float3 albedo)
+// {
+// 	float3 kd = 1.0 - ks;
+// 	float3 irradiance = _IrradianceMap.Sample(_LinearSampler, N).rgb;
+// 	float3 indirectDiffuse = kd * irradiance * albedo;
+// 	return indirectDiffuse;
+// }
+
+// // specularColor = F_SchlickRoughness(NdotV, F0, roughness);	// the indirect Fresnel result F
+// float3 ApproximateSpecularIBL(float3 N, float3 V, float3 specularColor, float roughness)
+// {
+// 	float NdotV = satate(dot(N, V));
+// 	float3 R = 2 * dot(V, N) * N - V;
+
+// 	float lod = roughness * MAX_REFLECTION_LOD;
+// 	float3 prefilteredColor = _PrefilterEnvMap.SampleLevel(_LinearSampler, R, lod);
+// 	float2 envBRDF = _EnvBRDF.Sample(_PointSampler, float2(NdotV, roughness)).rg;
+
+// 	return prefilteredColor * (specularColor * envBRDF.x + envBRDF.y);
+// }
 
 // ************************************************************
 // Precomputing

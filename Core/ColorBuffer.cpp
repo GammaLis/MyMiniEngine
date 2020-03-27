@@ -67,7 +67,7 @@ void ColorBuffer::CreateDerivedViews(ID3D12Device* pDevice, DXGI_FORMAT format, 
 	uavDesc.Format = GetUAVFormat(format);
 	srvDesc.Format = format;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-
+	
 	if (arraySize > 1)
 	{
 		rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;

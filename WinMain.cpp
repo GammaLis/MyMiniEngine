@@ -1,8 +1,11 @@
+#define COMMON_COMPUTE		// MINI_ENGINE COMMON_COMPUTE
 #include "MyBaseApp.h"
 #include "Utility.h"
 #include "IGameApp.h"
 #include "ModelViewer.h"
 #include "glTFViewer.h"
+
+#include "CubemapIBLApp.h"
 
 // I. windows程序 预处理定义-_WINDOWS,连接器子系统SubSystem:WINDOWS
 //int WINAPI WinMain(_In_ HINSTANCE hInstance,
@@ -50,7 +53,7 @@ int main(int argc, const char* argv[])
 
 #pragma endregion
 
-#ifdef MINI_ENGINE
+#if defined(MINI_ENGINE)
 	// 1. IGameApp
 	// MyDirectX::IGameApp gApp(hInst);
 	MyDirectX::ModelViewer gApp(hInst, L"ModelViewer", 1280, 720);
@@ -64,6 +67,14 @@ int main(int argc, const char* argv[])
 
 	gApp.Cleanup();
 
+#elif defined(COMMON_COMPUTE)
+	int ret = 0;
+	MyDirectX::CubemapIBLApp myApp;
+	myApp.Init(L"Textures/grasscube1024.dds", 1024, 1024, DXGI_FORMAT_R8G8B8A8_UNORM);	// DXGI_FORMAT_R8G8B8A8_UNORM DXGI_FORMAT_R16G16B16A16_UNORM
+		// Default_Anim grasscube1024 desertcube1024
+	myApp.Run();
+	ret = myApp.SaveToFile("CommonCompute/Test.png");
+	myApp.Shutdown();
 #else
 	// 2. MyBaseApp
 	MyDirectX::MyBaseApp myApp(hInst, L"Hello, World!");
