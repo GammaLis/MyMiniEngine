@@ -1,4 +1,4 @@
-#define COMMON_COMPUTE		// MINI_ENGINE COMMON_COMPUTE
+#define MINI_ENGINE		// MINI_ENGINE COMMON_COMPUTE
 #include "MyBaseApp.h"
 #include "Utility.h"
 #include "IGameApp.h"
@@ -35,7 +35,7 @@ int main(int argc, const char* argv[])
 	ASSERT_SUCCEEDED(InitializeWinRT);
 
 	HINSTANCE hInst = GetModuleHandle(0);
-
+	
 #pragma region Test
 	// float 
 	float f = 0.25f;	// B 0.01 -> 1E(-2) -> 1E(127 -2 = 125) <0 - ·ûºÅÎ»£¬ 125 - E£¬ 0 - D>
@@ -56,8 +56,8 @@ int main(int argc, const char* argv[])
 #if defined(MINI_ENGINE)
 	// 1. IGameApp
 	// MyDirectX::IGameApp gApp(hInst);
-	MyDirectX::ModelViewer gApp(hInst, L"ModelViewer", 1280, 720);
-	// MyDirectX::glTFViewer gApp(hInst, "Models/buster_drone.gltf", L"glTFViewer", 1280, 720);
+	// MyDirectX::ModelViewer gApp(hInst, L"ModelViewer", 1280, 720);
+	MyDirectX::glTFViewer gApp(hInst, "Models/buster_drone.gltf", L"glTFViewer", 1280, 720);
 
 	int ret = 0;
 	if (gApp.Init())
@@ -74,7 +74,7 @@ int main(int argc, const char* argv[])
 		// Default_Anim grasscube1024 desertcube1024
 	myApp.Run();
 	ret = myApp.SaveToFile("CommonCompute/Test.png");
-	myApp.Shutdown();
+	myApp.Cleanup();
 #else
 	// 2. MyBaseApp
 	MyDirectX::MyBaseApp myApp(hInst, L"Hello, World!");

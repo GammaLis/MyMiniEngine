@@ -3,6 +3,7 @@
 #include "RootSignature.h"
 #include "PipelineState.h"
 #include "GpuBuffer.h"
+#include "MyWindow.h"
 
 namespace MyDirectX
 {

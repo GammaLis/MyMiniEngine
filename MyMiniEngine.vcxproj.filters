@@ -59,6 +59,12 @@
     <Filter Include="CommonCompute">
       <UniqueIdentifier>{201cf622-390d-4df0-ac22-2cba3fd73a05}</UniqueIdentifier>
     </Filter>
+    <Filter Include="CommonCompute\Shaders">
+      <UniqueIdentifier>{195b8209-2503-400e-a10f-e5c2d7ee0726}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene">
+      <UniqueIdentifier>{85ce3536-9d60-4434-b3fa-ec467ab671ef}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\GpuResource.h">
@@ -280,13 +286,23 @@
     <ClInclude Include="CommonCompute.h">
       <Filter>CommonCompute</Filter>
     </ClInclude>
-    <ClInclude Include="CubemapIBLApp.h" />
-    <ClInclude Include="ReadbackBuffer.h" />
     <ClInclude Include="Core\stb_image_write.h">
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\IComputingApp.h">
       <Filter>CommonCompute</Filter>
+    </ClInclude>
+    <ClInclude Include="CommonCompute\SHBasics.h">
+      <Filter>CommonCompute</Filter>
+    </ClInclude>
+    <ClInclude Include="CubemapIBLApp.h">
+      <Filter>CommonCompute</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\ReadbackBuffer.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Math\GLMath.h">
+      <Filter>Core\Math</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -458,8 +474,15 @@
     <ClCompile Include="CommonCompute.cpp">
       <Filter>CommonCompute</Filter>
     </ClCompile>
-    <ClCompile Include="CubemapIBLApp.cpp" />
-    <ClCompile Include="ReadbackBuffer.cpp" />
+    <ClCompile Include="CommonCompute\SHBasics.cpp">
+      <Filter>CommonCompute</Filter>
+    </ClCompile>
+    <ClCompile Include="CubemapIBLApp.cpp">
+      <Filter>CommonCompute</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\ReadbackBuffer.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Core\Math\Functions.inl">
@@ -536,7 +559,7 @@
       <Filter>Core\Shaders\Skybox</Filter>
     </None>
     <None Include="CommonCompute\PreComputing.hlsli">
-      <Filter>Shaders</Filter>
+      <Filter>CommonCompute\Shaders</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -706,7 +729,10 @@
       <Filter>Core\Shaders\Skybox</Filter>
     </FxCompile>
     <FxCompile Include="CommonCompute\CubemapIBL.hlsl">
-      <Filter>CommonCompute</Filter>
+      <Filter>CommonCompute\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="CommonCompute\CubemapSH.hlsl">
+      <Filter>CommonCompute\Shaders</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

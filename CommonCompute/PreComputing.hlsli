@@ -7,11 +7,38 @@ static const float PiOver2 = 1.57079632679;
 static const float RadToDeg = 180.0 / Pi;
 static const float DegToRad = Pi / 180.0;
 
+static const float SqrtPi = 1.77245385f;
+static const float SqrtTwo = 1.41421356f;
+
 // ------------------------------------------------------------
+// Utilities
 float Pow5(float x)
 {
     float x2 = x * x;
     return x2 * x2 * x;
+}
+
+float Factorial(uint n, uint d = 1)
+{
+    d = max(1, d);
+    n = max(1, n);
+    float r = 1.0f;
+    if (n == d)
+    {
+        // intentionally left blank
+    }
+    else if (n > d)
+    {
+        for ( ; n > d; --n)
+            r *= n;
+    }
+    else 
+    {
+        for ( ; d > n; --d)
+            r *= d;
+        r = 1.0f / r;
+    }
+    return r;
 }
 
 // DVF
@@ -137,6 +164,114 @@ void CoordinateSystem(float3 v0, inout float3 v1, inout float3 v2)
 		v1 = float3(0, v0.z, -v0.y);
 	v1 = normalize(v1);
 	v2 = cross(v0, v1);
+}
+
+// ------------------------------------------------------------
+// SH (Sphrical Harmonics)
+struct SH4
+{
+    float c[4];
+};
+struct SH4Color
+{
+    float3 c[4];
+};
+struct SH9
+{
+    float c[9];
+};
+struct SH9Color
+{
+    float3 c[9];
+};
+static const float CosineA0 = Pi;
+static const float CosineA1 = (2.0f * Pi) / 3.0f;
+static const float CosineA2 = (0.25f * Pi);
+/**
+    SH
+    0 - 1 / (2 * sqrt(pi))
+    1 - -sqrt(3)  / (2 * sqrt(pi))  * y
+         sqrt(3)  / (2 * sqrt(pi))  * z
+        -sqrt(3)  / (2 * sqrt(pi))  * x
+    2 -  sqrt(15) / (2 * sqrt(pi))  * xy
+        -sqrt(15) / (2 * sqrt(pi))  * yz
+         sqrt(5)  / (4 * sqrt(pi))  * (3z^2 - 1)
+        -sqrt(15) / (2 * sqrt(pi))  * xz
+         sqrt(15) / (4 * sqrt(pi))  * (x^2 - y^2)
+*/
+int SHIndex(int m, int l)
+{
+    return l * (l + 1) + m;
+}
+
+// SH scaling factors:
+//  return sqrt((2*l + 1) / 4pi) * sqrt( (l-|m|)! / (l+|m|)! )
+float Kml(int m, int l)
+{
+    const float SqrtPi = sqrt(Pi);
+    m = abs(m);
+    float K = (2 * l + 1) * Factorial(l - m, l + m);
+    return sqrt(K) * (0.5 / SqrtPi);
+}
+
+void SH9ColorInit(inout SH9Color sh)
+{
+    [unroll]
+    for (uint i = 0; i < 9; ++i)
+    {
+        sh.c[i] = 0;
+    }
+}
+
+/**
+ *  http://xlgames-inc.github.io/posts/sphericalharmonics0/
+ *  It's important to be aware that you'll see slightly different variations of these equations in
+ * different publications. This is why it's not always safe to combine equations from different 
+ * sources (such as the rotation equations and optimization equations).
+ * 
+ *     = this form employs the "Condon-Shortley phase". This basically just adds the negative sign in
+ * front of some of the equations. This reduces the complexity of some of derived equations (such as 
+ * the equations for rotation). Not all graphics literature use this form (for example, Robin Green 
+ * doesn't, but Peter-Pike Sloan does)
+ */
+SH9 SH9Basis(float3 s)
+{
+    static const float SqrtPi = sqrt(Pi);
+    static const float Sqrt3  = sqrt(3);
+    static const float Sqrt5  = sqrt(5);
+    static const float Sqrt15 = sqrt(15);
+
+    float x = s.x, y = s.y,  z = s.z;
+    float x2= x*x, y2 = y*y, z2 = z*z;
+    SH9 sh;
+    sh.c[0] =  0.282095f;   // 1 / (2 * sqrt(pi))
+
+    sh.c[1] = -0.488603f * y;   // -sqrt(3)  / (2 * sqrt(pi))  * y
+    sh.c[2] =  0.488603f * z;   //  sqrt(3)  / (2 * sqrt(pi))  * z
+    sh.c[3] = -0.488603f * x;   // -sqrt(3)  / (2 * sqrt(pi))  * x
+
+    sh.c[4] =  1.092548f * x * y;   //  sqrt(15) / (2 * sqrt(pi))  * xy
+    sh.c[5] = -1.092548f * y * z;   // -sqrt(15) / (2 * sqrt(pi))  * yz
+    sh.c[6] =  0.315392f * (3 * z2 - 1);    //  sqrt(5)  / (4 * sqrt(pi))  * (3z^2 - 1)
+    sh.c[7] = -1.092548f * z * x;   // -sqrt(15) / (2 * sqrt(pi))  * xz
+    sh.c[8] =  0.546274f * (x2 - y2);       //  sqrt(15) / (4 * sqrt(pi))  * (x^2 - y^2)
+
+    return sh;
+}
+
+void SH9CosineLobe(inout SH9 sh)
+{
+    sh.c[0] *= CosineA0;
+
+    sh.c[1] *= CosineA1;
+    sh.c[2] *= CosineA1;
+    sh.c[3] *= CosineA1;
+
+    sh.c[4] *= CosineA2;
+    sh.c[5] *= CosineA2;
+    sh.c[6] *= CosineA2;
+    sh.c[7] *= CosineA2;
+    sh.c[8] *= CosineA2;
 }
 
 // ------------------------------------------------------------

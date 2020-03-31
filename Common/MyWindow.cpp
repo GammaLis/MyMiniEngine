@@ -3,6 +3,8 @@
 #include "MyApp.h"
 #include "../IGameApp.h"
 
+#define MINI_ENGINE
+
 using namespace MyDirectX;
 
 LRESULT CALLBACK MyDirectX::MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)

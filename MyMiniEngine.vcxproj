@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClInclude Include="CameraController.h" />
     <ClInclude Include="CommonCompute.h" />
+    <ClInclude Include="CommonCompute\SHBasics.h" />
     <ClInclude Include="Core\CommandContext.h" />
     <ClInclude Include="Core\ColorBuffer.h" />
     <ClInclude Include="Core\Color.h" />
@@ -51,6 +52,7 @@
     <ClInclude Include="Core\Math\BoundingSphere.h" />
     <ClInclude Include="Core\Math\Common.h" />
     <ClInclude Include="Core\Math\Frustum.h" />
+    <ClInclude Include="Core\Math\GLMath.h" />
     <ClInclude Include="Core\Math\Matrix3.h" />
     <ClInclude Include="Core\Math\Matrix4.h" />
     <ClInclude Include="Core\Math\Quaternion.h" />
@@ -95,11 +97,12 @@
     <ClInclude Include="Effects\ParticleEffectManager.h" />
     <ClInclude Include="Effects\ParticleEffectProperties.h" />
     <ClInclude Include="Core\Skybox.h" />
-    <ClInclude Include="ReadbackBuffer.h" />
+    <ClInclude Include="Core\ReadbackBuffer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CameraController.cpp" />
     <ClCompile Include="CommonCompute.cpp" />
+    <ClCompile Include="CommonCompute\SHBasics.cpp" />
     <ClCompile Include="Core\CommandContext.cpp" />
     <ClCompile Include="Core\ColorBuffer.cpp" />
     <ClCompile Include="Core\Color.cpp" />
@@ -154,7 +157,7 @@
     <ClCompile Include="Effects\ParticleEffect.cpp" />
     <ClCompile Include="Effects\ParticleEffectManager.cpp" />
     <ClCompile Include="Core\Skybox.cpp" />
-    <ClCompile Include="ReadbackBuffer.cpp" />
+    <ClCompile Include="Core\ReadbackBuffer.cpp" />
     <ClCompile Include="WinMain.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -187,6 +190,16 @@
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="CommonCompute\CubemapIBL.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="CommonCompute\CubemapSH.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>

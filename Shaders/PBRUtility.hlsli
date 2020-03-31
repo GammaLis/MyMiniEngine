@@ -167,7 +167,7 @@ float F_Schlick(float VdotH, float F0, float F90)
 }
 
 // https://learnopengl.com/PBR/IBL/Diffuse-irradiance
-float F_SchlickRoughness(float VdotH, float3 F0, float roughness)
+float3 F_SchlickRoughness(float VdotH, float3 F0, float roughness)
 {
 	return F0 + (max(1.0 - roughness, F0) - F0) * pow(1.0 - VdotH, 5.0);
 }
@@ -416,6 +416,48 @@ float3 BRDF(float3 lightDir, float3 viewDir, float3 normal, const TMaterial mat)
 // 	float3 indirectDiffuse = kd * irradiance * albedo;
 // 	return indirectDiffuse;
 // }
+
+// SH
+struct SH9
+{
+    float c[9];
+};
+struct SH9Color
+{
+	float3 c[9];
+};
+SH9 SH9Basis(float3 s)
+{
+    float x = s.x, y = s.y,  z = s.z;
+    float x2= x*x, y2 = y*y, z2 = z*z;
+    SH9 sh;
+    sh.c[0] =  0.282095f;   // 1 / (2 * sqrt(pi))
+
+    sh.c[1] = -0.488603f * y;   // -sqrt(3)  / (2 * sqrt(pi))  * y
+    sh.c[2] =  0.488603f * z;   //  sqrt(3)  / (2 * sqrt(pi))  * z
+    sh.c[3] = -0.488603f * x;   // -sqrt(3)  / (2 * sqrt(pi))  * x
+
+    sh.c[4] =  1.092548f * x * y;   //  sqrt(15) / (2 * sqrt(pi))  * xy
+    sh.c[5] = -1.092548f * y * z;   // -sqrt(15) / (2 * sqrt(pi))  * yz
+    sh.c[6] =  0.315392f * (3 * z2 - 1);    //  sqrt(5)  / (4 * sqrt(pi))  * (3z^2 - 1)
+    sh.c[7] = -1.092548f * z * x;   // -sqrt(15) / (2 * sqrt(pi))  * xz
+    sh.c[8] =  0.546274f * (x2 - y2);       //  sqrt(15) / (4 * sqrt(pi))  * (x^2 - y^2)
+
+    return sh;
+}
+float3 ApproximateDiffuseSH(SH9Color sh, float3 N, float3 diffuseColor)
+{
+	// compute the SH basis, oriented about the normal direction
+	SH9 shBasis = SH9Basis(N);
+
+	// compute the SH dot product to get irradiance
+	float3 irradiance = 0.0f;
+	for (uint k = 0; k < 9; ++k)
+		irradiance += sh.c[k] * shBasis.c[k];
+
+	irradiance *= diffuseColor / PI;
+	return irradiance;
+}
 
 // // specularColor = F_SchlickRoughness(NdotV, F0, roughness);	// the indirect Fresnel result F
 // float3 ApproximateSpecularIBL(float3 N, float3 V, float3 specularColor, float roughness)

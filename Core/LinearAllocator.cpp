@@ -152,20 +152,26 @@ namespace MyDirectX
 		return ret;
 	}
 
+	// -2020-3-28 修改：
+	//	if (m_CurPage == nullptr) return;
+	//	当m_CurPage == nullptr时，m_LargePageList非空，无法提交删除
 	void LinearAllocator::CleanupUsedPages(uint64_t fenceID)
 	{
-		if (m_CurPage == nullptr)
-			return;
+		if (m_CurPage != nullptr)
+		{
+			m_RetiredPages.push_back(m_CurPage);
+			m_CurPage = nullptr;
+			m_CurOffset = 0;
 
-		m_RetiredPages.push_back(m_CurPage);
-		m_CurPage = nullptr;
-		m_CurOffset = 0;
+			s_PageManager[(int)m_AllocationType].DiscardPages(fenceID, m_RetiredPages);
+			m_RetiredPages.clear();
+		}
 
-		s_PageManager[(int)m_AllocationType].DiscardPages(fenceID, m_RetiredPages);
-		m_RetiredPages.clear();
-
-		s_PageManager[(int)m_AllocationType].FreeLargePages(fenceID, m_LargePageList);
-		m_LargePageList.clear();
+		if (!m_LargePageList.empty())
+		{
+			s_PageManager[(int)m_AllocationType].FreeLargePages(fenceID, m_LargePageList);
+			m_LargePageList.clear();
+		}
 	}
 
 	DynAlloc LinearAllocator::AllocateLargePage(size_t sizeInBytes)

@@ -99,7 +99,19 @@ namespace MyDirectX
 		// freed pages will be destroyed once their fence has passed. This is for single-use, "large" pages
 		void FreeLargePages(uint64_t fenceID, const std::vector<LinearAllocationPage*>& pages);
 
-		void Destroy() { m_PagePool.clear(); }
+		// -2020-3-28修改：
+		//	m_DeletionQueue没有加入m_PagePool，用完即删；
+		//	但是程序只执行一次时(如CommonCompute)，m_DeletionQueue没有删除
+		void Destroy() 
+		{ 
+			m_PagePool.clear(); 
+
+			while (!m_DeletionQueue.empty())
+			{
+				delete m_DeletionQueue.front().second;
+				m_DeletionQueue.pop();
+			}
+		}
 
 	private:
 		static LinearAllocatorType s_AutoType;

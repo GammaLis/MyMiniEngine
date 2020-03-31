@@ -8,6 +8,8 @@
 #include "CommonVS.h"
 #include "CommonPS.h"
 
+#include "CubemapSH.h"
+
 using namespace MyDirectX;
 using namespace DirectX;
 
@@ -104,14 +106,15 @@ void glTFViewer::InitAssets()
 	// root signature & pso
 	{
 		// root signature
-		m_CommonRS.Reset(6, 2);
+		m_CommonRS.Reset(7, 2);
 		m_CommonRS[0].InitAsConstants(0, 4);
 		m_CommonRS[1].InitAsConstantBuffer(1);
 		m_CommonRS[2].InitAsConstantBuffer(2);
 		m_CommonRS[3].InitAsConstantBuffer(3, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 		// m_CommonRS[3].InitAsConstants(3, 8, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 		m_CommonRS[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 8, D3D12_SHADER_VISIBILITY_PIXEL);
-		m_CommonRS[5].InitAsBufferSRV(1, 1);
+		m_CommonRS[5].InitAsBufferSRV(1, 1);	// light buffer
+		m_CommonRS[6].InitAsBufferSRV(2, 1);	// sh buffer
 		m_CommonRS.InitStaticSampler(0, Graphics::s_CommonStates.SamplerLinearWrapDesc);
 		m_CommonRS.InitStaticSampler(1, Graphics::s_CommonStates.SamplerPointClampDesc);
 		m_CommonRS.Finalize(Graphics::s_Device, L"CommonRS", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
@@ -196,11 +199,94 @@ void glTFViewer::InitAssets()
 		m_LightBuffer.Create(Graphics::s_Device, L"LightBuffer",
 			lights.size(), sizeof(TLight), lights.data());
 	}
+
+#pragma region SH
+	// SH
+	struct SH9Color
+	{
+		XMFLOAT3 c[9];
+	};
+	{
+		// root signature
+		{
+			D3D12_SAMPLER_DESC samplerDesc = {};
+			samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+			samplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+			samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+			samplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+			samplerDesc.MaxAnisotropy = 16;
+			samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+			samplerDesc.MinLOD = 0.0f;
+			samplerDesc.MipLODBias = 0.0f;
+			samplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
+
+			m_SHRS.Reset(3, 1);
+			m_SHRS[0].InitAsConstants(0, 4);
+			m_SHRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
+			m_SHRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
+			m_SHRS.InitStaticSampler(0, samplerDesc);
+			m_SHRS.Finalize(Graphics::s_Device, L"SHRS");
+		}
+		// PSO
+		{
+			m_SHPSO.SetRootSignature(m_SHRS);
+			m_SHPSO.SetComputeShader(CubemapSH, sizeof(CubemapSH));
+			m_SHPSO.Finalize(Graphics::s_Device);
+		}
+
+		// 		
+		const UINT GroupSizeX = 32;
+		const UINT GroupSizeY = 32;
+		UINT picWidth;
+		UINT picHeight;
+		{
+			// texture
+			std::wstring filePath = L"grasscube1024.dds";
+			auto pos = filePath.rfind('.');
+			if (pos != std::wstring::npos)
+				filePath = filePath.substr(0, pos);	// È¥³ýÀ©Õ¹Ãû
+			const auto texture = Graphics::s_TextureManager.LoadFromFile(Graphics::s_Device, filePath);
+			m_SHsrv = texture->GetSRV();
+			auto desc = const_cast<ID3D12Resource*>(texture->GetResource())->GetDesc();
+			picWidth = desc.Width;
+			picHeight = desc.Height;
+
+			UINT numGroupX = Math::DivideByMultiple(picWidth, GroupSizeX);
+			UINT numGroupY = Math::DivideByMultiple(picHeight, GroupSizeY);
+			// buffer
+			m_SHOutput.Create(Graphics::s_Device, L"SHBuffer", numGroupX * numGroupY, sizeof(SH9Color));
+		}
+
+		// precomputing SH coefs
+		{
+			auto& computeContext = ComputeContext::Begin(L"PreSH");
+
+			computeContext.TransitionResource(m_SHOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+			computeContext.SetRootSignature(m_SHRS);
+			computeContext.SetPipelineState(m_SHPSO);
+			computeContext.SetConstants(0, picWidth, picHeight);
+			computeContext.SetDynamicDescriptor(1, 0, m_SHsrv);
+			computeContext.SetDynamicDescriptor(2, 0, m_SHOutput.GetUAV());
+
+			computeContext.Dispatch2D(GroupSizeX, GroupSizeY, GroupSizeX, GroupSizeY);
+
+			computeContext.TransitionResource(m_SHOutput, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+			computeContext.Finish(true);
+		}
+	}
+#pragma endregion
 }
 
 void glTFViewer::CleanCustom()
 {
 	m_Importer.Clear();
+	
+	m_LightBuffer.Destroy();
+
+	// SH
+	m_SHOutput.Destroy();
 }
 
 void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 viewProjMat, ObjectFilter filter)
@@ -214,6 +300,8 @@ void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 viewPro
 	gfx.SetConstants(0, 2, 0, 0, 0);	// root0
 	// lights
 	gfx.SetBufferSRV(5, m_LightBuffer);
+	// sh
+	gfx.SetBufferSRV(6, m_SHOutput);
 	
 	gfx.SetPipelineState(m_ModelViewerPSO);
 

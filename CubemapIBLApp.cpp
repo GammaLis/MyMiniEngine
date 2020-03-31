@@ -70,7 +70,7 @@ void CubemapIBLApp::Run()
 
 	computeContext.Dispatch2D(m_Width, m_Height, GroupSize, GroupSize);
 
-	computeContext.Finish();
+	computeContext.Finish(true);
 }
 
 int CubemapIBLApp::SaveToFile(const std::string& fileName)

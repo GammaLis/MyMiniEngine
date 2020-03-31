@@ -15,8 +15,13 @@ namespace MyDirectX
 
 		int SaveToFile(const std::string& fileName);
 
-	private:
+	protected:
+		virtual void CleanCustom() override
+		{
+			m_IrradianceMap.Destroy();
+		}
 
+	private:
 		static const UINT GroupSize = 16;
 
 		RootSignature m_IrradianceMapRS;

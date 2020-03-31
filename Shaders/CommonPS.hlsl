@@ -48,6 +48,7 @@ Texture2D<float> _TexOcclusion			: register(t3);
 Texture2D<float4> _TexEmissive			: register(t4);
 
 StructuredBuffer<TLight> _Lights		: register(t1, space1);
+StructuredBuffer<SH9Color> _SHCoefs		: register(t2, space1);
 
 SamplerState s_LinearRSamper: register(s0);
 SamplerState s_PointCSampler: register(s1);
@@ -117,7 +118,7 @@ float4 main(VSOutput i) : SV_TARGET
 	float4 color = baseColor;
 	float3 lighting = 0;
 	// direct lighting
-	// [unroll]
+	// [unroll]	// _LightNum不是常量，无法展开
 	for (uint i = 0; i < _LightNum; ++i)
 	{
 		TLight curLight = _Lights[i];
@@ -125,10 +126,24 @@ float4 main(VSOutput i) : SV_TARGET
 	}
 
 	// indirect lighting
+	float3 indirectLighting = 0;
+	// 
+	// irradiance
+	float3 diffuseColor = baseColor.rgb * (1 - metallic);
+	float3 irradiance = 0;
+	irradiance = ApproximateDiffuseSH(_SHCoefs[0], normal, diffuseColor);
+
+	indirectLighting += irradiance;
+
+	// specular
 	// ...
 	
-	color.rgb = emissive.rgb + lighting * occlusion;
+	//
+	color.rgb = emissive.rgb + lighting * occlusion + indirectLighting;
 	// baseColor.rgb *= baseColor.a;	// premultiplied color
+	
+	// ** debug indirectLighting **
+	// color.rgb = indirectLighting;
 
 	return color;
 }

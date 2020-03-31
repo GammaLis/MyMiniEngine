@@ -370,7 +370,7 @@ void ParticleEffectManager::MaintainTextureList(ParticleEffectProperties& effect
 	{
 		if (name.compare(m_TextureNameArray[i]) == 0)
 		{
-			effectProperties.EmitProperties.TextureID = i;
+			effectProperties.EmitProperties.TextureID = static_cast<UINT>(i);
 			return;
 		}
 	}

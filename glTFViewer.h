@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "IGameApp.h"
 #include "glTFImporter.h"
+#include "RootSignature.h"
 #include "PipelineState.h"
 #include "Camera.h"
 #include "CameraController.h"
@@ -38,6 +39,12 @@ namespace MyDirectX
 
 		// lights
 		StructuredBuffer m_LightBuffer;
+
+		// SH
+		RootSignature m_SHRS;
+		ComputePSO m_SHPSO;
+		// resources
+		D3D12_CPU_DESCRIPTOR_HANDLE m_SHsrv;
+		StructuredBuffer m_SHOutput;
 	};
 }
-

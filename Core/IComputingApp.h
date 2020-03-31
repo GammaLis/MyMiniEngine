@@ -18,14 +18,18 @@ namespace MyDirectX
 
 		virtual void Run() {  }
 
-		virtual void Shutdown() 
+		virtual void Cleanup() 
 		{
 			m_CommonCompute->s_CommandManager.IdleGPU();
+
+			CleanCustom();
+
 			m_CommonCompute->Shutdown(); 
 		}
 
 	protected:
 		virtual void InitCustom() {  }
+		virtual void CleanCustom() {  }
 
 		std::unique_ptr<Graphics> m_CommonCompute;
 	};

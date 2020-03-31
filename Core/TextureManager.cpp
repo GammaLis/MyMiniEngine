@@ -162,7 +162,7 @@ namespace MyDirectX
 	void Texture::CreateTexBySTB_IMAGE(ID3D12Device* pDevice, const void* memBuffer, size_t fileSize, bool sRGB)
 	{
 		int width, height, nChannels;
-		stbi_uc* data = stbi_load_from_memory((const stbi_uc*)memBuffer, fileSize, &width, &height, &nChannels, 0);
+		stbi_uc* data = stbi_load_from_memory((const stbi_uc*)memBuffer, (int)fileSize, &width, &height, &nChannels, 0);
 		if (data)
 		{
 			DXGI_FORMAT format;
