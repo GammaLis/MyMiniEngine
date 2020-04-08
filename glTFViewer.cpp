@@ -332,7 +332,7 @@ void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 viewPro
 			psConstants._BaseColorFactor = Math::Vector4(baseColorFactor[0], baseColorFactor[1], baseColorFactor[2], baseColorFactor[3]);
 			const auto& emissiveFactor = curMat.emissiveFactor;
 			psConstants._EmissiveFactor = DirectX::XMFLOAT3(emissiveFactor[0], emissiveFactor[1], emissiveFactor[2]);
-			psConstants._AlphaCutout = curMat.alphaCoutoff;
+			psConstants._AlphaCutout = curMat.alphaCutoff;
 			memcpy_s(psConstants._Texcoords, sizeof(psConstants._Texcoords), curMat.texcoords, sizeof(curMat.texcoords));
 
 			psConstants._NormalScale = curMat.normalScale;

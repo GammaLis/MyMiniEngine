@@ -4,6 +4,7 @@
 #include "IGameApp.h"
 #include "ModelViewer.h"
 #include "glTFViewer.h"
+#include "SceneViewer.h"
 
 #include "CubemapIBLApp.h"
 
@@ -57,7 +58,8 @@ int main(int argc, const char* argv[])
 	// 1. IGameApp
 	// MyDirectX::IGameApp gApp(hInst);
 	// MyDirectX::ModelViewer gApp(hInst, L"ModelViewer", 1280, 720);
-	MyDirectX::glTFViewer gApp(hInst, "Models/buster_drone.gltf", L"glTFViewer", 1280, 720);
+	// MyDirectX::glTFViewer gApp(hInst, "Models/buster_drone.gltf", L"glTFViewer", 1280, 720);
+	MyDirectX::SceneViewer gApp(hInst, L"SceneViewer");
 
 	int ret = 0;
 	if (gApp.Init())

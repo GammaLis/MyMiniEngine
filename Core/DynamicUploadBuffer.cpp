@@ -2,8 +2,12 @@
 
 using namespace MyDirectX;
 
-void DynamicUploadBuffer::Create(ID3D12Device* pDevice, const std::wstring& name, uint32_t numElements, uint32_t elementSize)
+void DynamicUploadBuffer::Create(ID3D12Device* pDevice, const std::wstring& name, uint32_t numElements, uint32_t elementSize, 
+	bool bConstantBuffer)
 {
+	if (bConstantBuffer)
+		elementSize = Math::AlignUp(elementSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+
 	D3D12_HEAP_PROPERTIES heapProps;
 	heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
 	heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
@@ -36,6 +40,8 @@ void DynamicUploadBuffer::Create(ID3D12Device* pDevice, const std::wstring& name
 	m_GpuVirtualAddress = m_pResource->GetGPUVirtualAddress();
 	m_CpuVirtualAddress = nullptr;
 
+	m_NumElement = numElements;
+	m_ElementSize = elementSize;
 }
 
 void DynamicUploadBuffer::Destroy()
@@ -80,4 +86,15 @@ D3D12_INDEX_BUFFER_VIEW DynamicUploadBuffer::IndexBufferView(uint32_t numIndices
 	ibv.Format = _32bit ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
 	ibv.SizeInBytes = numIndices * (_32bit ? 4 : 2);
 	return ibv;
+}
+
+void DynamicUploadBuffer::CopyToGpu(void* pSrc, uint32_t memSize, uint32_t instanceIndex)
+{
+	if (pSrc == nullptr || memSize == 0)
+		return;
+
+	if (m_CpuVirtualAddress == nullptr)
+		Map();
+
+	memcpy((uint8_t*)m_CpuVirtualAddress + instanceIndex * m_ElementSize, pSrc, memSize);
 }

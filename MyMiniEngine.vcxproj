@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Scenes\AssimpImporter.h" />
     <ClInclude Include="CameraController.h" />
     <ClInclude Include="CommonCompute.h" />
     <ClInclude Include="CommonCompute\SHBasics.h" />
@@ -60,6 +61,8 @@
     <ClInclude Include="Core\Math\Scalar.h" />
     <ClInclude Include="Core\Math\Transform.h" />
     <ClInclude Include="Core\Math\Vector.h" />
+    <ClInclude Include="Scenes\LightDefines.h" />
+    <ClInclude Include="Scenes\Scene.h" />
     <ClInclude Include="Core\stb_image.h" />
     <ClInclude Include="Core\stb_image_write.h" />
     <ClInclude Include="Core\Utility.h" />
@@ -83,6 +86,7 @@
     <ClInclude Include="glTFImporter.h" />
     <ClInclude Include="glTFViewer.h" />
     <ClInclude Include="IGameApp.h" />
+    <ClInclude Include="Scenes\Material.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="Core\SamplerManager.h" />
     <ClInclude Include="Core\TextureManager.h" />
@@ -98,8 +102,15 @@
     <ClInclude Include="Effects\ParticleEffectProperties.h" />
     <ClInclude Include="Core\Skybox.h" />
     <ClInclude Include="Core\ReadbackBuffer.h" />
+    <ClInclude Include="Scenes\MaterialDefines.h" />
+    <ClInclude Include="Scenes\SceneDefines.h" />
+    <ClInclude Include="Scenes\VertexLayout.h" />
+    <ClInclude Include="SceneViewer.h" />
+    <ClInclude Include="Shaders\HlslDefines.h" />
+    <ClInclude Include="Shaders\MathConstants.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Scenes\AssimpImporter.cpp" />
     <ClCompile Include="CameraController.cpp" />
     <ClCompile Include="CommonCompute.cpp" />
     <ClCompile Include="CommonCompute\SHBasics.cpp" />
@@ -124,6 +135,7 @@
     <ClCompile Include="Core\GpuBuffer.cpp" />
     <ClCompile Include="Core\Math\Frustum.cpp" />
     <ClCompile Include="Core\Math\Random.cpp" />
+    <ClCompile Include="Scenes\Scene.cpp" />
     <ClCompile Include="Core\Utility.cpp" />
     <ClCompile Include="Core\PipelineState.cpp" />
     <ClCompile Include="Core\RootSignature.cpp" />
@@ -144,6 +156,7 @@
     <ClCompile Include="glTFImporter.cpp" />
     <ClCompile Include="glTFViewer.cpp" />
     <ClCompile Include="IGameApp.cpp" />
+    <ClCompile Include="Scenes\Material.cpp" />
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="Core\SamplerManager.cpp" />
     <ClCompile Include="Core\TextureManager.cpp" />
@@ -158,11 +171,13 @@
     <ClCompile Include="Effects\ParticleEffectManager.cpp" />
     <ClCompile Include="Core\Skybox.cpp" />
     <ClCompile Include="Core\ReadbackBuffer.cpp" />
+    <ClCompile Include="SceneViewer.cpp" />
     <ClCompile Include="WinMain.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="CommonCompute\PreComputing.hlsli" />
     <None Include="Core\Shaders\SkyboxRS.hlsli" />
+    <None Include="Shaders\AiCommonRS.hlsli" />
     <None Include="Shaders\ColorUtility.hlsli" />
     <None Include="Core\Math\Functions.inl" />
     <None Include="Core\Shaders\ParticleRS.hlsli" />
@@ -182,8 +197,8 @@
     <None Include="Core\Shaders\TextRS.hlsli" />
     <None Include="Core\Shaders\ToneMappingUtility.hlsli" />
     <None Include="packages.config" />
-    <None Include="Shaders\CommonRS.hlsli" />
     <None Include="Shaders\FillLightGridCS.hlsli" />
+    <None Include="Shaders\glTFCommonRS.hlsli" />
     <None Include="Shaders\LightGrid.hlsli" />
     <None Include="Shaders\ModelViewerRS.hlsli" />
     <None Include="Shaders\PBRUtility.hlsli" />
@@ -535,19 +550,31 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
     </FxCompile>
+    <FxCompile Include="Shaders\AiCommonPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\AiCommonVS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+    </FxCompile>
     <FxCompile Include="Shaders\BasicTrianglePS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
     </FxCompile>
     <FxCompile Include="Shaders\BasicTriangleVS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
     </FxCompile>
-    <FxCompile Include="Shaders\CommonPS.hlsl">
+    <FxCompile Include="Shaders\DepthOnlyClipPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
     </FxCompile>
-    <FxCompile Include="Shaders\CommonVS.hlsl">
+    <FxCompile Include="Shaders\DepthOnlyPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\DepthOnlyVS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
@@ -605,6 +632,12 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
     </FxCompile>
+    <FxCompile Include="Shaders\glTFCommonPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\glTFCommonVS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+    </FxCompile>
     <FxCompile Include="Shaders\ModelViewerPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
@@ -612,6 +645,18 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
     </FxCompile>
     <FxCompile Include="Shaders\ModelViewerVS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\WireframePS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\WireframeVS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>

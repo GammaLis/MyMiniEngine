@@ -1365,7 +1365,7 @@ namespace glTF
 			newMat.texcoords[4] = emissiveTex.texCoord;
 
 			// others
-			newMat.alphaCoutoff = curMat.alphaCutoff;
+			newMat.alphaCutoff = curMat.alphaCutoff;
 
 			// settings
 			newMat.eAlphaMode = curMat.eAlphaMode;

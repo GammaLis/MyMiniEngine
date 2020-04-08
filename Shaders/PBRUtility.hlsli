@@ -5,7 +5,7 @@
 
 #define MEDIUMP_FLT_MAX	65504.0
 #define MEDIUMP_FLT_MIN	0.00006103515625
-#ifdef TARGET_MOBILE
+#ifdef 	TARGET_MOBILE
 #define FLT_EPS				MEDIUMP_FLT_MIN
 #define saturateMediump(x) 	min(x, MEDIUMP_FLT_MAX)
 #else
@@ -18,10 +18,10 @@
 // structs
 struct TLight
 {
+	float3 positionOrDirection;
+	uint type;		// 0 - directional lights, 1 - punctual lights
 	float3 color;	// the color of emitted light, as a linear RGB color
 	float intensity;	// the light's brighness. The unit depends on the type of light
-	float3 positionOrDirection;
-	float type;		// 0 - directional lights, 1 - punctual lights
 	float3 spotDirection;
 	float falloffRadius;	// maximum distance of influence
 	float2 spotAttenScaleOffset;	// Dot(...) * scaleOffset.x + scaleOffset.y

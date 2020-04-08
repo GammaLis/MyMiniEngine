@@ -547,7 +547,7 @@ namespace glTF
 		float occlusionStrength = 1.0f;
 
 		float emissiveFactor[3] = { 0 };
-		float alphaCoutoff = 0.5f;
+		float alphaCutoff = 0.5f;
 		
 		uint32_t texcoords[8] = { 0 };		// ÌùÍ¼¶ÔÓ¦µÄuv (uv0, uv1, ...)
 

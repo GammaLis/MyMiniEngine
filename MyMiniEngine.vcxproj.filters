@@ -62,8 +62,11 @@
     <Filter Include="CommonCompute\Shaders">
       <UniqueIdentifier>{195b8209-2503-400e-a10f-e5c2d7ee0726}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Scene">
+    <Filter Include="Scenes">
       <UniqueIdentifier>{85ce3536-9d60-4434-b3fa-ec467ab671ef}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Prev">
+      <UniqueIdentifier>{c4d8c02b-5128-4690-9336-85baf6c97a4c}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -304,6 +307,36 @@
     <ClInclude Include="Core\Math\GLMath.h">
       <Filter>Core\Math</Filter>
     </ClInclude>
+    <ClInclude Include="Scenes\VertexLayout.h">
+      <Filter>Scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="Scenes\MaterialDefines.h">
+      <Filter>Scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="Scenes\Material.h">
+      <Filter>Scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="Scenes\Scene.h">
+      <Filter>Scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="Scenes\AssimpImporter.h">
+      <Filter>Scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="Scenes\SceneDefines.h">
+      <Filter>Scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="Shaders\HlslDefines.h">
+      <Filter>Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Scenes\LightDefines.h">
+      <Filter>Scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="Shaders\MathConstants.h">
+      <Filter>Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneViewer.h">
+      <Filter>Game</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -483,6 +516,18 @@
     <ClCompile Include="Core\ReadbackBuffer.cpp">
       <Filter>Core</Filter>
     </ClCompile>
+    <ClCompile Include="Scenes\Material.cpp">
+      <Filter>Scenes</Filter>
+    </ClCompile>
+    <ClCompile Include="Scenes\Scene.cpp">
+      <Filter>Scenes</Filter>
+    </ClCompile>
+    <ClCompile Include="Scenes\AssimpImporter.cpp">
+      <Filter>Scenes</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneViewer.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Core\Math\Functions.inl">
@@ -516,9 +561,6 @@
     <None Include="Core\Shaders\ShaderUtility.hlsli">
       <Filter>Core\Shaders\Misc</Filter>
     </None>
-    <None Include="Shaders\ModelViewerRS.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="Shaders\LightGrid.hlsli">
       <Filter>Shaders</Filter>
     </None>
@@ -546,9 +588,6 @@
     <None Include="Core\Shaders\ParticleUpdateCommon.hlsli">
       <Filter>Core\Shaders\Particles</Filter>
     </None>
-    <None Include="Shaders\CommonRS.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="Shaders\PBRUtility.hlsli">
       <Filter>Shaders</Filter>
     </None>
@@ -560,6 +599,15 @@
     </None>
     <None Include="CommonCompute\PreComputing.hlsli">
       <Filter>CommonCompute\Shaders</Filter>
+    </None>
+    <None Include="Shaders\glTFCommonRS.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\AiCommonRS.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\ModelViewerRS.hlsli">
+      <Filter>Shaders\Prev</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -603,18 +651,6 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\BasicTriangleVS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\ModelViewerPS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\ModelViewerVS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\DepthViewerVS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\DepthViewerPS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\FillLightGridCS_8.hlsl">
@@ -716,12 +752,6 @@
     <FxCompile Include="Core\Shaders\ParticleNoSortVS.hlsl">
       <Filter>Core\Shaders\Particles</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\CommonVS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\CommonPS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="Core\Shaders\SkyboxPS.hlsl">
       <Filter>Core\Shaders\Skybox</Filter>
     </FxCompile>
@@ -733,6 +763,45 @@
     </FxCompile>
     <FxCompile Include="CommonCompute\CubemapSH.hlsl">
       <Filter>CommonCompute\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\glTFCommonPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\glTFCommonVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\AiCommonVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\AiCommonPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ModelViewerVS.hlsl">
+      <Filter>Shaders\Prev</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ModelViewerPS.hlsl">
+      <Filter>Shaders\Prev</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DepthViewerPS.hlsl">
+      <Filter>Shaders\Prev</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DepthViewerVS.hlsl">
+      <Filter>Shaders\Prev</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\WireframeVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\WireframePS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DepthOnlyVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DepthOnlyPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DepthOnlyClipPS.hlsl">
+      <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
