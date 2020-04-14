@@ -227,7 +227,9 @@ namespace MyDirectX
 		void SetConstantBuffer(UINT rootIndex, D3D12_GPU_VIRTUAL_ADDRESS cbv);
 		void SetDynamicConstantBufferView(UINT rootIndex, size_t bufferSize, const void* bufferData);
 		void SetBufferSRV(UINT rootIndex, const GpuBuffer& srv, UINT64 offset = 0);
+		void SetShaderResourceView(UINT rootIndex, D3D12_GPU_VIRTUAL_ADDRESS srv);
 		void SetBufferUAV(UINT rootIndex, const GpuBuffer& uav, UINT64 offset = 0);
+		void SetUnorderedAccessView(UINT rootIndex, D3D12_GPU_VIRTUAL_ADDRESS uav);
 		void SetDescriptorTable(UINT rootIndex, D3D12_GPU_DESCRIPTOR_HANDLE firstHandle);
 
 		void SetDynamicDescriptor(UINT rootIndex, UINT offset, D3D12_CPU_DESCRIPTOR_HANDLE handle);

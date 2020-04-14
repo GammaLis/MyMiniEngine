@@ -287,7 +287,7 @@ float3 main(VSOutput i) : SV_TARGET
 
 	// ao
 	{
-		colorSum += /*0.8 **/ diffuseAlbedo;
+		colorSum += 0.4 * diffuseAlbedo;
 	}
 
 	float gloss = 128.0f;

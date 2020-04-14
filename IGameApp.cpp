@@ -295,7 +295,7 @@ void IGameApp::InitPipelineStates()
 	m_CommonRS[2].InitAsConstantBuffer(2);
 	// m_CommonRS[3].InitAsConstantBuffer(3, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 	m_CommonRS[3].InitAsConstants(3, 8, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-	m_CommonRS[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_PIXEL);
+	m_CommonRS[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 	m_CommonRS.InitStaticSampler(0, Graphics::s_CommonStates.SamplerLinearWrapDesc);
 	m_CommonRS.InitStaticSampler(1, Graphics::s_CommonStates.SamplerPointClampDesc);
 	m_CommonRS.Finalize(Graphics::s_Device, L"CommonRS", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
@@ -303,7 +303,7 @@ void IGameApp::InitPipelineStates()
 	// 3.basic triangle root signature
 	m_BasicTriangleRS.Reset(2, 1);
 	m_BasicTriangleRS[0].InitAsConstantBuffer(0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-	m_BasicTriangleRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+	m_BasicTriangleRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 	m_BasicTriangleRS.InitStaticSampler(0, Graphics::s_CommonStates.SamplerLinearWrapDesc, D3D12_SHADER_VISIBILITY_PIXEL);
 	m_BasicTriangleRS.Finalize(Graphics::s_Device, L"BasicTriangleRS", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 

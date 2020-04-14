@@ -80,7 +80,7 @@ namespace MyDirectX
 	class UserDescriptorHeap
 	{
 	public:
-		UserDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t maxCount)
+		UserDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, uint32_t maxCount = 1024)
 		{
 			m_HeapDesc.Type = type;
 			m_HeapDesc.NumDescriptors = maxCount;

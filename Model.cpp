@@ -20,13 +20,20 @@ namespace MyDirectX
 	using namespace DirectX::PackedVector;
 
 	// 去除扩展名
-	inline std::string ModifyFilePath(const char* str)
+	inline std::string ModifyFilePath(const char* str, const std::string &name)
 	{
 		if (*str == '\0')
 			return std::string();
-
+		
 		const uint32_t Size = 256;
-		char path[Size] = "Models/";
+		char path[Size];
+		uint32_t i = 0;
+		for (auto imax = name.size(); i < imax; ++i)
+		{
+			path[i] = name[i];
+		}
+		path[i++] = '/';
+		path[i++] = '\0';
 
 		// 类似 textures\\xxx.png
 		const char* pStart = strrchr(str, '\\');
@@ -191,6 +198,8 @@ namespace MyDirectX
 			return false;
 		}
 
+		name = StringUtils::GetFileNameWithNoExtensions(fileName);
+
 		// now we can access the file's contents
 		// do the scene processing (scene)
 		PrepareDataFromScene(scene);
@@ -274,12 +283,12 @@ namespace MyDirectX
 				dstMat->specularStrength = specularStrength;
 
 				// texture path
-				dstMat->texDiffusePath = ModifyFilePath(texDiffusePath.C_Str());
-				dstMat->texSpecularPath = ModifyFilePath(texSpecularPath.C_Str());
-				dstMat->texNormalPath = ModifyFilePath(texNormalPath.C_Str());
-				dstMat->texEmissivePath = ModifyFilePath(texEmissivePath.C_Str());
-				dstMat->texLightmapPath = ModifyFilePath(texLightmapPath.C_Str());
-				dstMat->texReflectionPath = ModifyFilePath(texReflectionPath.C_Str());
+				dstMat->texDiffusePath = ModifyFilePath(texDiffusePath.C_Str(), name);
+				dstMat->texSpecularPath = ModifyFilePath(texSpecularPath.C_Str(), name);
+				dstMat->texNormalPath = ModifyFilePath(texNormalPath.C_Str(), name);
+				dstMat->texEmissivePath = ModifyFilePath(texEmissivePath.C_Str(), name);
+				dstMat->texLightmapPath = ModifyFilePath(texLightmapPath.C_Str(), name);
+				dstMat->texReflectionPath = ModifyFilePath(texReflectionPath.C_Str(), name);
 
 				aiString matName;
 				srcMat->Get(AI_MATKEY_NAME, matName);

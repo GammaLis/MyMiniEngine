@@ -39,8 +39,8 @@ Texture2D<float3> _TexNormal 			: register(t2);
 Texture2D<float > _TexOcclusion			: register(t3);
 Texture2D<float3> _TexEmissive			: register(t4);
 
-SamplerState s_LinearRSamper: register(s0);
-SamplerState s_PointCSampler: register(s1);
+SamplerState s_LinearRSampler	: register(s0);
+SamplerState s_PointCSampler	: register(s1);
 
 struct VSOutput
 {
@@ -67,7 +67,7 @@ float4 main(VSOutput i, bool bFront : SV_IsFrontFace) : SV_TARGET
 	// base color
 	float4 baseColor = _BaseColorFactor;
 	if (diffuseType == ChannelTypeTexture)
-		baseColor = _TexBaseColor.Sample(s_LinearRSamper, i.uv0);
+		baseColor = _TexBaseColor.Sample(s_LinearRSampler, i.uv0);
 
 	// alpha test
 	if (alphaMode == AlphaModeMask)
@@ -80,7 +80,7 @@ float4 main(VSOutput i, bool bFront : SV_IsFrontFace) : SV_TARGET
 	float3 normal = i.normal;
 	if (normalMapType == NormalMapRGB)
 	{
-		float3 normalMap = _TexNormal.Sample(s_LinearRSamper, i.uv0).rgb;
+		float3 normalMap = _TexNormal.Sample(s_LinearRSampler, i.uv0).rgb;
 		normalMap = normalize( (2.0 * normalMap - 1.0) * float3(_NormalScale, _NormalScale, 1.0) );
 		normal = i.tangent * normalMap.x + i.bitangent * normalMap.y + i.normal * normalMap.z;
 	}
@@ -95,7 +95,7 @@ float4 main(VSOutput i, bool bFront : SV_IsFrontFace) : SV_TARGET
 	float occlusion = _OcclusionStrength;
 	if (occlusionType > 0)
 	{
-		occlusion = _TexOcclusion.Sample(s_LinearRSamper, i.uv0).r;
+		occlusion = _TexOcclusion.Sample(s_LinearRSampler, i.uv0).r;
 	}
 	occlusion *= _OcclusionStrength;
 
@@ -103,7 +103,7 @@ float4 main(VSOutput i, bool bFront : SV_IsFrontFace) : SV_TARGET
 	float3 emissive = _Emissive;
 	if (emissiveType == ChannelTypeTexture)
 	{
-		emissive = _TexEmissive.Sample(s_LinearRSamper, i.uv0).rgb;
+		emissive = _TexEmissive.Sample(s_LinearRSampler, i.uv0).rgb;
 	}
 	emissive *= _EmissiveFactor;
 
@@ -114,7 +114,7 @@ float4 main(VSOutput i, bool bFront : SV_IsFrontFace) : SV_TARGET
 		float metallic = _MetallicRoughness.y, perceptualRoughness = _MetallicRoughness.z;
 		if (specularType == ChannelTypeTexture)
 		{
-			float2 metalRough = _TexMetallicRoughness.Sample(s_LinearRSamper, i.uv0).rg;
+			float2 metalRough = _TexMetallicRoughness.Sample(s_LinearRSampler, i.uv0).rg;
 			metallic = metalRough.x, perceptualRoughness = metalRough.y;
 		}
 

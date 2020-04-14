@@ -197,9 +197,12 @@
     <None Include="Core\Shaders\TextRS.hlsli" />
     <None Include="Core\Shaders\ToneMappingUtility.hlsli" />
     <None Include="packages.config" />
+    <None Include="Shaders\CommonIndirectRS.hlsli" />
     <None Include="Shaders\FillLightGridCS.hlsli" />
     <None Include="Shaders\glTFCommonRS.hlsli" />
     <None Include="Shaders\LightGrid.hlsli" />
+    <None Include="Shaders\MaterialDefines.hlsli" />
+    <None Include="Shaders\MeshDefines.hlsli" />
     <None Include="Shaders\ModelViewerRS.hlsli" />
     <None Include="Shaders\PBRUtility.hlsli" />
   </ItemGroup>
@@ -561,6 +564,19 @@
     </FxCompile>
     <FxCompile Include="Shaders\BasicTriangleVS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\CommonIndirectPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <EnableUnboundedDescriptorTables Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</EnableUnboundedDescriptorTables>
+    </FxCompile>
+    <FxCompile Include="Shaders\CommonIndirectVS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
     </FxCompile>
     <FxCompile Include="Shaders\DepthOnlyClipPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>

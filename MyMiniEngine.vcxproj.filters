@@ -609,6 +609,15 @@
     <None Include="Shaders\ModelViewerRS.hlsli">
       <Filter>Shaders\Prev</Filter>
     </None>
+    <None Include="Shaders\CommonIndirectRS.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\MaterialDefines.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\MeshDefines.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Core\Shaders\TextVS.hlsl">
@@ -801,6 +810,12 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\DepthOnlyClipPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\CommonIndirectVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\CommonIndirectPS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

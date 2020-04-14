@@ -29,6 +29,8 @@ namespace MyDirectX
 		GraphicsPSO m_CutoutDepthPSO;
 		GraphicsPSO m_ModelPSO;
 		GraphicsPSO m_ShadowPSO;
+
+		bool m_IndirectRendering = true;
 	};
 
 }

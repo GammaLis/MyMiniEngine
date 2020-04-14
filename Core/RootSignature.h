@@ -57,10 +57,10 @@ namespace MyDirectX
 			m_RootParam.ShaderVisibility = visibility;
 		}
 
-		void InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE type, UINT reg, UINT count, D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL)
+		void InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE type, UINT reg, UINT count, UINT space = 0, D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL)
 		{
 			InitAsDescriptorTable(1, visibility);
-			SetTableRange(0, type, reg, count);
+			SetTableRange(0, type, reg, count, space);
 		}
 
 		void InitAsDescriptorTable(UINT rangeCount, D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL)

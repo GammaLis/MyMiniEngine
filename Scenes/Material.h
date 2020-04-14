@@ -4,6 +4,7 @@
 
 namespace MyDirectX
 {
+	using uint = uint32_t;
 	using float2 = DirectX::XMFLOAT2;
 	using float3 = DirectX::XMFLOAT3;
 	using float4 = DirectX::XMFLOAT4;
@@ -22,11 +23,13 @@ namespace MyDirectX
 
 	enum class TextureType
 	{
-		BaseColor,
+		BaseColor = 0,
 		Specular,
 		Normal,
 		Emissive,
-		Occlusion
+		Occlusion,
+
+		Count
 	};
 
 	struct alignas(16) MaterialData
@@ -46,7 +49,7 @@ namespace MyDirectX
 		float f0 = 0.04f;	// or IoR index of refraction
 			// f0 = (ior - 1)^2 / (ior + 1)^2
 		float specularTransmission = 0.0f;
-		uint32_t flags = 0;
+		uint flags = 0;
 
 		bool operator== (const MaterialData& other) const
 		{

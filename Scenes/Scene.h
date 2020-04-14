@@ -3,11 +3,13 @@
 #include "Math/GLMath.h"
 #include "GpuBuffer.h"
 #include "DynamicUploadBuffer.h"
+#include "DescriptorHeap.h"
 #include "Scenes/VertexLayout.h"
 #include "Scenes/Material.h"
 #include "Camera.h"
 #include "CameraController.h"
 #include "RootSignature.h"
+#include "CommandSignature.h"
 #include "PipelineState.h"
 
 namespace MyDirectX
@@ -20,6 +22,8 @@ namespace MyDirectX
 namespace MFalcor
 {
 	using namespace MyDirectX;
+
+	using InstanceMatrices = std::vector<Matrix4x4>;
 
 	struct Node
 	{
@@ -89,15 +93,16 @@ namespace MFalcor
 			Refit		// update acceleration structure when updates are needed
 		};
 
-		static SharedPtr Create(ID3D12Device *pDevice, const std::string& filePath, GameInput* pInput = nullptr);
+		static SharedPtr Create(ID3D12Device *pDevice, const std::string& filePath, GameInput* pInput = nullptr, 
+			const InstanceMatrices &instances = InstanceMatrices());
 		static SharedPtr Create() { return SharedPtr(new Scene()); }
 
 		Scene() = default;
 
-		bool Init(ID3D12Device* pDevice, const std::string& filePath, GameInput* pInput = nullptr);
+		bool Init(ID3D12Device* pDevice, const std::string& filePath, GameInput* pInput = nullptr, const InstanceMatrices& instances = InstanceMatrices());
 
 		// do any additional initialization required after scene data is set and draw lists are determined
-		void Finalize();
+		void Finalize(ID3D12Device* pDevice);
 
 		/// ** Framework ** 
 		UpdateFlags Update(float deltaTime);
@@ -109,11 +114,11 @@ namespace MFalcor
 
 		// render the scene using the rasterizer
 		void Render(GraphicsContext &gfx, AlphaMode alphaMode = AlphaMode::UNKNOWN);
-		void BeginRendering(GraphicsContext& gfx);
-		void SetRenderCamera(GraphicsContext& gfx, const Matrix4x4 &viewProjMat, const Vector3 &camPos);
+		void BeginRendering(GraphicsContext& gfx, bool bIndirectRendering = false);
+		void SetRenderCamera(GraphicsContext& gfx, const Matrix4x4 &viewProjMat, const Vector3 &camPos, UINT rootIdx);
 		void RenderByAlphaMode(GraphicsContext& gfx, GraphicsPSO &pso, AlphaMode alphaMode);
-		void RenderAlphaMask(GraphicsContext& gfx);
-		void RenderTransparent(GraphicsContext& gfx);
+
+		void IndirectRender(GraphicsContext& gfx, AlphaMode alphaMode = AlphaMode::UNKNOWN);
 
 		// render the scene using raytracing
 		void Raytrace();
@@ -232,7 +237,7 @@ namespace MFalcor
 	
 	private:
 		// create scene parameter block and retrieve pointers to buffers
-		void InitResources();
+		void InitResources(ID3D12Device *pDevice);
 
 		// uploads scene data to parameter block
 		void UploadResources();
@@ -241,13 +246,17 @@ namespace MFalcor
 		void UploadMaterial(uint32_t materialId);
 
 		// -mf
+		// 对MeshInstanceData进行分类，排序
+		void SortMeshInstances();
+		std::shared_ptr<StructuredBuffer> CreateInstanceBuffer(ID3D12Device* pDevice);
+
 		void UpdateMatrices();
 
 		// update the scene's global bounding box
 		void UpdateBounds();
 
 		// create the draw list for rasterization
-		void CreateDrawList();
+		void CreateDrawList(ID3D12Device* pDevice);
 
 		// sort what meshes go in what BLAS. 
 		void SortBlasMeshes();
@@ -286,8 +295,10 @@ namespace MFalcor
 		// 
 		// scene geometry
 		VertexBufferLayout::SharedPtr m_VertexLayout;
+		VertexBufferLayout::SharedPtr m_InstanceLayout;
 		std::shared_ptr<StructuredBuffer> m_VertexBuffer;
 		std::shared_ptr<ByteAddressBuffer> m_IndexBuffer;
+		std::shared_ptr<StructuredBuffer> m_InstanceBuffer;
 
 		std::vector<MeshDesc> m_MeshDescs;
 		std::vector<MeshInstanceData> m_MeshInstanceData;
@@ -297,6 +308,10 @@ namespace MFalcor
 		std::vector<Matrix4x4> m_LocalMatrices;
 		std::vector<Matrix4x4> m_GlobalMatrices;
 		std::vector<Matrix4x4> m_InvTransposeGlobalMatrices;
+		
+		std::vector<uint32_t> m_OpaqueInstances;
+		std::vector<uint32_t> m_MaskInstancs;
+		std::vector<uint32_t> m_TransparentInstances;
 
 		// 
 		std::vector<Material::SharedPtr> m_Materials;
@@ -311,10 +326,23 @@ namespace MFalcor
 		std::vector<bool> m_MeshHasDynamicData;	// whether a mesh has dynamic data, meaning it is skinned
 		GeometryStats m_GeometryStats;
 
+		struct IndirectCommand
+		{
+			D3D12_DRAW_INDEXED_ARGUMENTS drawArgs;
+		};
+
 		// resources
-		DynamicUploadBuffer m_MaterialsBuffer;
+		DynamicUploadBuffer m_MaterialsDynamicBuffer;
+		DynamicUploadBuffer m_MatricesDynamicBuffer;
+
+		StructuredBuffer m_MaterialsBuffer;
+		StructuredBuffer m_MeshesBuffer;
 		StructuredBuffer m_MeshInstancesBuffer;
 		StructuredBuffer m_LightsBuffer;
+		StructuredBuffer m_CommandsBuffer;
+
+		// texture srv descriptors
+		UserDescriptorHeap m_TextureDescriptorHeap;
 		// ...
 
 		// saved camera viewpoints
@@ -351,6 +379,12 @@ namespace MFalcor
 		GraphicsPSO m_OpaqueModelPSO;
 		GraphicsPSO m_MaskModelPSO;
 		GraphicsPSO m_TransparentModelPSO;
+
+		RootSignature m_CommonIndirectRS;
+		CommandSignature m_CommandSignature;
+		GraphicsPSO m_OpaqueIndirectPSO;
+		GraphicsPSO m_MaskIndirectPSO;
+		GraphicsPSO m_TransparentIndirectPSO;
 	};
 
 }

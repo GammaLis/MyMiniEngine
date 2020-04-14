@@ -176,6 +176,8 @@ namespace MyDirectX
 		D3D12_CPU_DESCRIPTOR_HANDLE* m_SRVs;
 		D3D12_CPU_DESCRIPTOR_HANDLE m_DefaultSRV;
 
+		std::string name;
+
 	};
 
 }

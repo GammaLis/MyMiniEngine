@@ -665,10 +665,20 @@ void GraphicsContext::SetBufferSRV(UINT rootIndex, const GpuBuffer& srv, UINT64 
 	m_CommandList->SetGraphicsRootShaderResourceView(rootIndex, srv.GetGpuVirtualAddress() + offset);
 }
 
+void GraphicsContext::SetShaderResourceView(UINT rootIndex, D3D12_GPU_VIRTUAL_ADDRESS srv)
+{
+	m_CommandList->SetGraphicsRootShaderResourceView(rootIndex, srv);
+}
+
 void GraphicsContext::SetBufferUAV(UINT rootIndex, const GpuBuffer& uav, UINT64 offset)
 {
 	ASSERT((uav.m_UsageState & D3D12_RESOURCE_STATE_UNORDERED_ACCESS) != 0);
 	m_CommandList->SetGraphicsRootUnorderedAccessView(rootIndex, uav.GetGpuVirtualAddress() + offset);
+}
+
+void GraphicsContext::SetUnorderedAccessView(UINT rootIndex, D3D12_GPU_VIRTUAL_ADDRESS uav)
+{
+	m_CommandList->SetGraphicsRootUnorderedAccessView(rootIndex, uav);
 }
 
 void GraphicsContext::SetDescriptorTable(UINT rootIndex, D3D12_GPU_DESCRIPTOR_HANDLE firstHandle)

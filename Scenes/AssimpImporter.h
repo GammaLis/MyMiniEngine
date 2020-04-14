@@ -202,10 +202,6 @@ namespace MFalcor
 		AssimpImporter() = default;
 		AssimpImporter(ID3D12Device* pDevice, const std::string& filePath);
 
-		bool ProcessScenes(const aiScene *scene);
-		bool ProcessNodes(const aiNode* curNode, ImporterData& data);
-		void ProcessMaterials(const aiScene* scene, ImporterData& importerData);
-
 		// mesh description
 		struct Mesh
 		{
@@ -226,11 +222,13 @@ namespace MFalcor
 			Material::SharedPtr pMaterial;
 		};
 
-		using InstanceMatrices = std::vector<Matrix4x4>;
-
 		static SharedPtr Create(uint32_t indexStride = 2);	// index - uint16_t
 		static SharedPtr Create(ID3D12Device* pDevice, const std::string& fileName, const InstanceMatrices& instanceMatrices = InstanceMatrices(),
 			uint32_t indexStride = 2);
+
+		bool ProcessScenes(const aiScene* scene, const InstanceMatrices& instanceMatrices = InstanceMatrices());
+		bool ProcessNodes(const aiNode* curNode, ImporterData& data);
+		void ProcessMaterials(const aiScene* scene, ImporterData& importerData);
 
 		// import a scene/model file
 		bool Load(ID3D12Device* pDevice, const std::string& fileName, const InstanceMatrices& instances = InstanceMatrices(), uint32_t indexStride = 2);
@@ -357,8 +355,9 @@ namespace MFalcor
 		std::shared_ptr<Math::Camera> m_Camera;
 
 		uint32_t AddMaterial(const Material::SharedPtr& pMat, bool removeDuplicate = false);
-		std::shared_ptr<StructuredBuffer> CreateVertexBuffer(ID3D12Device *pDevice, Scene* pScene);
-		std::shared_ptr<ByteAddressBuffer> CreateIndexBuffer(ID3D12Device* pDevice, Scene* pScene);
+		std::shared_ptr<StructuredBuffer>	CreateVertexBuffer(ID3D12Device *pDevice, Scene* pScene);
+		std::shared_ptr<ByteAddressBuffer>	CreateIndexBuffer(ID3D12Device* pDevice, Scene* pScene);
+		std::shared_ptr<StructuredBuffer>	CreateInstanceBuffer(ID3D12Device* pDevice, Scene* pScene, uint32_t drawCount);
 
 		uint32_t CreateMeshData(Scene* pScene);
 		void CreateGlobalMatricesBuffer(Scene* pScene);

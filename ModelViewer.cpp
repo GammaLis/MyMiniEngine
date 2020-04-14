@@ -270,8 +270,8 @@ void ModelViewer::InitPipelineStates()
 	m_RootSig[0].InitAsConstantBuffer(0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
 	m_RootSig[1].InitAsConstantBuffer(0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 	m_RootSig[2].InitAsConstants(1, 2, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-	m_RootSig[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 6, D3D12_SHADER_VISIBILITY_PIXEL);
-	m_RootSig[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 64, 6, D3D12_SHADER_VISIBILITY_PIXEL);
+	m_RootSig[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 6, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+	m_RootSig[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 64, 6, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 	m_RootSig.InitStaticSampler(0, DefaultSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
 	m_RootSig.InitStaticSampler(1, Graphics::s_CommonStates.SamplerShadowDesc, D3D12_SHADER_VISIBILITY_PIXEL);
 	m_RootSig.Finalize(Graphics::s_Device, L"ModelViewer", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);

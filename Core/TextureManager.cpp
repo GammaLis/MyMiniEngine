@@ -2,7 +2,7 @@
 #include "DDSTextureLoader.h"
 #include "Graphics.h"
 #include "CommandContext.h"
-#include "../FileUtility.h"
+#include "FileUtility.h"
 #include <thread>
 
 #define STB_IMAGE_IMPLEMENTATION

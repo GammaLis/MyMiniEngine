@@ -47,9 +47,9 @@ AssimpImporter::SharedPtr AssimpImporter::Create(ID3D12Device* pDevice, const st
 	return pImporter;
 }
 
-bool AssimpImporter::ProcessScenes(const aiScene* scene)
+bool AssimpImporter::ProcessScenes(const aiScene* scene, const InstanceMatrices& instanceMatrices)
 {
-	ImporterData importerData(scene);
+	ImporterData importerData(scene, instanceMatrices);
 
 	// materials
 	// 创建 Material原型
@@ -78,7 +78,7 @@ bool AssimpImporter::ProcessScenes(const aiScene* scene)
 	}
 
 	// 暂略 -2020-4-4
-	// if (CreateAnimations(data) == false)
+	// if (CreateAnimations(data) == false) {  }
 
 	if (CreateCamera(importerData, m_ImportMode) == false)
 	{
@@ -156,6 +156,7 @@ void AssimpImporter::ProcessMaterials(const aiScene* scene, ImporterData& import
 		bool doubleSided = false;
 		curMat->Get(AI_MATKEY_TWOSIDED, doubleSided);
 		newMat->doubleSided = doubleSided;
+		newMat->SetDoubleSided(doubleSided);
 
 		// common textures
 		aiString normalPath;
@@ -204,6 +205,7 @@ void AssimpImporter::ProcessMaterials(const aiScene* scene, ImporterData& import
 				float alphaCutout = 0.5f;
 				curMat->Get(AI_MATKEY_GLTF_ALPHACUTOFF, alphaCutout);
 				newMat->GetMaterialData().alphaCutout = alphaCutout;
+				newMat->SetAlphaMode(AlphaModeMask);
 			}
 
 			aiString baseColorPath;
@@ -311,7 +313,7 @@ void AssimpImporter::ProcessMaterials(const aiScene* scene, ImporterData& import
 	}
 }
 
-bool AssimpImporter::Load(ID3D12Device* pDevice, const std::string& filePath, const InstanceMatrices& instances，, uint32_t indexStride)
+bool AssimpImporter::Load(ID3D12Device* pDevice, const std::string& filePath, const InstanceMatrices& instances, uint32_t indexStride)
 {
 	Assimp::Importer importer;
 
@@ -344,7 +346,8 @@ bool AssimpImporter::Load(ID3D12Device* pDevice, const std::string& filePath, co
 	if (StringUtils::HasSuffix(filePath, ".gltf") || StringUtils::HasSuffix(filePath, ".gdb"))
 		m_ImportMode = ImportMode::GLTF2;
 
-	ProcessScenes(scene);
+	ProcessScenes(scene, instances);
+
 	return true;
 }
 
@@ -370,8 +373,10 @@ bool AssimpImporter::Init(ID3D12Device* pDevice, Scene* pScene, GameInput* pInpu
 	uint32_t drawCount = CreateMeshData(pScene);
 	CreateVertexBuffer(pDevice, pScene);
 	CreateIndexBuffer(pDevice, pScene);
+	// InstanceBuffer延后创建，Scene::Finalize()里面可能对Instance进行排序等处理
+	// CreateInstanceBuffer(pDevice, pScene, drawCount);
 	CalculateMeshBoundingBoxes(pScene);
-	pScene->Finalize();
+	pScene->Finalize(pDevice);
 	
 	return true;
 }
@@ -398,7 +403,7 @@ Scene::SharedPtr AssimpImporter::GetScene(ID3D12Device* pDevice)
 	CreateVertexBuffer(pDevice, m_Scene.get());
 	CreateIndexBuffer(pDevice, m_Scene.get());
 	CalculateMeshBoundingBoxes(m_Scene.get());
-	m_Scene->Finalize();
+	m_Scene->Finalize(pDevice);
 	m_Dirty = false;
 
 	return m_Scene;
@@ -859,7 +864,7 @@ void AssimpImporter::LoadTextures(aiMaterial* curMat, Material* dstMat)
 		if (!path.empty())
 		{
 			std::string texName = path;
-			if (path.find_last_of("\\/") != path.npos)	// `default`纹理 没有"\\/"
+			if (path.rfind('.') != path.npos)	// `default`纹理 没有".format"
 			{
 				texName = StringUtils::GetFileNameWithNoExtensions(path);
 				texName = m_FileName + "/" + texName;
@@ -938,6 +943,28 @@ std::shared_ptr<ByteAddressBuffer> AssimpImporter::CreateIndexBuffer(ID3D12Devic
 	pScene->m_IndexBuffer = pIB;
 
 	return pIB;
+}
+
+std::shared_ptr<StructuredBuffer> AssimpImporter::CreateInstanceBuffer(ID3D12Device* pDevice, Scene* pScene, uint32_t drawCount)
+{
+	std::vector<uint16_t> drawIds;
+	drawIds.resize(drawCount);
+	for (uint16_t i = 0; i < drawCount; ++i)
+		drawIds[i] = i;
+	
+	std::shared_ptr<StructuredBuffer> pInstanceBuffer = std::make_shared<StructuredBuffer>();
+	std::wstring ibName = std::wstring(m_FileName.begin(), m_FileName.end());
+	pInstanceBuffer->Create(pDevice, ibName + L"_InstanceBuffer", drawCount, sizeof(uint16_t), drawIds.data());
+
+	// layout
+	VertexBufferLayout::SharedPtr pLayout = VertexBufferLayout::Create();
+	pLayout->AddElement("DRAWID", DXGI_FORMAT_R16_UINT, 0, 0, 1);
+	pLayout->SetInputClass(InputType::PerInstanceData, 1);
+	pScene->m_InstanceLayout = pLayout;
+
+	pScene->m_InstanceBuffer = pInstanceBuffer;
+
+	return pInstanceBuffer;
 }
 
 uint32_t AssimpImporter::CreateMeshData(Scene* pScene)

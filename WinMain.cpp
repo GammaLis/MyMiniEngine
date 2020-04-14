@@ -59,7 +59,7 @@ int main(int argc, const char* argv[])
 	// MyDirectX::IGameApp gApp(hInst);
 	// MyDirectX::ModelViewer gApp(hInst, L"ModelViewer", 1280, 720);
 	// MyDirectX::glTFViewer gApp(hInst, "Models/buster_drone.gltf", L"glTFViewer", 1280, 720);
-	MyDirectX::SceneViewer gApp(hInst, L"SceneViewer");
+	MyDirectX::SceneViewer gApp(hInst, L"SceneViewer", 1280, 720);
 
 	int ret = 0;
 	if (gApp.Init())
