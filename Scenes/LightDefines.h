@@ -24,3 +24,15 @@ struct LightData
 	// or float2 spotAngles;	// x - innerAngle, y - outerAngle
 	float2 padding;	// CPP里字节对齐，这里需要补齐
 };
+
+struct alignas(16) CommonLightSettings
+{
+	// sun light
+	float3 sunDirection = float3(1.0f, 1.0f, 1.0f);
+	float sunOrientation = 0.5f;	// 方位角 (-1.0, 1.0) * Pi
+	float3 sunColor = float3(1.0f, 1.0f, 1.0f);
+	float sunInclination = 0.5f;	// 倾斜角 ( 0.0, 1.0) * Pi/2
+
+	// ambient 
+	float3 ambientColor = float3(1.0f, 1.0f, 1.0f);
+};

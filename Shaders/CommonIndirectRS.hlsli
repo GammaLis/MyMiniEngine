@@ -5,6 +5,7 @@
 	"RootFlags(ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT)," \
 	"RootConstants(b0, num32BitConstants = 4)," \
 	"CBV(b1)," \
+	"CBV(b2)," \
 	"SRV(t0, space = 1)," \
     "SRV(t1, space = 1)," \
     "SRV(t2, space = 1)," \

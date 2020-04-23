@@ -24,9 +24,9 @@ void main( uint3 DTid : SV_DispatchThreadID )
 	float depth = _DepthBuffer[st];
 	float2 curPixel = st + 0.5;		// 偏移+0.5到像素中心
 #ifdef USE_LINEAR_Z
-	// 线性深度 zlin = 1 / (1 + ZMagic * zc) ZMagic = (f - n) / n, 
+	// 线性深度 zlin = 1 / (1 + ZMagic * zc) ZMagic = (f - n) / n,	<==> zc = (1/zlin) * rcpZMagic - rcpZMagic
 	// 实际线性深度 zlin = f *n / (n + (f -n) * zc) -> f * 1 / (1 + ZMagic * zc) zlin belongs to [n, f]
-	// zc = n/(n-f) - nf/(n-f)/z => [-n/(f-n) *z + nf/(f-n)] / z => 1 * RcpZMagic - z * RcpZMagic
+	// zc = n/(n-f) - nf/(n-f)/z => [-n/(f-n) *z + nf/(f-n)] / z => 1 * RcpZMagic - zlin * RcpZMagic
 	float4 hPos = float4(curPixel * depth, 1.0, depth);	// _CurToPrevXForm 含有变换 z' = z *RcpZMagic - w *RcpZMagic (RcpZMagic = n / (f-n))
 #else
 	float4 hPos = float4(curPixel, depth, 1.0);

@@ -6,11 +6,13 @@
 #include "DescriptorHeap.h"
 #include "Scenes/VertexLayout.h"
 #include "Scenes/Material.h"
+#include "ClusteredLighting.h"
 #include "Camera.h"
 #include "CameraController.h"
 #include "RootSignature.h"
 #include "CommandSignature.h"
 #include "PipelineState.h"
+#include "bindlessDeferred.h"
 
 namespace MyDirectX
 {
@@ -24,6 +26,58 @@ namespace MFalcor
 	using namespace MyDirectX;
 
 	using InstanceMatrices = std::vector<Matrix4x4>;
+
+	enum class CommonRSId
+	{
+		CBConstants = 0,
+		CBPerObject,
+		CBPerCamera,
+		CBPerMaterial,
+		CBLights,
+		SRVTable,
+		UAVTable,
+
+		Count
+	};
+	enum class CommonIndirectRSId
+	{
+		CBConstants = 0,
+		CBPerCamera,
+		CBLights,
+		MatrixTable,
+		MaterialTable,
+		MeshTable,
+		MeshInstanceTable,
+		TextureTable,
+		SRVTable,
+		UAVTable,
+
+		Count
+	};
+	enum class GBufferRSId
+	{
+		CBConstants = 0,
+		CBPerCamera,
+		MatrixTable,
+		MaterialTable,
+		MeshTable,
+		MeshInstanceTable,
+
+		Count
+	};
+	enum class DeferredCSRSId
+	{
+		CBConstants = 0,
+		GBuffer,
+		// MaterialIDTarget, 
+		MaterialTable,
+		TextureTable,
+		DecalTable,
+		DecalTextures,
+		OutputTarget,
+
+		Count
+	};
 
 	struct Node
 	{
@@ -116,9 +170,13 @@ namespace MFalcor
 		void Render(GraphicsContext &gfx, AlphaMode alphaMode = AlphaMode::UNKNOWN);
 		void BeginRendering(GraphicsContext& gfx, bool bIndirectRendering = false);
 		void SetRenderCamera(GraphicsContext& gfx, const Matrix4x4 &viewProjMat, const Vector3 &camPos, UINT rootIdx);
-		void RenderByAlphaMode(GraphicsContext& gfx, GraphicsPSO &pso, AlphaMode alphaMode);
+		void RenderByAlphaMode(GraphicsContext& gfx, GraphicsPSO &pso, AlphaMode alphaMode = AlphaMode::kOPAQUE);
 
-		void IndirectRender(GraphicsContext& gfx, AlphaMode alphaMode = AlphaMode::UNKNOWN);
+		void IndirectRender(GraphicsContext& gfx, GraphicsPSO& pso, AlphaMode alphaMode = AlphaMode::UNKNOWN);
+
+		void PrepareGBuffer(GraphicsContext& gfx, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
+		void RenderToGBuffer(GraphicsContext& gfx, GraphicsPSO &pso);
+		void DeferredRender(ComputeContext& computeContext, ComputePSO &pso);
 
 		// render the scene using raytracing
 		void Raytrace();
@@ -212,6 +270,36 @@ namespace MFalcor
 		// toggle whether the specified light is animated
 		void ToggleLightAnimation(int index, bool bAnimated);
 
+		void SetSunLight(float orientation, float inclination)
+		{
+			m_CommonLights.sunOrientation = orientation;
+			m_CommonLights.sunInclination = inclination;
+			UpdateSunLight();
+		}
+		void SetSunLight(const Vector3& color = Vector3(1.0f))
+		{
+			m_CommonLights.sunColor = float3(color.r, color.g, color.b);
+		}
+		void UpdateSunLight()
+		{
+			float orientation = m_CommonLights.sunOrientation;
+			float inclination = m_CommonLights.sunInclination;
+
+			float phi = orientation * Math::Pi;
+			float theta = inclination * Math::Pi * 0.5f;
+			float cosTheta = std::cosf(theta);
+			float sinTheta = std::sinf(theta);
+			float cosPhi = std::cosf(phi);
+			float sinPhi = std::sinf(phi);
+			Vector3 dir = MMATH::normalize(Vector3(cosTheta * cosPhi, sinTheta, cosTheta * sinPhi));
+			m_CommonLights.sunDirection = float3(dir.x, dir.y, dir.z);
+		}
+		void SetAmbientLight(const Vector3& ambientColor)
+		{
+			m_CommonLights.ambientColor = float3(ambientColor.r, ambientColor.g, ambientColor.b);
+		}
+		void SetCommonLights(GraphicsContext &gfx, UINT rootIndex);
+
 		// get/set how the scene's TLASes are updated when raytracing/
 		// TLAS are REBUILT by default
 		void SetTLASUpdateMode(UpdateMode mode);
@@ -300,6 +388,7 @@ namespace MFalcor
 		std::shared_ptr<ByteAddressBuffer> m_IndexBuffer;
 		std::shared_ptr<StructuredBuffer> m_InstanceBuffer;
 
+	public:
 		std::vector<MeshDesc> m_MeshDescs;
 		std::vector<MeshInstanceData> m_MeshInstanceData;
 		std::vector<Node> m_SceneGraph;		// for each index i, the array element indicates the parent node.
@@ -318,6 +407,9 @@ namespace MFalcor
 		// LightCollecition
 		// LightProbe
 		// Texture envMap;
+		CommonLightSettings m_CommonLights;
+		ClusteredLighting m_ClusteredLighting;
+		Vector3 m_AmbientColor = Vector3(0.2f);
 
 		// scene metadata (CPU only)
 		std::vector<BoundingBox> m_MeshBBs;		// bounding boxes for meshes (not instances)
@@ -345,6 +437,9 @@ namespace MFalcor
 		UserDescriptorHeap m_TextureDescriptorHeap;
 		// ...
 
+		// deferred resources
+		BindlessDeferred m_BindlessDeferred;
+
 		// saved camera viewpoints
 		struct Viewport
 		{
@@ -369,6 +464,7 @@ namespace MFalcor
 		std::vector<D3D12_RAYTRACING_INSTANCE_DESC> m_InstanceDescs;	// shared between TLAS builds to avoid reallocating CPU memory
 		// ...
 
+	public:
 		std::string m_Name;
 
 		// root signatures & PSOs
@@ -385,6 +481,12 @@ namespace MFalcor
 		GraphicsPSO m_OpaqueIndirectPSO;
 		GraphicsPSO m_MaskIndirectPSO;
 		GraphicsPSO m_TransparentIndirectPSO;
+
+		// gbuffer
+		RootSignature m_GBufferRS;
+		GraphicsPSO m_GBufferPSO;
+		RootSignature m_DeferredCSRS;
+		ComputePSO m_DeferredCSPSO;
 	};
 
 }

@@ -148,6 +148,7 @@ void AssimpImporter::ProcessMaterials(const aiScene* scene, ImporterData& import
 		if (curMat->Get(AI_MATKEY_REFRACTI, refract) == AI_SUCCESS)
 		{
 			float f0 = (refract - 1) * (refract - 1) / ((refract + 1) * (refract + 1));
+			f0 = std::max(f0, 0.04f);
 			newMat->GetMaterialData().f0 = f0;
 		}
 
@@ -299,7 +300,7 @@ void AssimpImporter::ProcessMaterials(const aiScene* scene, ImporterData& import
 			aiColor3D specularColor;
 			if (curMat->Get(AI_MATKEY_COLOR_SPECULAR, specularColor) == AI_SUCCESS)
 			{
-				specGloss = float4(specularColor.r, specularColor.g, specularColor.b, specGloss.z);
+				specGloss = float4(specularColor.r, specularColor.g, specularColor.b, specGloss.w);
 			}
 			newMat->SetSpecGlossParams(specGloss);
 

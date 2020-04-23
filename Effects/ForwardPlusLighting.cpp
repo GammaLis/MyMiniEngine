@@ -218,7 +218,7 @@ namespace MyDirectX
 
 		// rootIndex 1 - 2 SRVs
 		context.SetDynamicDescriptor(1, 0, m_LightBuffer.GetSRV());
-		// 目前 没有实现LinearDepth -20-2-17
+
 		// context.SetDynamicDescriptor(1, 1, linearDepth.GetSRV());
 		context.SetDynamicDescriptor(1, 1, depthBuffer.GetDepthSRV());
 

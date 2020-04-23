@@ -47,22 +47,22 @@ namespace MFalcor
 	};
 
 	// assimp math cast
-	inline Matrix4x4 aiCast(const Math::Matrix4 mat)
+	inline Matrix4x4 aiCast(const Math::Matrix4 &mat)
 	{
 		Matrix4x4 glmMat;
 		glmMat[0][0] = mat.GetX().GetX(); glmMat[0][1] = mat.GetX().GetY(); glmMat[0][2] = mat.GetX().GetZ(); glmMat[0][3] = mat.GetX().GetW();
 		glmMat[1][0] = mat.GetY().GetX(); glmMat[1][1] = mat.GetY().GetY(); glmMat[1][2] = mat.GetY().GetZ(); glmMat[1][3] = mat.GetY().GetW();
 		glmMat[2][0] = mat.GetZ().GetX(); glmMat[2][1] = mat.GetZ().GetY(); glmMat[2][2] = mat.GetZ().GetZ(); glmMat[2][3] = mat.GetZ().GetW();
 		glmMat[3][0] = mat.GetW().GetX(); glmMat[3][1] = mat.GetW().GetY(); glmMat[3][2] = mat.GetW().GetZ(); glmMat[3][3] = mat.GetW().GetW();
-		return glmMat;
+		return MMATH::transpose(glmMat);
 	}
 	inline Matrix4x4 aiCast(const aiMatrix4x4& aiMat)
 	{
 		Matrix4x4 glmMat;
-		glmMat[0][0] = aiMat.a1; glmMat[0][1] = aiMat.a2; glmMat[0][2] = aiMat.a3; glmMat[0][3] = aiMat.a4;
-		glmMat[1][0] = aiMat.b1; glmMat[1][1] = aiMat.b2; glmMat[1][2] = aiMat.b3; glmMat[1][3] = aiMat.b4;
-		glmMat[2][0] = aiMat.c1; glmMat[2][1] = aiMat.c2; glmMat[2][2] = aiMat.c3; glmMat[2][3] = aiMat.c4;
-		glmMat[3][0] = aiMat.d1; glmMat[3][1] = aiMat.d2; glmMat[3][2] = aiMat.d3; glmMat[3][3] = aiMat.d4;
+		glmMat[0][0] = aiMat.a1; glmMat[0][1] = aiMat.b1; glmMat[0][2] = aiMat.c1; glmMat[0][3] = aiMat.d1;
+		glmMat[1][0] = aiMat.a2; glmMat[1][1] = aiMat.b2; glmMat[1][2] = aiMat.c2; glmMat[1][3] = aiMat.d2;
+		glmMat[2][0] = aiMat.a3; glmMat[2][1] = aiMat.b3; glmMat[2][2] = aiMat.c3; glmMat[2][3] = aiMat.d3;
+		glmMat[3][0] = aiMat.a4; glmMat[3][1] = aiMat.b4; glmMat[3][2] = aiMat.c4; glmMat[3][3] = aiMat.d4;
 		return glmMat;
 	}
 	inline Vector3 aiCast(const aiColor3D& aiColor)

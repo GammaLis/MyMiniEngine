@@ -19,6 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BindlessDeferred.h" />
+    <ClInclude Include="ClusteredLighting.h" />
     <ClInclude Include="Scenes\AssimpImporter.h" />
     <ClInclude Include="CameraController.h" />
     <ClInclude Include="CommonCompute.h" />
@@ -110,6 +112,8 @@
     <ClInclude Include="Shaders\MathConstants.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="BindlessDeferred.cpp" />
+    <ClCompile Include="ClusteredLighting.cpp" />
     <ClCompile Include="Scenes\AssimpImporter.cpp" />
     <ClCompile Include="CameraController.cpp" />
     <ClCompile Include="CommonCompute.cpp" />
@@ -178,6 +182,7 @@
     <None Include="CommonCompute\PreComputing.hlsli" />
     <None Include="Core\Shaders\SkyboxRS.hlsli" />
     <None Include="Shaders\AiCommonRS.hlsli" />
+    <None Include="Shaders\BasicLighting.hlsli" />
     <None Include="Shaders\ColorUtility.hlsli" />
     <None Include="Core\Math\Functions.inl" />
     <None Include="Core\Shaders\ParticleRS.hlsli" />
@@ -200,11 +205,14 @@
     <None Include="Shaders\CommonIndirectRS.hlsli" />
     <None Include="Shaders\FillLightGridCS.hlsli" />
     <None Include="Shaders\glTFCommonRS.hlsli" />
+    <None Include="Shaders\IndirectGBufferRS.hlsli" />
+    <None Include="Shaders\LightCluster.hlsli" />
     <None Include="Shaders\LightGrid.hlsli" />
     <None Include="Shaders\MaterialDefines.hlsli" />
     <None Include="Shaders\MeshDefines.hlsli" />
     <None Include="Shaders\ModelViewerRS.hlsli" />
     <None Include="Shaders\PBRUtility.hlsli" />
+    <None Include="Shaders\Quaternion.hlsli" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="CommonCompute\CubemapIBL.hlsl">
@@ -578,6 +586,19 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
     </FxCompile>
+    <FxCompile Include="Shaders\DeferredCS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
+      <AllResourcesBound Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </AllResourcesBound>
+      <EnableUnboundedDescriptorTables Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</EnableUnboundedDescriptorTables>
+    </FxCompile>
     <FxCompile Include="Shaders\DepthOnlyClipPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
@@ -607,6 +628,9 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\FillLightClusterCS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
     </FxCompile>
     <FxCompile Include="Shaders\FillLightGridCS_16.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
@@ -653,6 +677,18 @@
     </FxCompile>
     <FxCompile Include="Shaders\glTFCommonVS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\IndirectGBufferPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\IndirectGBufferVS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
     </FxCompile>
     <FxCompile Include="Shaders\ModelViewerPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>

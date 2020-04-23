@@ -122,6 +122,11 @@ void main(
 	 * -1 -1+1/S	-1+2/S
 	 * S
 	 * 0-(-1 + 1/S + x*2/S) * S = -2x + S - 1
+	 *
+	 * or 
+	 * 先变换到[0, 1], 再变换到[-1, 1]
+	 * tile k x-> [k * Tx, k * Tx + Tx] / W -> 2 * [k*Tx, k*Tx+Tx]/W - 1 -> center = (2k*Tx + Tx)/W-1
+	 * tile k y-> [k * Ty, k * Ty + Ty] / H -> -(2 * [k*Ty, k*Ty+Ty]/W - 1) -> center = -( (2k*Ty + Ty)/W-1 )
 	 */
 	float2 invTileSize2X = float2(_ViewportWidth, _ViewportHeight) * _InvTileDim;
 	// D3D-specific [0, 1] depth range ortho projection
@@ -281,6 +286,12 @@ void main(
  *is when R is a resource variable type. In this scenario, the function performs an atomic min of value to
  *the resource location referenced by dest. The overloaded function has an addtional output value which will
  *be set to the original value of dest. This overloaded operation is only available when R is readable and writable.
+
+	InterlockedAdd(in R dest, in T value, out T original_value)
+	R dest - the destination address
+	T value - the input value
+	T original_value. [optional] the original input value
+
  */
 
 /**

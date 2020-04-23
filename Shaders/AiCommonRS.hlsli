@@ -4,6 +4,7 @@
 	"CBV(b1)," \
 	"CBV(b2)," \
 	"CBV(b3, visibility = SHADER_VISIBILITY_PIXEL)," \
+	"CBV(b4, visibility = SHADER_VISIBILITY_PIXEL)," \
 	"DescriptorTable(SRV(t0, numDescriptors = 8), visibility = SHADER_VISIBILITY_PIXEL)," \
 	"DescriptorTable(UAV(u0, numDescriptors = 2))," \
 	"StaticSampler(s0, " \

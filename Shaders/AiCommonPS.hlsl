@@ -1,7 +1,10 @@
 #include "AiCommonRS.hlsli"
 #define SHADING_MODEL_METALLIC_ROUGHNESS
+#include "BasicLighting.hlsli"
 #include "PBRUtility.hlsli"
 #include "../Scenes/MaterialDefines.h"
+
+#define BASIC_LIGHTING
 
 cbuffer CBConstants	: register(b0)
 {
@@ -31,6 +34,12 @@ cbuffer CBPerMaterial	: register(b3)
 	float _F0 = 0.04f;
 	float _SpecularTransmission;
 	uint _Flags = 0;
+};
+cbuffer CBLights	: register(b4)
+{
+	float3 _SunDirection;
+	float3 _SunColor;
+	float3 _AmbientColor; 
 };
 
 Texture2D<float4> _TexBaseColor			: register(t0);
@@ -76,12 +85,16 @@ float4 main(VSOutput i, bool bFront : SV_IsFrontFace) : SV_TARGET
 			discard;
 	}
 
+	float gloss = 128.0;
 	// normal
 	float3 normal = i.normal;
 	if (normalMapType == NormalMapRGB)
 	{
 		float3 normalMap = _TexNormal.Sample(s_LinearRSampler, i.uv0).rgb;
 		normalMap = normalize( (2.0 * normalMap - 1.0) * float3(_NormalScale, _NormalScale, 1.0) );
+
+		AntiAliasSpecular(normal, gloss);
+
 		normal = i.tangent * normalMap.x + i.bitangent * normalMap.y + i.normal * normalMap.z;
 	}
 
@@ -109,6 +122,8 @@ float4 main(VSOutput i, bool bFront : SV_IsFrontFace) : SV_TARGET
 
 	// shading model
 	float4 color = 0;
+	float3 specularAlbedo = float3(0.56, 0.56, 0.56);
+	float specularMask = 1.0f;
 	if (shadingModel == ShadingModel_MetallicRoughness)
 	{
 		float metallic = _MetallicRoughness.y, perceptualRoughness = _MetallicRoughness.z;
@@ -121,7 +136,7 @@ float4 main(VSOutput i, bool bFront : SV_IsFrontFace) : SV_TARGET
 	}
 	else if (shadingModel == ShadingModel_SpecularGlossiness)
 	{
-
+		specularMask = _TexMetallicRoughness.Sample(s_LinearRSampler, i.uv0).g;
 	}
 	else 	// unlit
 	{
@@ -131,15 +146,6 @@ float4 main(VSOutput i, bool bFront : SV_IsFrontFace) : SV_TARGET
 	TMaterial mat;
 
 	mat.baseColor = baseColor;
-
-// #if defined(SHADING_MODEL_METALLIC_ROUGHNESS)
-// 	mat.metallic = metallic;	// _Metallic
-// 	mat.perceptualRoughness = perceptualRoughness;	// _Roughness
-// 	mat.f0 = _F0;
-// #elif defined(SHADING_MODEL_SPECULAR_GLOSSINESS)
-// 	mat.specularColor = _SpecularColor;
-// 	mat.glossiness = _Glossiness;
-// #endif
 
 	float3 worldPos = i.worldPos;
 
@@ -158,11 +164,25 @@ float4 main(VSOutput i, bool bFront : SV_IsFrontFace) : SV_TARGET
 	// specular
 	// ...
 	
+#ifdef BASIC_LIGHTING
+	// ambient
+	lighting += ApplyAmbientLight(baseColor.rgb, 1.0, _AmbientColor);
+	
+	// 1 directional light
+	// lighting += ApplyDirectionalLight(baseColor.rgb, specularAlbedo, specularMask, gloss, normal, viewDir,
+	// 	_SunDirection, _SunColor, float3(0.0, 0.0, 0.0));
+	
+	// point lights + spot lights
+	
+
+#endif
+
 	// indirect lighting 
 	float3 indirectLighting = 0;
 
 	// debug
-	lighting = baseColor.rgb;
+	// lighting = baseColor.rgb;
+
 	//
 	color.rgb = emissive.rgb + lighting * occlusion + indirectLighting;
 	// baseColor.rgb *= baseColor.a;	// premultiplied color

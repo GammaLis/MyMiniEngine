@@ -17,6 +17,9 @@ namespace MyDirectX
 		virtual void InitGeometryBuffers() override;
 		virtual void InitCustom() override;
 
+		void RenderForward();
+		void RenderDeferred();
+
 		virtual void PostProcess() override;
 
 		virtual void CleanCustom() override;
@@ -31,6 +34,7 @@ namespace MyDirectX
 		GraphicsPSO m_ShadowPSO;
 
 		bool m_IndirectRendering = true;
+		bool m_DeferredRendering = true;
 	};
 
 }

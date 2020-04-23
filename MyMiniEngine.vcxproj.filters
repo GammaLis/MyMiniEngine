@@ -68,6 +68,21 @@
     <Filter Include="Shaders\Prev">
       <UniqueIdentifier>{c4d8c02b-5128-4690-9336-85baf6c97a4c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\IndirectRendering">
+      <UniqueIdentifier>{f3ce94c3-d5e1-42e7-9b89-cb0aa6953880}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\FillLightGrid">
+      <UniqueIdentifier>{2820f315-1681-4c8f-8943-3b940f09307b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Defines">
+      <UniqueIdentifier>{63902f74-3bc6-4188-8943-190e24b6fbd7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Utility">
+      <UniqueIdentifier>{64162e79-baff-4b68-99de-ac1fce0edf1c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Common">
+      <UniqueIdentifier>{2bad0dd8-7e16-47cf-b9a7-1f3867c1ac60}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\GpuResource.h">
@@ -325,17 +340,19 @@
     <ClInclude Include="Scenes\SceneDefines.h">
       <Filter>Scenes</Filter>
     </ClInclude>
-    <ClInclude Include="Shaders\HlslDefines.h">
-      <Filter>Shaders</Filter>
-    </ClInclude>
     <ClInclude Include="Scenes\LightDefines.h">
       <Filter>Scenes</Filter>
     </ClInclude>
-    <ClInclude Include="Shaders\MathConstants.h">
-      <Filter>Shaders</Filter>
-    </ClInclude>
     <ClInclude Include="SceneViewer.h">
       <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="BindlessDeferred.h" />
+    <ClInclude Include="ClusteredLighting.h" />
+    <ClInclude Include="Shaders\MathConstants.h">
+      <Filter>Shaders\Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="Shaders\HlslDefines.h">
+      <Filter>Shaders\Defines</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -528,6 +545,8 @@
     <ClCompile Include="SceneViewer.cpp">
       <Filter>Game</Filter>
     </ClCompile>
+    <ClCompile Include="BindlessDeferred.cpp" />
+    <ClCompile Include="ClusteredLighting.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Core\Math\Functions.inl">
@@ -561,12 +580,6 @@
     <None Include="Core\Shaders\ShaderUtility.hlsli">
       <Filter>Core\Shaders\Misc</Filter>
     </None>
-    <None Include="Shaders\LightGrid.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\FillLightGridCS.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="Core\Shaders\TemporalRS.hlsli">
       <Filter>Core\Shaders\Temporal</Filter>
     </None>
@@ -588,35 +601,53 @@
     <None Include="Core\Shaders\ParticleUpdateCommon.hlsli">
       <Filter>Core\Shaders\Particles</Filter>
     </None>
-    <None Include="Shaders\PBRUtility.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\ColorUtility.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="Core\Shaders\SkyboxRS.hlsli">
       <Filter>Core\Shaders\Skybox</Filter>
     </None>
     <None Include="CommonCompute\PreComputing.hlsli">
       <Filter>CommonCompute\Shaders</Filter>
     </None>
-    <None Include="Shaders\glTFCommonRS.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\AiCommonRS.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="Shaders\ModelViewerRS.hlsli">
       <Filter>Shaders\Prev</Filter>
     </None>
     <None Include="Shaders\CommonIndirectRS.hlsli">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders\IndirectRendering</Filter>
     </None>
-    <None Include="Shaders\MaterialDefines.hlsli">
-      <Filter>Shaders</Filter>
+    <None Include="Shaders\FillLightGridCS.hlsli">
+      <Filter>Shaders\FillLightGrid</Filter>
+    </None>
+    <None Include="Shaders\LightGrid.hlsli">
+      <Filter>Shaders\FillLightGrid</Filter>
+    </None>
+    <None Include="Shaders\LightCluster.hlsli">
+      <Filter>Shaders\FillLightGrid</Filter>
     </None>
     <None Include="Shaders\MeshDefines.hlsli">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders\Defines</Filter>
+    </None>
+    <None Include="Shaders\MaterialDefines.hlsli">
+      <Filter>Shaders\Defines</Filter>
+    </None>
+    <None Include="Shaders\ColorUtility.hlsli">
+      <Filter>Shaders\Utility</Filter>
+    </None>
+    <None Include="Shaders\PBRUtility.hlsli">
+      <Filter>Shaders\Utility</Filter>
+    </None>
+    <None Include="Shaders\AiCommonRS.hlsli">
+      <Filter>Shaders\Common</Filter>
+    </None>
+    <None Include="Shaders\glTFCommonRS.hlsli">
+      <Filter>Shaders\Common</Filter>
+    </None>
+    <None Include="Shaders\BasicLighting.hlsli">
+      <Filter>Shaders\Common</Filter>
+    </None>
+    <None Include="Shaders\IndirectGBufferRS.hlsli">
+      <Filter>Shaders\IndirectRendering</Filter>
+    </None>
+    <None Include="Shaders\Quaternion.hlsli">
+      <Filter>Shaders\Utility</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -655,24 +686,6 @@
     </FxCompile>
     <FxCompile Include="Core\Shaders\ScreenQuadVS.hlsl">
       <Filter>Core\Shaders\Misc</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\BasicTrianglePS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\BasicTriangleVS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\FillLightGridCS_8.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\FillLightGridCS_16.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\FillLightGridCS_24.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\FillLightGridCS_32.hlsl">
-      <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Core\Shaders\BoundNeighborhoodCS.hlsl">
       <Filter>Core\Shaders\Temporal</Filter>
@@ -773,18 +786,6 @@
     <FxCompile Include="CommonCompute\CubemapSH.hlsl">
       <Filter>CommonCompute\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\glTFCommonPS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\glTFCommonVS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\AiCommonVS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\AiCommonPS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="Shaders\ModelViewerVS.hlsl">
       <Filter>Shaders\Prev</Filter>
     </FxCompile>
@@ -797,26 +798,68 @@
     <FxCompile Include="Shaders\DepthViewerVS.hlsl">
       <Filter>Shaders\Prev</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\WireframeVS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\WireframePS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\DepthOnlyVS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\DepthOnlyPS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\DepthOnlyClipPS.hlsl">
-      <Filter>Shaders</Filter>
+    <FxCompile Include="Shaders\CommonIndirectPS.hlsl">
+      <Filter>Shaders\IndirectRendering</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\CommonIndirectVS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders\IndirectRendering</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\CommonIndirectPS.hlsl">
-      <Filter>Shaders</Filter>
+    <FxCompile Include="Shaders\FillLightClusterCS.hlsl">
+      <Filter>Shaders\FillLightGrid</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\FillLightGridCS_8.hlsl">
+      <Filter>Shaders\FillLightGrid</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\FillLightGridCS_16.hlsl">
+      <Filter>Shaders\FillLightGrid</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\FillLightGridCS_24.hlsl">
+      <Filter>Shaders\FillLightGrid</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\FillLightGridCS_32.hlsl">
+      <Filter>Shaders\FillLightGrid</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\AiCommonPS.hlsl">
+      <Filter>Shaders\Common</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\AiCommonVS.hlsl">
+      <Filter>Shaders\Common</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\glTFCommonVS.hlsl">
+      <Filter>Shaders\Common</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\glTFCommonPS.hlsl">
+      <Filter>Shaders\Common</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\WireframeVS.hlsl">
+      <Filter>Shaders\Common</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\WireframePS.hlsl">
+      <Filter>Shaders\Common</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DepthOnlyPS.hlsl">
+      <Filter>Shaders\Common</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DepthOnlyVS.hlsl">
+      <Filter>Shaders\Common</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DepthOnlyClipPS.hlsl">
+      <Filter>Shaders\Common</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\BasicTrianglePS.hlsl">
+      <Filter>Shaders\Common</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\BasicTriangleVS.hlsl">
+      <Filter>Shaders\Common</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\IndirectGBufferVS.hlsl">
+      <Filter>Shaders\IndirectRendering</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\IndirectGBufferPS.hlsl">
+      <Filter>Shaders\IndirectRendering</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DeferredCS.hlsl">
+      <Filter>Shaders\IndirectRendering</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

@@ -16,8 +16,21 @@
 #include "CommonIndirectVS.h"
 #include "CommonIndirectPS.h"
 
+#include "IndirectGBufferVS.h"
+#include "IndirectGBufferPS.h"
+#include "DeferredCS.h"
+
 namespace MFalcor
 {
+	// deferred render targets
+	static const DXGI_FORMAT rtFormats[] =
+	{
+		DXGI_FORMAT_R10G10B10A2_UNORM,
+		DXGI_FORMAT_R16G16B16A16_SNORM,
+		DXGI_FORMAT_R16G16B16A16_SNORM,
+		DXGI_FORMAT_R8_UINT
+	};
+
 	struct alignas(16) CBPerObject
 	{
 		Matrix4x4 _WorldMat;
@@ -34,6 +47,17 @@ namespace MFalcor
 	{
 		Matrix4x4 worldMat;
 		Matrix4x4 invWorldMat;
+	};
+
+	struct alignas(16) CSConstants
+	{
+		uint32_t _ViewportWidth, _ViewportHeight;
+		float _NearClip, _FarClip;
+		XMFLOAT4 _CamPos;
+		Matrix4x4 _ViewProjMat;
+		Matrix4x4 _InvViewProjMat;
+		Matrix4x4 _ViewMat;
+		Matrix4x4 _ProjMat;
 	};
 
 	// checks if the transform flips the coordinate system handedness (its determinant is negative)
@@ -61,37 +85,64 @@ namespace MFalcor
 			// root signatures
 			{
 				// common RS
-				m_CommonRS.Reset(6, 2);
+				m_CommonRS.Reset(7, 2);
 				m_CommonRS[0].InitAsConstants(0, 4);
-				m_CommonRS[1].InitAsConstantBuffer(1);
-				m_CommonRS[2].InitAsConstantBuffer(2);
-				m_CommonRS[3].InitAsConstantBuffer(3);
-				m_CommonRS[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 8);
-				m_CommonRS[5].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2);
+				m_CommonRS[1].InitAsConstantBuffer(1);	// cbPerObject
+				m_CommonRS[2].InitAsConstantBuffer(2);	// cbPerCamera
+				m_CommonRS[3].InitAsConstantBuffer(3);	// cbPerMaterial
+				m_CommonRS[4].InitAsConstantBuffer(4);	// cbLights
+				m_CommonRS[5].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 8);
+				m_CommonRS[6].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2);
 				m_CommonRS.InitStaticSampler(0, Graphics::s_CommonStates.SamplerLinearWrapDesc);
 				m_CommonRS.InitStaticSampler(1, Graphics::s_CommonStates.SamplerPointClampDesc);
 				m_CommonRS.Finalize(pDevice, L"AiCommonRS", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 				// common indirect RS
-				m_CommonIndirectRS.Reset(9, 2);
+				m_CommonIndirectRS.Reset(10, 2);
 				m_CommonIndirectRS[0].InitAsConstants(0, 4);
 				m_CommonIndirectRS[1].InitAsConstantBuffer(1);
-				m_CommonIndirectRS[2].InitAsBufferSRV(0, 1);
-				m_CommonIndirectRS[3].InitAsBufferSRV(1, 1);
-				m_CommonIndirectRS[4].InitAsBufferSRV(2, 1);
-				m_CommonIndirectRS[5].InitAsBufferSRV(3, 1);
-				m_CommonIndirectRS[6].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, -1, 1, D3D12_SHADER_VISIBILITY_PIXEL);
-				m_CommonIndirectRS[7].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 8, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-				m_CommonIndirectRS[8].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2);
+				m_CommonIndirectRS[2].InitAsConstantBuffer(2);
+				m_CommonIndirectRS[3].InitAsBufferSRV(0, 1);
+				m_CommonIndirectRS[4].InitAsBufferSRV(1, 1);
+				m_CommonIndirectRS[5].InitAsBufferSRV(2, 1);
+				m_CommonIndirectRS[6].InitAsBufferSRV(3, 1);
+				m_CommonIndirectRS[7].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, -1, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+				m_CommonIndirectRS[8].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 8, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+				m_CommonIndirectRS[9].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2);
 				m_CommonIndirectRS.InitStaticSampler(0, Graphics::s_CommonStates.SamplerLinearWrapDesc);
 				m_CommonIndirectRS.InitStaticSampler(1, Graphics::s_CommonStates.SamplerPointClampDesc);
 				m_CommonIndirectRS.Finalize(pDevice, L"CommonIndirectRS", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+				// gbuffer
+				m_GBufferRS.Reset(6);
+				m_GBufferRS[0].InitAsConstants(0, 4);
+				m_GBufferRS[1].InitAsConstantBuffer(1);
+				m_GBufferRS[2].InitAsBufferSRV(0, 1);
+				m_GBufferRS[3].InitAsBufferSRV(1, 1);
+				m_GBufferRS[4].InitAsBufferSRV(2, 1);
+				m_GBufferRS[5].InitAsBufferSRV(3, 1);
+				m_GBufferRS.Finalize(pDevice, L"GBufferRS", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+				// deferred cs
+				m_DeferredCSRS.Reset(7, 2);
+				m_DeferredCSRS[0].InitAsConstantBuffer(0);
+				m_DeferredCSRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 5);
+				// 单独设置 MaterialIDTarget	-目前会有问题 -2020-4-21
+				// m_DeferredCSRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 65, 1);
+				m_DeferredCSRS[2].InitAsBufferSRV(1, 1);
+				m_DeferredCSRS[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, -1, 1);
+				m_DeferredCSRS[4].InitAsBufferSRV(0, 2);	// decal buffer
+				m_DeferredCSRS[5].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 10, 2);	// decal textures
+				m_DeferredCSRS[6].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
+				m_DeferredCSRS.InitStaticSampler(0, Graphics::s_CommonStates.SamplerLinearWrapDesc);
+				m_DeferredCSRS.InitStaticSampler(1, Graphics::s_CommonStates.SamplerPointClampDesc);
+				m_DeferredCSRS.Finalize(pDevice, L"DeferredCSRS");
 			}
 			// command signatures
 			{
 				m_CommandSignature.Reset(1);
 				m_CommandSignature[0].DrawIndexed();
-				m_CommandSignature.Finalize(pDevice, &m_CommonIndirectRS);
+				m_CommandSignature.Finalize(pDevice);
 			}
 			// PSOs
 			{
@@ -186,7 +237,23 @@ namespace MFalcor
 				m_TransparentIndirectPSO.SetBlendState(Graphics::s_CommonStates.BlendTraditional);
 				m_TransparentIndirectPSO.SetDepthStencilState(Graphics::s_CommonStates.DepthStateReadOnly);
 				m_TransparentIndirectPSO.Finalize(pDevice);
+
+				// gbuffer
+				m_GBufferPSO = m_OpaqueIndirectPSO;
+				m_GBufferPSO.SetRootSignature(m_GBufferRS);
+				m_GBufferPSO.SetVertexShader(IndirectGBufferVS, sizeof(IndirectGBufferVS));
+				m_GBufferPSO.SetPixelShader(IndirectGBufferPS, sizeof(IndirectGBufferPS));
+				m_GBufferPSO.SetRenderTargetFormats(_countof(rtFormats), rtFormats, depthBuffer.GetFormat());
+				m_GBufferPSO.Finalize(pDevice);
+
+				// deferred cs
+				m_DeferredCSPSO.SetRootSignature(m_DeferredCSRS);
+				m_DeferredCSPSO.SetComputeShader(DeferredCS, sizeof(DeferredCS));
+				m_DeferredCSPSO.Finalize(pDevice);
 			}
+
+			// bindless deferred
+			m_BindlessDeferred.Init(pDevice, this);
 		}
 
 		return ret;
@@ -230,13 +297,15 @@ namespace MFalcor
 	{
 		m_CameraController->Update(deltaTime);
 
+		UpdateSunLight();
+
 		return UpdateFlags();
 	}
 
 	void Scene::Render(GraphicsContext& gfx, AlphaMode alphaMode)
 	{
-		gfx.SetConstants(0, 0, 1, 2, 3);
-		CBPerObject cbPerObject;
+		gfx.SetConstants((UINT)CommonRSId::CBConstants, 0, 1, 2, 3);
+		
 		if (alphaMode == AlphaMode::UNKNOWN)
 		{
 			RenderByAlphaMode(gfx, m_OpaqueModelPSO, AlphaMode::kOPAQUE);
@@ -259,7 +328,6 @@ namespace MFalcor
 
 	void Scene::BeginRendering(GraphicsContext& gfx, bool bIndirectRendering)
 	{
-		gfx.SetRootSignature(bIndirectRendering ? m_CommonIndirectRS : m_CommonRS);
 		gfx.SetVertexBuffer(0, m_VertexBuffer->VertexBufferView());
 		gfx.SetIndexBuffer(m_IndexBuffer->IndexBufferView());
 		if (m_InstanceBuffer)
@@ -305,11 +373,11 @@ namespace MFalcor
 			const auto& material = m_Materials[instanceData.materialID];
 			const auto& worldMat = m_GlobalMatrices[instanceData.globalMatrixID];
 			
-			cbPerObject._WorldMat = worldMat;
+			cbPerObject._WorldMat = MMATH::transpose( worldMat);
 			cbPerObject._InvWorldMat = MMATH::inverse(worldMat);
-			gfx.SetDynamicConstantBufferView(1, sizeof(CBPerObject), &cbPerObject);
+			gfx.SetDynamicConstantBufferView((UINT)CommonRSId::CBPerObject, sizeof(CBPerObject), &cbPerObject);
 
-			gfx.SetConstantBuffer(3, m_MaterialsDynamicBuffer.GetInstanceGpuPointer(instanceData.materialID));
+			gfx.SetConstantBuffer((UINT)CommonRSId::CBPerMaterial, m_MaterialsDynamicBuffer.GetInstanceGpuPointer(instanceData.materialID));
 
 			if (curMatId != instanceData.materialID)
 			{
@@ -317,26 +385,27 @@ namespace MFalcor
 
 				const auto& srvs = material->GetDescriptors();
 
-				gfx.SetDynamicDescriptors(4, 0, (UINT)srvs.size(), srvs.data());
+				gfx.SetDynamicDescriptors((UINT)CommonRSId::SRVTable, 0, (UINT)srvs.size(), srvs.data());
 			}
 
 			gfx.DrawIndexed(meshData.indexCount, meshData.indexByteOffset / meshData.indexStrideSize, meshData.vertexOffset);
 		}
 	}
 
-	void Scene::IndirectRender(GraphicsContext& gfx, AlphaMode alphaMode)
+	// indirect rendering
+	void Scene::IndirectRender(GraphicsContext& gfx, GraphicsPSO& pso, AlphaMode alphaMode)
 	{
 		gfx.TransitionResource(m_CommandsBuffer, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 
-		gfx.SetConstants(0, 0, 1, 2, 3);
+		gfx.SetConstants((UINT)CommonIndirectRSId::CBConstants, 0, 1, 2, 3);
 
-		gfx.SetShaderResourceView(2, m_MatricesDynamicBuffer.GetGpuPointer());
-		gfx.SetBufferSRV(3, m_MaterialsBuffer);
-		gfx.SetBufferSRV(4, m_MeshesBuffer);
-		gfx.SetBufferSRV(5, m_MeshInstancesBuffer);
+		gfx.SetShaderResourceView((UINT)CommonIndirectRSId::MatrixTable, m_MatricesDynamicBuffer.GetGpuPointer());
+		gfx.SetBufferSRV((UINT)CommonIndirectRSId::MaterialTable, m_MaterialsBuffer);
+		gfx.SetBufferSRV((UINT)CommonIndirectRSId::MeshTable, m_MeshesBuffer);
+		gfx.SetBufferSRV((UINT)CommonIndirectRSId::MeshInstanceTable, m_MeshInstancesBuffer);
 		
 		gfx.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_TextureDescriptorHeap.GetHeapPointer());
-		gfx.SetDescriptorTable(6, m_TextureDescriptorHeap.GetHandleAtOffset(0).GetGpuHandle());
+		gfx.SetDescriptorTable((UINT)CommonIndirectRSId::TextureTable, m_TextureDescriptorHeap.GetHandleAtOffset(0).GetGpuHandle());
 
 		uint32_t opaqueCommandsCount = (uint32_t)m_OpaqueInstances.size();
 		uint32_t maskCommandsCount = (uint32_t)m_MaskInstancs.size();
@@ -358,28 +427,158 @@ namespace MFalcor
 		}
 		else if (alphaMode == AlphaMode::kOPAQUE)
 		{
-			gfx.SetPipelineState(m_OpaqueIndirectPSO);
+			gfx.SetPipelineState(pso);
 			gfx.ExecuteIndirect(m_CommandSignature, m_CommandsBuffer, opaqueCommandsOffset * sizeof(IndirectCommand), opaqueCommandsCount);
 		}
 		else if (alphaMode == AlphaMode::kMASK)
 		{
-			gfx.SetPipelineState(m_MaskIndirectPSO);
+			gfx.SetPipelineState(pso);
 			gfx.ExecuteIndirect(m_CommandSignature, m_CommandsBuffer, maskCommandsOffset * sizeof(IndirectCommand), maskCommandsCount);
 		}
 		else if (alphaMode == AlphaMode::kBLEND)
 		{
-			gfx.SetPipelineState(m_TransparentIndirectPSO);
+			gfx.SetPipelineState(pso);
 			gfx.ExecuteIndirect(m_CommandSignature, m_CommandsBuffer, transparentOffset * sizeof(IndirectCommand), transparentCommandsCount);
 		}		
 
 	}
 
+	// deferred rendering
+	void Scene::PrepareGBuffer(GraphicsContext& gfx, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor)
+	{
+		auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
+		auto& tangentFrame = m_BindlessDeferred.m_TangentFrame;
+		auto& uvTarget = m_BindlessDeferred.m_UVTarget;
+		auto& uvGradientsTarget = m_BindlessDeferred.m_UVGradientsTarget;
+		auto& materialIDTarget = m_BindlessDeferred.m_MaterialIDTarget;
+
+		gfx.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
+		gfx.TransitionResource(tangentFrame, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+		gfx.TransitionResource(uvTarget, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+		gfx.TransitionResource(uvGradientsTarget, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+		gfx.TransitionResource(materialIDTarget, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[] =
+		{
+			tangentFrame.GetRTV(), uvTarget.GetRTV(),
+			uvGradientsTarget.GetRTV(), materialIDTarget.GetRTV()
+		};
+
+		gfx.ClearDepth(depthBuffer);
+
+		gfx.ClearColor(tangentFrame);
+		gfx.ClearColor(uvTarget);
+		gfx.ClearColor(uvGradientsTarget);
+		gfx.ClearColor(materialIDTarget);
+
+		gfx.SetRenderTargets(_countof(rtvHandles), rtvHandles, depthBuffer.GetDSV());
+		gfx.SetViewportAndScissor(viewport, scissor);
+	}
+
+	void Scene::RenderToGBuffer(GraphicsContext& gfx, GraphicsPSO& pso)
+	{
+		gfx.TransitionResource(m_CommandsBuffer, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+
+		gfx.SetConstants((UINT)GBufferRSId::CBConstants, 0, 1, 2, 3);
+
+		gfx.SetShaderResourceView((UINT)GBufferRSId::MatrixTable, m_MatricesDynamicBuffer.GetGpuPointer());
+		gfx.SetBufferSRV((UINT)GBufferRSId::MaterialTable, m_MaterialsBuffer);
+		gfx.SetBufferSRV((UINT)GBufferRSId::MeshTable, m_MeshesBuffer);
+		gfx.SetBufferSRV((UINT)GBufferRSId::MeshInstanceTable, m_MeshInstancesBuffer);
+
+		uint32_t opaqueCommandsCount = (uint32_t)m_OpaqueInstances.size();
+		uint32_t maskCommandsCount = (uint32_t)m_MaskInstancs.size();
+		uint32_t transparentCommandsCount = (uint32_t)m_TransparentInstances.size();
+		uint32_t opaqueCommandsOffset = 0;
+		uint32_t maskCommandsOffset = opaqueCommandsOffset + opaqueCommandsCount;
+		uint32_t transparentOffset = maskCommandsOffset + maskCommandsCount;
+		
+		// only draw opaque objects
+		gfx.SetPipelineState(pso);
+		gfx.ExecuteIndirect(m_CommandSignature, m_CommandsBuffer, opaqueCommandsOffset * sizeof(IndirectCommand), opaqueCommandsCount);
+		
+	}
+
+	void Scene::DeferredRender(ComputeContext& computeContext, ComputePSO& pso)
+	{
+		auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
+		auto& tangentFrame = m_BindlessDeferred.m_TangentFrame;
+		auto& uvTarget = m_BindlessDeferred.m_UVTarget;
+		auto& uvGradientsTarget = m_BindlessDeferred.m_UVGradientsTarget;
+		auto& materialIDTarget = m_BindlessDeferred.m_MaterialIDTarget;
+
+		auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
+		uint32_t width = colorBuffer.GetWidth(), height = colorBuffer.GetHeight();
+
+		computeContext.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		computeContext.TransitionResource(tangentFrame, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		computeContext.TransitionResource(uvTarget, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		computeContext.TransitionResource(uvGradientsTarget, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		computeContext.TransitionResource(materialIDTarget, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+		computeContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		computeContext.SetPipelineState(pso);
+
+		CSConstants csConstants;
+		csConstants._ViewportWidth = width;
+		csConstants._ViewportHeight = height;
+		csConstants._NearClip = m_Camera->GetNearClip();
+		csConstants._FarClip = m_Camera->GetFarClip();
+		const auto& camPos = m_Camera->GetPosition();
+		csConstants._CamPos = XMFLOAT4(camPos.GetX(), camPos.GetY(), camPos.GetZ(), 1.0f);
+		csConstants._ViewProjMat = Cast(m_Camera->GetViewProjMatrix());
+		csConstants._InvViewProjMat = MMATH::inverse(csConstants._ViewProjMat);
+		csConstants._ViewMat = Cast(m_Camera->GetViewMatrix());
+		csConstants._ProjMat = Cast(m_Camera->GetProjMatrix());
+		computeContext.SetDynamicConstantBufferView((UINT)DeferredCSRSId::CBConstants, sizeof(CSConstants), &csConstants);
+
+		D3D12_CPU_DESCRIPTOR_HANDLE gbufferHandles[] =
+		{
+			materialIDTarget.GetSRV(),
+			tangentFrame.GetSRV(), uvTarget.GetSRV(),
+			uvGradientsTarget.GetSRV(), depthBuffer.GetDepthSRV(),
+		};
+		computeContext.SetDynamicDescriptors((UINT)DeferredCSRSId::GBuffer, 0, _countof(gbufferHandles), gbufferHandles);
+		// 单独设置MaterialIDTarget，放在GBuffer后面总是提示出错	-2020-4-21
+		// computeContext.SetDynamicDescriptor((UINT)DeferredCSRSId::MaterialIDTarget, 0, materialIDTarget.GetSRV());
+		computeContext.SetBufferSRV((UINT)DeferredCSRSId::MaterialTable, m_MaterialsBuffer);
+
+		computeContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_TextureDescriptorHeap.GetHeapPointer());
+		computeContext.SetDescriptorTable((UINT)DeferredCSRSId::TextureTable, m_TextureDescriptorHeap.GetHandleAtOffset(0).GetGpuHandle());
+
+		// decal
+		computeContext.SetBufferSRV((UINT)DeferredCSRSId::DecalTable, m_BindlessDeferred.m_DecalBuffer);
+		computeContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_BindlessDeferred.m_DecalTextureHeap.GetHeapPointer());
+		computeContext.SetDescriptorTable((UINT)DeferredCSRSId::DecalTextures, m_BindlessDeferred.m_DecalTextureHeap.GetHandleAtOffset(0).GetGpuHandle());
+
+		computeContext.SetDynamicDescriptor((UINT)DeferredCSRSId::OutputTarget, 0, colorBuffer.GetUAV());
+
+		uint32_t groupCountX = Math::DivideByMultiple(width, m_BindlessDeferred.s_DeferredTileSize);
+		uint32_t groupCountY = Math::DivideByMultiple(height, m_BindlessDeferred.s_DeferredTileSize);
+		computeContext.Dispatch(groupCountX, groupCountY);
+
+		computeContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	}
+
 	void Scene::Clean()
 	{
+		m_BindlessDeferred.Clean();
+
 		m_MaterialsDynamicBuffer.Destroy();
+		m_MatricesDynamicBuffer.Destroy();
+
+		m_MaterialsBuffer.Destroy();
+		m_MeshesBuffer.Destroy();
+		m_MeshInstancesBuffer.Destroy();
+		m_LightsBuffer.Destroy();
+		m_CommandsBuffer.Destroy();
 
 		m_VertexBuffer->Destroy();
 		m_IndexBuffer->Destroy();
+		m_InstanceBuffer->Destroy();
+
+		m_CommandSignature.Destroy();
 	}
 
 	void Scene::InitResources(ID3D12Device* pDevice)
@@ -400,7 +599,7 @@ namespace MFalcor
 		GlobalMatrix gmat;
 		for (uint32_t i = 0; i < numGlobalMatrices; ++i)
 		{
-			gmat.worldMat = m_GlobalMatrices[i];
+			gmat.worldMat = MMATH::transpose( m_GlobalMatrices[i]);
 			gmat.invWorldMat = MMATH::inverse(gmat.worldMat);
 			m_MatricesDynamicBuffer.CopyToGpu((void*)&gmat, sizeof(GlobalMatrix), i);
 		}
@@ -523,8 +722,10 @@ namespace MFalcor
 			if (m_SceneGraph[i].parentIndex != kInvalidNode)
 			{
 				auto parentIdx = m_SceneGraph[i].parentIndex;
-				globalMat = globalMat * m_GlobalMatrices[parentIdx];	// m_GlobalMatrices[i]
+				// globalMat = globalMat * m_GlobalMatrices[parentIdx];	// m_GlobalMatrices[i]
+				globalMat = m_GlobalMatrices[parentIdx] * globalMat;
 				// 注：按理应是 m_GlobalMatrices[parentIdx] * globalMat，但是结果不对，不懂 ？？？ -2020-4-8
+				// 解：AssimpImporter-> MFalcor::Matrix4x4 aiCast(const aiMatrix&) 错误，结果自然不对！！！
 			}
 			m_InvTransposeGlobalMatrices[i] = MMATH::transpose(MMATH::inverse(globalMat));
 			++i;
@@ -659,5 +860,10 @@ namespace MFalcor
 			if (mat->GetName() == name) return mat;
 		}
 		return nullptr;
+	}
+
+	void Scene::SetCommonLights(GraphicsContext& gfx, UINT rootIndex)
+	{
+		gfx.SetDynamicConstantBufferView(rootIndex, sizeof(m_CommonLights), &m_CommonLights);
 	}
 }
