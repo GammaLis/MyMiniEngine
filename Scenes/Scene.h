@@ -7,6 +7,7 @@
 #include "Scenes/VertexLayout.h"
 #include "Scenes/Material.h"
 #include "ClusteredLighting.h"
+#include "ShadowUtility.h"
 #include "Camera.h"
 #include "CameraController.h"
 #include "RootSignature.h"
@@ -68,8 +69,11 @@ namespace MFalcor
 	enum class DeferredCSRSId
 	{
 		CBConstants = 0,
+		CommonLights,
+		CascadedSMConstants,
 		GBuffer,
 		// MaterialIDTarget, 
+		ShadowMap,
 		MaterialTable,
 		TextureTable,
 		DecalTable,
@@ -167,16 +171,21 @@ namespace MFalcor
 		UpdateFlags GetUpdates() const;
 
 		// render the scene using the rasterizer
+		// forward rendering
 		void Render(GraphicsContext &gfx, AlphaMode alphaMode = AlphaMode::UNKNOWN);
 		void BeginRendering(GraphicsContext& gfx, bool bIndirectRendering = false);
 		void SetRenderCamera(GraphicsContext& gfx, const Matrix4x4 &viewProjMat, const Vector3 &camPos, UINT rootIdx);
 		void RenderByAlphaMode(GraphicsContext& gfx, GraphicsPSO &pso, AlphaMode alphaMode = AlphaMode::kOPAQUE);
 
+		// indirect rendering
 		void IndirectRender(GraphicsContext& gfx, GraphicsPSO& pso, AlphaMode alphaMode = AlphaMode::UNKNOWN);
 
+		// deferred rendering
 		void PrepareGBuffer(GraphicsContext& gfx, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
-		void RenderToGBuffer(GraphicsContext& gfx, GraphicsPSO &pso);
+		void RenderToGBuffer(GraphicsContext& gfx, GraphicsPSO &pso, AlphaMode alphaMode = AlphaMode::UNKNOWN);
 		void DeferredRender(ComputeContext& computeContext, ComputePSO &pso);
+
+		void RenderSunShadows(GraphicsContext& gfx);
 
 		// render the scene using raytracing
 		void Raytrace();
@@ -411,6 +420,9 @@ namespace MFalcor
 		ClusteredLighting m_ClusteredLighting;
 		Vector3 m_AmbientColor = Vector3(0.2f);
 
+		// shadows
+		CascadedShadowMap m_CascadedShadowMap;
+
 		// scene metadata (CPU only)
 		std::vector<BoundingBox> m_MeshBBs;		// bounding boxes for meshes (not instances)
 		std::vector<std::vector<uint32_t>> m_MeshIdToInstanceIds;	// mapping of what instances belong to which mesh
@@ -468,6 +480,7 @@ namespace MFalcor
 		std::string m_Name;
 
 		// root signatures & PSOs
+		// forward rendering
 		RootSignature m_CommonRS;
 		GraphicsPSO m_DebugWireframePSO;
 		GraphicsPSO m_DepthPSO;
@@ -476,15 +489,21 @@ namespace MFalcor
 		GraphicsPSO m_MaskModelPSO;
 		GraphicsPSO m_TransparentModelPSO;
 
+		// indirect rendering
 		RootSignature m_CommonIndirectRS;
 		CommandSignature m_CommandSignature;
 		GraphicsPSO m_OpaqueIndirectPSO;
 		GraphicsPSO m_MaskIndirectPSO;
 		GraphicsPSO m_TransparentIndirectPSO;
 
-		// gbuffer
+		// shadows
+		GraphicsPSO m_OpaqueShadowPSO;
+		GraphicsPSO m_MaskShadowPSO;
+
+		// deferred rendering
 		RootSignature m_GBufferRS;
-		GraphicsPSO m_GBufferPSO;
+		GraphicsPSO m_OpaqueGBufferPSO;
+		GraphicsPSO m_MaskGBufferPSO;
 		RootSignature m_DeferredCSRS;
 		ComputePSO m_DeferredCSPSO;
 	};

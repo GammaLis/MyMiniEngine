@@ -164,6 +164,7 @@ void BindlessDeferred::CreateDecals(ID3D12Device* pDevice)
 		newDecal._WorldMat = MMATH::transpose(newDecal._WorldMat);
 		newDecal._InvWorldMat = inverse(newDecal._WorldMat);
 		newDecal.albedoTexIdx = m_NumDecalTextures-1;
+		newDecal.normalTexIdx = -1;
 		// newDecal.normalTexIdx
 		m_Decals[m_NumDecal++] = newDecal;
 	}

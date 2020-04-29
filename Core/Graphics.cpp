@@ -191,6 +191,10 @@ namespace MyDirectX
 
         ++m_FrameIndex;
 
+        // 强制每帧同步CPU    -2020-4-25
+        // GPU延迟较大时，CPU不断分配内存，造成内存耗尽    目前仅在计算CascadedShadowMap时开启 -2020-4-29
+        // s_CommandManager.IdleGPU();
+
         // 这是MS MiniEinge做法，移到ModelViewer::Update -20-2-22
         // Effects::s_TemporalAA.Update(m_FrameIndex);
 

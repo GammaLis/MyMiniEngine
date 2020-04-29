@@ -346,13 +346,20 @@
     <ClInclude Include="SceneViewer.h">
       <Filter>Game</Filter>
     </ClInclude>
-    <ClInclude Include="BindlessDeferred.h" />
-    <ClInclude Include="ClusteredLighting.h" />
     <ClInclude Include="Shaders\MathConstants.h">
       <Filter>Shaders\Defines</Filter>
     </ClInclude>
     <ClInclude Include="Shaders\HlslDefines.h">
       <Filter>Shaders\Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="BindlessDeferred.h">
+      <Filter>Scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="ClusteredLighting.h">
+      <Filter>Scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="ShadowUtility.h">
+      <Filter>Scenes</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -545,8 +552,15 @@
     <ClCompile Include="SceneViewer.cpp">
       <Filter>Game</Filter>
     </ClCompile>
-    <ClCompile Include="BindlessDeferred.cpp" />
-    <ClCompile Include="ClusteredLighting.cpp" />
+    <ClCompile Include="BindlessDeferred.cpp">
+      <Filter>Scenes</Filter>
+    </ClCompile>
+    <ClCompile Include="ClusteredLighting.cpp">
+      <Filter>Scenes</Filter>
+    </ClCompile>
+    <ClCompile Include="ShadowUtility.cpp">
+      <Filter>Scenes</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Core\Math\Functions.inl">
@@ -859,6 +873,12 @@
       <Filter>Shaders\IndirectRendering</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\DeferredCS.hlsl">
+      <Filter>Shaders\IndirectRendering</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\IndirectDepthVS.hlsl">
+      <Filter>Shaders\IndirectRendering</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\IndirectDepthCutoutPS.hlsl">
       <Filter>Shaders\IndirectRendering</Filter>
     </FxCompile>
   </ItemGroup>

@@ -15,6 +15,8 @@
 
 #include "CommonIndirectVS.h"
 #include "CommonIndirectPS.h"
+#include "IndirectDepthVS.h"
+#include "IndirectDepthCutoutPS.h"
 
 #include "IndirectGBufferVS.h"
 #include "IndirectGBufferPS.h"
@@ -54,6 +56,7 @@ namespace MFalcor
 		uint32_t _ViewportWidth, _ViewportHeight;
 		float _NearClip, _FarClip;
 		XMFLOAT4 _CamPos;
+		XMFLOAT4 _CascadeSplits;
 		Matrix4x4 _ViewProjMat;
 		Matrix4x4 _InvViewProjMat;
 		Matrix4x4 _ViewMat;
@@ -124,18 +127,27 @@ namespace MFalcor
 				m_GBufferRS.Finalize(pDevice, L"GBufferRS", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 				// deferred cs
-				m_DeferredCSRS.Reset(7, 2);
+				m_DeferredCSRS.Reset(10, 3);
 				m_DeferredCSRS[0].InitAsConstantBuffer(0);
-				m_DeferredCSRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 5);
+				m_DeferredCSRS[1].InitAsConstantBuffer(1);	// CommonLights
+				m_DeferredCSRS[2].InitAsConstantBuffer(2);	// CascadedShadowMap constants
+				m_DeferredCSRS[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 5);
 				// 单独设置 MaterialIDTarget	-目前会有问题 -2020-4-21
-				// m_DeferredCSRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 65, 1);
-				m_DeferredCSRS[2].InitAsBufferSRV(1, 1);
-				m_DeferredCSRS[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, -1, 1);
-				m_DeferredCSRS[4].InitAsBufferSRV(0, 2);	// decal buffer
-				m_DeferredCSRS[5].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 10, 2);	// decal textures
-				m_DeferredCSRS[6].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
+				// m_DeferredCSRS[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 65, 1);
+				m_DeferredCSRS[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 10, 1);
+				m_DeferredCSRS[5].InitAsBufferSRV(1, 1);
+				m_DeferredCSRS[6].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, -1, 1);
+				m_DeferredCSRS[7].InitAsBufferSRV(0, 2);	// decal buffer
+				m_DeferredCSRS[8].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 10, 2);	// decal textures
+				m_DeferredCSRS[9].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
 				m_DeferredCSRS.InitStaticSampler(0, Graphics::s_CommonStates.SamplerLinearWrapDesc);
 				m_DeferredCSRS.InitStaticSampler(1, Graphics::s_CommonStates.SamplerPointClampDesc);
+
+				SamplerDesc shadowSamplerDesc;
+				shadowSamplerDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
+				shadowSamplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+				m_DeferredCSRS.InitStaticSampler(2, shadowSamplerDesc); // Graphics::s_CommonStates.SamplerShadowDesc
+
 				m_DeferredCSRS.Finalize(pDevice, L"DeferredCSRS");
 			}
 			// command signatures
@@ -144,11 +156,11 @@ namespace MFalcor
 				m_CommandSignature[0].DrawIndexed();
 				m_CommandSignature.Finalize(pDevice);
 			}
+
+			auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
+			auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
 			// PSOs
 			{
-				auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
-				auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
-
 				// debug wireframe PSO
 				m_DebugWireframePSO.SetRootSignature(m_CommonRS);
 				// per vertex data
@@ -237,23 +249,49 @@ namespace MFalcor
 				m_TransparentIndirectPSO.SetBlendState(Graphics::s_CommonStates.BlendTraditional);
 				m_TransparentIndirectPSO.SetDepthStencilState(Graphics::s_CommonStates.DepthStateReadOnly);
 				m_TransparentIndirectPSO.Finalize(pDevice);
+			}
 
-				// gbuffer
-				m_GBufferPSO = m_OpaqueIndirectPSO;
-				m_GBufferPSO.SetRootSignature(m_GBufferRS);
-				m_GBufferPSO.SetVertexShader(IndirectGBufferVS, sizeof(IndirectGBufferVS));
-				m_GBufferPSO.SetPixelShader(IndirectGBufferPS, sizeof(IndirectGBufferPS));
-				m_GBufferPSO.SetRenderTargetFormats(_countof(rtFormats), rtFormats, depthBuffer.GetFormat());
-				m_GBufferPSO.Finalize(pDevice);
+			// shadows
+			{
+				m_CascadedShadowMap.Init(pDevice, -Math::Vector3(m_CommonLights.sunDirection), *m_Camera);
+
+				// opaque
+				m_OpaqueShadowPSO = m_DepthPSO;
+				m_OpaqueShadowPSO.SetRootSignature(m_CommonIndirectRS);
+				m_OpaqueShadowPSO.SetVertexShader(IndirectDepthVS, sizeof(IndirectDepthVS));
+				m_OpaqueShadowPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerShadow);
+				m_OpaqueShadowPSO.SetRenderTargetFormats(0, nullptr, m_CascadedShadowMap.m_LightShadowTempBuffer.GetFormat());
+				m_OpaqueShadowPSO.Finalize(pDevice);
+
+				// mask
+				m_MaskShadowPSO = m_OpaqueShadowPSO;
+				m_MaskShadowPSO.SetPixelShader(IndirectDepthCutoutPS, sizeof(IndirectDepthCutoutPS));
+				m_MaskShadowPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerShadowTwoSided);
+				m_MaskShadowPSO.Finalize(pDevice);
+			}
+
+			// bindless deferred
+			{
+				m_BindlessDeferred.Init(pDevice, this);
+
+				// opaque models
+				m_OpaqueGBufferPSO = m_OpaqueIndirectPSO;
+				m_OpaqueGBufferPSO.SetRootSignature(m_GBufferRS);
+				m_OpaqueGBufferPSO.SetVertexShader(IndirectGBufferVS, sizeof(IndirectGBufferVS));
+				m_OpaqueGBufferPSO.SetPixelShader(IndirectGBufferPS, sizeof(IndirectGBufferPS));
+				m_OpaqueGBufferPSO.SetRenderTargetFormats(_countof(rtFormats), rtFormats, depthBuffer.GetFormat());
+				m_OpaqueGBufferPSO.Finalize(pDevice);
+
+				// mask models
+				m_MaskGBufferPSO = m_OpaqueGBufferPSO;
+				m_MaskGBufferPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerShadowTwoSided);
+				m_MaskGBufferPSO.Finalize(pDevice);
 
 				// deferred cs
 				m_DeferredCSPSO.SetRootSignature(m_DeferredCSRS);
 				m_DeferredCSPSO.SetComputeShader(DeferredCS, sizeof(DeferredCS));
 				m_DeferredCSPSO.Finalize(pDevice);
 			}
-
-			// bindless deferred
-			m_BindlessDeferred.Init(pDevice, this);
 		}
 
 		return ret;
@@ -297,7 +335,10 @@ namespace MFalcor
 	{
 		m_CameraController->Update(deltaTime);
 
+		// m_CommonLights.sunOrientation += 0.002f * Math::Pi * deltaTime;
 		UpdateSunLight();
+
+		m_CascadedShadowMap.PrepareCascades(-Math::Vector3(m_CommonLights.sunDirection), *m_Camera);
 
 		return UpdateFlags();
 	}
@@ -338,7 +379,7 @@ namespace MFalcor
 	void Scene::SetRenderCamera(GraphicsContext& gfx, const Matrix4x4& viewProjMat, const Vector3& camPos, UINT rootIdx)
 	{
 		CBPerCamera cbPerCamera;
-		cbPerCamera._ViewProjMat = viewProjMat;
+		cbPerCamera._ViewProjMat = viewProjMat;	// viewProjMat 不用转置，存储时已经转置
 		cbPerCamera._CamPos = camPos;
 		gfx.SetDynamicConstantBufferView(rootIdx, sizeof(CBPerCamera), &cbPerCamera);
 	}
@@ -475,7 +516,7 @@ namespace MFalcor
 		gfx.SetViewportAndScissor(viewport, scissor);
 	}
 
-	void Scene::RenderToGBuffer(GraphicsContext& gfx, GraphicsPSO& pso)
+	void Scene::RenderToGBuffer(GraphicsContext& gfx, GraphicsPSO& pso, AlphaMode alphaMode)
 	{
 		gfx.TransitionResource(m_CommandsBuffer, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 
@@ -493,10 +534,24 @@ namespace MFalcor
 		uint32_t maskCommandsOffset = opaqueCommandsOffset + opaqueCommandsCount;
 		uint32_t transparentOffset = maskCommandsOffset + maskCommandsCount;
 		
-		// only draw opaque objects
-		gfx.SetPipelineState(pso);
-		gfx.ExecuteIndirect(m_CommandSignature, m_CommandsBuffer, opaqueCommandsOffset * sizeof(IndirectCommand), opaqueCommandsCount);
-		
+		if (alphaMode == AlphaMode::UNKNOWN)
+		{
+			gfx.SetPipelineState(m_OpaqueGBufferPSO);
+			gfx.ExecuteIndirect(m_CommandSignature, m_CommandsBuffer, opaqueCommandsOffset * sizeof(IndirectCommand), opaqueCommandsCount);
+
+			gfx.SetPipelineState(m_MaskGBufferPSO);
+			gfx.ExecuteIndirect(m_CommandSignature, m_CommandsBuffer, maskCommandsOffset * sizeof(IndirectCommand), maskCommandsCount);
+		}
+		else if (alphaMode == AlphaMode::kOPAQUE)
+		{
+			gfx.SetPipelineState(pso);
+			gfx.ExecuteIndirect(m_CommandSignature, m_CommandsBuffer, opaqueCommandsOffset * sizeof(IndirectCommand), opaqueCommandsCount);
+		}
+		else if (alphaMode == AlphaMode::kMASK)
+		{
+			gfx.SetPipelineState(pso);
+			gfx.ExecuteIndirect(m_CommandSignature, m_CommandsBuffer, maskCommandsOffset * sizeof(IndirectCommand), maskCommandsCount);
+		}		
 	}
 
 	void Scene::DeferredRender(ComputeContext& computeContext, ComputePSO& pso)
@@ -506,6 +561,7 @@ namespace MFalcor
 		auto& uvTarget = m_BindlessDeferred.m_UVTarget;
 		auto& uvGradientsTarget = m_BindlessDeferred.m_UVGradientsTarget;
 		auto& materialIDTarget = m_BindlessDeferred.m_MaterialIDTarget;
+		auto& shadowMap = m_CascadedShadowMap.m_LightShadowArray;
 
 		auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 		uint32_t width = colorBuffer.GetWidth(), height = colorBuffer.GetHeight();
@@ -515,6 +571,7 @@ namespace MFalcor
 		computeContext.TransitionResource(uvTarget, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		computeContext.TransitionResource(uvGradientsTarget, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		computeContext.TransitionResource(materialIDTarget, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		computeContext.TransitionResource(shadowMap, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 		computeContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
@@ -527,11 +584,23 @@ namespace MFalcor
 		csConstants._FarClip = m_Camera->GetFarClip();
 		const auto& camPos = m_Camera->GetPosition();
 		csConstants._CamPos = XMFLOAT4(camPos.GetX(), camPos.GetY(), camPos.GetZ(), 1.0f);
+		const auto& cascadeSplits = m_CascadedShadowMap.m_CascadeSplits;
+		csConstants._CascadeSplits = XMFLOAT4(cascadeSplits.GetX(), cascadeSplits.GetY(), cascadeSplits.GetZ(), cascadeSplits.GetW());
 		csConstants._ViewProjMat = Cast(m_Camera->GetViewProjMatrix());
 		csConstants._InvViewProjMat = MMATH::inverse(csConstants._ViewProjMat);
 		csConstants._ViewMat = Cast(m_Camera->GetViewMatrix());
 		csConstants._ProjMat = Cast(m_Camera->GetProjMatrix());
 		computeContext.SetDynamicConstantBufferView((UINT)DeferredCSRSId::CBConstants, sizeof(CSConstants), &csConstants);
+
+		computeContext.SetDynamicConstantBufferView((UINT)DeferredCSRSId::CommonLights, sizeof(CommonLightSettings), &m_CommonLights);
+
+		const uint32_t numCascades = CascadedShadowMap::s_NumCascades;
+		Math::Matrix4 cascadedShadowMats[numCascades];
+		for (uint32_t i = 0; i < numCascades; ++i)
+		{
+			cascadedShadowMats[i] = Math::Transpose(m_CascadedShadowMap.m_ViewProjMat[i]);
+		}
+		computeContext.SetDynamicConstantBufferView((UINT)DeferredCSRSId::CascadedSMConstants, sizeof(cascadedShadowMats), cascadedShadowMats);
 
 		D3D12_CPU_DESCRIPTOR_HANDLE gbufferHandles[] =
 		{
@@ -542,6 +611,7 @@ namespace MFalcor
 		computeContext.SetDynamicDescriptors((UINT)DeferredCSRSId::GBuffer, 0, _countof(gbufferHandles), gbufferHandles);
 		// 单独设置MaterialIDTarget，放在GBuffer后面总是提示出错	-2020-4-21
 		// computeContext.SetDynamicDescriptor((UINT)DeferredCSRSId::MaterialIDTarget, 0, materialIDTarget.GetSRV());
+		computeContext.SetDynamicDescriptor((UINT)DeferredCSRSId::ShadowMap, 0, shadowMap.GetSRV());
 		computeContext.SetBufferSRV((UINT)DeferredCSRSId::MaterialTable, m_MaterialsBuffer);
 
 		computeContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_TextureDescriptorHeap.GetHeapPointer());
@@ -561,8 +631,64 @@ namespace MFalcor
 		computeContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	}
 
+	void Scene::RenderSunShadows(GraphicsContext& gfx)
+	{
+		gfx.TransitionResource(m_CommandsBuffer, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+
+		gfx.SetRootSignature(m_CommonIndirectRS);		
+
+		gfx.SetConstants((UINT)CommonIndirectRSId::CBConstants, 0, 1, 2, 3);
+
+		gfx.SetShaderResourceView((UINT)CommonIndirectRSId::MatrixTable, m_MatricesDynamicBuffer.GetGpuPointer());
+		gfx.SetBufferSRV((UINT)CommonIndirectRSId::MaterialTable, m_MaterialsBuffer);
+		gfx.SetBufferSRV((UINT)CommonIndirectRSId::MeshTable, m_MeshesBuffer);
+		gfx.SetBufferSRV((UINT)CommonIndirectRSId::MeshInstanceTable, m_MeshInstancesBuffer);
+
+		gfx.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_TextureDescriptorHeap.GetHeapPointer());
+		gfx.SetDescriptorTable((UINT)CommonIndirectRSId::TextureTable, m_TextureDescriptorHeap.GetHandleAtOffset(0).GetGpuHandle());
+
+		uint32_t opaqueCommandsCount = (uint32_t)m_OpaqueInstances.size();
+		uint32_t maskCommandsCount = (uint32_t)m_MaskInstancs.size();
+		uint32_t transparentCommandsCount = (uint32_t)m_TransparentInstances.size();
+		uint32_t opaqueCommandsOffset = 0;
+		uint32_t maskCommandsOffset = opaqueCommandsOffset + opaqueCommandsCount;
+		uint32_t transparentOffset = maskCommandsOffset + maskCommandsCount;
+		
+		CBPerCamera cbPerCamera;
+		uint32_t numCascades = m_CascadedShadowMap.s_NumCascades;
+		// 目前只渲染一级阴影	-2020-4-29
+		for (uint32_t i = 0; i < 1; ++i)
+		{
+			// gfx.TransitionResource(m_CascadedShadowMap.m_LightShadowTempBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
+			// clear depth
+			m_CascadedShadowMap.m_LightShadowTempBuffer.BeginRendering(gfx);
+
+			cbPerCamera._ViewProjMat = Cast(m_CascadedShadowMap.m_ViewProjMat[i]);
+			cbPerCamera._CamPos = Cast(m_CascadedShadowMap.m_CamPos[i]);
+			gfx.SetDynamicConstantBufferView((UINT)CommonIndirectRSId::CBPerCamera, sizeof(CBPerCamera), &cbPerCamera);
+
+			// opaque shadow
+			gfx.SetPipelineState(m_OpaqueShadowPSO);
+			gfx.ExecuteIndirect(m_CommandSignature, m_CommandsBuffer, opaqueCommandsOffset * sizeof(IndirectCommand), opaqueCommandsCount);
+
+			// mask shadow
+			gfx.SetPipelineState(m_MaskShadowPSO);
+			gfx.ExecuteIndirect(m_CommandSignature, m_CommandsBuffer, maskCommandsOffset * sizeof(IndirectCommand), maskCommandsCount);
+
+			gfx.TransitionResource(m_CascadedShadowMap.m_LightShadowTempBuffer, D3D12_RESOURCE_STATE_GENERIC_READ);
+			gfx.TransitionResource(m_CascadedShadowMap.m_LightShadowArray, D3D12_RESOURCE_STATE_COPY_DEST);
+			gfx.CopySubresource(m_CascadedShadowMap.m_LightShadowArray, i, m_CascadedShadowMap.m_LightShadowTempBuffer, 0);
+
+		}
+
+		// m_CascadedShadowMap.m_LightShadowTempBuffer.EndRendering(gfx);
+	}
+
 	void Scene::Clean()
 	{
+		// shadows
+		m_CascadedShadowMap.Clean();
+		// bindless deferred
 		m_BindlessDeferred.Clean();
 
 		m_MaterialsDynamicBuffer.Destroy();

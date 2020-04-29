@@ -3,9 +3,10 @@
 
 using namespace MyDirectX;
 
-void ShadowBuffer::Create(ID3D12Device* pDevice, const std::wstring& name, uint32_t width, uint32_t height, D3D12_GPU_VIRTUAL_ADDRESS vidMemPtr)
+void ShadowBuffer::Create(ID3D12Device* pDevice, const std::wstring& name, uint32_t width, uint32_t height, 
+	DXGI_FORMAT format, D3D12_GPU_VIRTUAL_ADDRESS vidMemPtr)
 {
-	DepthBuffer::Create(pDevice, name, width, height, DXGI_FORMAT_D16_UNORM, vidMemPtr);
+	DepthBuffer::Create(pDevice, name, width, height, format, vidMemPtr);
 
 	m_Viewport.TopLeftX = 0.0f;
 	m_Viewport.TopLeftY = 0.0f;

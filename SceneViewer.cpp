@@ -49,6 +49,8 @@ void SceneViewer::RenderForward()
 {
 	GraphicsContext& gfx = GraphicsContext::Begin(L"Rendering");
 
+	m_MainScene->BeginRendering(gfx);
+
 	auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 	auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
 
@@ -60,7 +62,6 @@ void SceneViewer::RenderForward()
 	gfx.SetRenderTarget(colorBuffer.GetRTV(), depthBuffer.GetDSV());
 	gfx.SetViewportAndScissor(m_MainViewport, m_MainScissor);
 
-	m_MainScene->BeginRendering(gfx);
 	gfx.SetRootSignature(m_IndirectRendering ? m_MainScene->m_CommonIndirectRS : m_MainScene->m_CommonRS);
 
 	// camera
@@ -85,9 +86,13 @@ void SceneViewer::RenderDeferred()
 {
 	GraphicsContext& gfx = GraphicsContext::Begin(L"Rendering");
 
+	m_MainScene->BeginRendering(gfx);
+
+	// sun shadow
+	m_MainScene->RenderSunShadows(gfx);
+
 	// gbuffer
 	m_MainScene->PrepareGBuffer(gfx, m_MainViewport, m_MainScissor);
-	m_MainScene->BeginRendering(gfx);
 	gfx.SetRootSignature(m_MainScene->m_GBufferRS);
 
 	// camera
@@ -95,7 +100,7 @@ void SceneViewer::RenderDeferred()
 	m_MainScene->SetRenderCamera(gfx, MFalcor::Cast(pCamera->GetViewProjMatrix()), MFalcor::Cast(pCamera->GetPosition()),
 		(UINT)GBufferRSId::CBPerCamera);
 
-	m_MainScene->RenderToGBuffer(gfx, m_MainScene->m_GBufferPSO);
+	m_MainScene->RenderToGBuffer(gfx, m_MainScene->m_OpaqueGBufferPSO);
 
 	// deferred rendering
 	ComputeContext& computeContext = gfx.GetComputeContext();	

@@ -110,6 +110,7 @@
     <ClInclude Include="SceneViewer.h" />
     <ClInclude Include="Shaders\HlslDefines.h" />
     <ClInclude Include="Shaders\MathConstants.h" />
+    <ClInclude Include="ShadowUtility.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BindlessDeferred.cpp" />
@@ -176,6 +177,7 @@
     <ClCompile Include="Core\Skybox.cpp" />
     <ClCompile Include="Core\ReadbackBuffer.cpp" />
     <ClCompile Include="SceneViewer.cpp" />
+    <ClCompile Include="ShadowUtility.cpp" />
     <ClCompile Include="WinMain.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -677,6 +679,19 @@
     </FxCompile>
     <FxCompile Include="Shaders\glTFCommonVS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\IndirectDepthCutoutPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <EnableUnboundedDescriptorTables Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</EnableUnboundedDescriptorTables>
+    </FxCompile>
+    <FxCompile Include="Shaders\IndirectDepthVS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
     </FxCompile>
     <FxCompile Include="Shaders\IndirectGBufferPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>

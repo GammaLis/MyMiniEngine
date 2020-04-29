@@ -1,11 +1,15 @@
 #include "Quaternion.hlsli"
 #include "MaterialDefines.hlsli"
+#include "BasicLighting.hlsli"
 #include "../Scenes/MaterialDefines.h"
 
 #define DeferredCS_RootSig \
 	"RootFlags(0)," \
 	"CBV(b0)," \
+	"CBV(b1)," \
+	"CBV(b2)," \
 	"DescriptorTable(SRV(t0, numDescriptors = 5))," \
+	"DescriptorTable(SRV(t10, numDescriptors = 1))," \
 	"SRV(t1, space = 1)," \
 	"DescriptorTable(SRV(t4, space = 1, numDescriptors = unbounded))," \
 	"SRV(t0, space = 2)," \
@@ -20,28 +24,64 @@
 		"addressU = TEXTURE_ADDRESS_CLAMP," \
 		"addressV = TEXTURE_ADDRESS_CLAMP," \
 		"addressW = TEXTURE_ADDRESS_CLAMP," \
-		"filter = FILTER_MIN_MAG_MIP_POINT)"
+		"filter = FILTER_MIN_MAG_MIP_POINT)," \
+	"StaticSampler(s2, " \
+		"addressU = TEXTURE_ADDRESS_CLAMP," \
+		"addressV = TEXTURE_ADDRESS_CLAMP," \
+		"addressW = TEXTURE_ADDRESS_CLAMP," \
+		"comparisonFunc = COMPARISON_LESS_EQUAL," \
+		"filter = FILTER_MIN_MAG_LINEAR_MIP_POINT)"
+
+// outdated warning about for-loop variable scope
+#pragma warning (disable: 3078)
 
 #define MATERIAL_TEXTURE_NUM 5
 
 #define DeferredTileSize 16
 #define ThreadGroupSize (DeferredTileSize * DeferredTileSize)
 
+// shadow samples
+#define SINGLE_SAMPLE
+
 static const float DeferredUVScale = 2.0f;
+static const uint NumCascades = 4;
+
+static const float4 DebugColors[] = 
+{
+	float4(1.0f, 0.0f, 0.0f, 1.0f),
+	float4(0.0f, 1.0f, 0.0f, 1.0f),
+	float4(0.0f, 0.0f, 1.0f, 1.0f),
+	float4(1.0f, 1.0f, 0.0f, 1.0f),
+};
 
 cbuffer CSConstants	: register(b0)
 {
 	uint _ViewportWidth, _ViewportHeight;
 	float _NearClip, _FarClip;
 	float3 _CamPos;
+	float3 _CascadeSplits;
 	matrix _ViewProjMat;
 	matrix _InvViewProjMat;
 	matrix _ViewMat;
 	matrix _ProjMat;
 };
 
+cbuffer CommonLights	: register(b1)
+{
+	float3 _SunDirection;
+	float3 _SunColor;
+	float3 _AmbientColor;
+};
+
+cbuffer CascadedShadowConstants	: register(b2)
+{
+	matrix _LightViewProjMat[NumCascades];
+};
+
 Texture2D<uint> _TexMaterialID	: register(t0);
 Texture2D _GBuffer[4]	: register(t1);
+
+Texture2DArray _CascadedShadowMap	: register(t10);
 
 // Texture2D _GBuffer[4]	: register(t0);
 // Texture2D<uint> _TexMaterialID	: register(t4);
@@ -53,7 +93,7 @@ Texture2D _GBuffer[4]	: register(t1);
 
 // materials
 StructuredBuffer<MaterialData> _MaterialBuffer	: register(t1, space1);
-Texture2D _MaterialTextures[]	: register(t4, space1);
+Texture2D _MaterialTextures[]	: register(t4, space1);	// unbounded t(4)~t(+Inf)
 
 // decals
 struct DecalData
@@ -70,6 +110,7 @@ RWTexture2D<float4> Output	: register(u0);
 
 SamplerState s_LinearRSampler	: register(s0);
 SamplerState s_PointCSampler: register(s1);
+SamplerComparisonState s_ShadowSampler	: register(s2);
 
 // MSAA subsample locations
 #if _NumMSAASamples == 4
@@ -112,6 +153,37 @@ float3 GetWorldPosition(float2 screenUV, float zw)
 	cPos.y *= -1.0f;
 	float4 wPos = mul(float4(cPos, 1.0f), _InvViewProjMat);
 	return wPos.xyz / wPos.w;
+}
+
+float GetShadow(float3 shadowCoord, Texture2DArray shadowMapArray, uint shadowIndex, SamplerComparisonState shadowSampler)
+{
+	float2 shadowMapSize;
+	float numSlices;
+	shadowMapArray.GetDimensions(shadowMapSize.x, shadowMapSize.y, numSlices);
+	float2 shadowTexelSize = 1.0f / shadowMapSize;
+
+	float3 sampleUV = float3(shadowCoord.xy, shadowIndex);
+#ifdef SINGLE_SAMPLE
+	float result = shadowMapArray.SampleCmpLevelZero(shadowSampler, sampleUV, shadowCoord.z).r;
+#else
+	const float Dilation = 2.0;
+	float d1 = Dilation * shadowTexelSize.x * 0.125;
+	float d2 = Dilation * shadowTexelSize.x * 0.875;
+	float d3 = Dilation * shadowTexelSize.x * 0.625;
+	float d4 = Dilation * shadowTexelSize.x * 0.375;
+	float result = (
+		2.0 * shadowMapArray.SampleCmpLevelZero(shadowSampler, sampleUV, shadowCoord.z).r +
+		shadowMapArray.SampleCmpLevelZero(shadowSampler, sampleUV + float3(-d2,  d1, 0), shadowCoord.z).r +
+		shadowMapArray.SampleCmpLevelZero(shadowSampler, sampleUV + float3(-d1, -d2, 0), shadowCoord.z).r +
+		shadowMapArray.SampleCmpLevelZero(shadowSampler, sampleUV + float3( d2, -d1, 0), shadowCoord.z).r +
+		shadowMapArray.SampleCmpLevelZero(shadowSampler, sampleUV + float3( d1,  d2, 0), shadowCoord.z).r +
+		shadowMapArray.SampleCmpLevelZero(shadowSampler, sampleUV + float3(-d4,  d3, 0), shadowCoord.z).r +
+		shadowMapArray.SampleCmpLevelZero(shadowSampler, sampleUV + float3(-d3, -d4, 0), shadowCoord.z).r +
+		shadowMapArray.SampleCmpLevelZero(shadowSampler, sampleUV + float3( d4, -d3, 0), shadowCoord.z).r +
+		shadowMapArray.SampleCmpLevelZero(shadowSampler, sampleUV + float3( d3,  d4, 0), shadowCoord.z).r
+		) / 10.0;
+#endif
+	return result * result;
 }
 
 // shades a single sample point, given a pixel position and an MSAA subsample index
@@ -246,11 +318,29 @@ void ShadeSample(in uint2 pixelPos, in uint sampleIdx, in uint numMSAASamples)
 	// normal
 	float3 normal = normalize(tangentMatrix._m20_m21_m22);
 
+	float gloss = 128.0;
+	// normal
+	if (normalMapType == NormalMapRGB)
+	{
+		float3 normalMap = _TexNormal.SampleGrad(s_LinearRSampler, uv, uvdx, uvdy).rgb;
+		normalMap = normalize((2.0 * normalMap - 1.0) * float3(_NormalScale, _NormalScale, 1.0));
+
+		AntiAliasSpecular(normal, gloss);
+
+		normal = mul(normalMap, tangentMatrix);
+	}
+
 	// decals
 	const uint numDecals = 2;
 	for (uint i = 0; i < numDecals; ++i)
 	{
 		DecalData decal = _DecalBuffer[i];
+		matrix decalWorldMat = decal._WorldMat;
+		float3 decalOrientation = normalize(decalWorldMat._m10_m11_m12);	// xz平面法线 - Y
+		float cosTheta = dot(normal, decalOrientation);
+		if (cosTheta < 0.5f)
+			continue;
+
 		matrix decalInvWorldMat = decal._InvWorldMat;
 		float3 decalSpacePos = mul(float4(wPos, 1.0f), decalInvWorldMat).xyz;
 		if (all(abs(decalSpacePos) < 0.5f))
@@ -258,7 +348,7 @@ void ShadeSample(in uint2 pixelPos, in uint sampleIdx, in uint numMSAASamples)
 			uint albedoIndex = decal.albedoIndex;
 			if (albedoIndex != uint(-1))
 			{
-				Texture2D albedo = _DecalTextures[albedoIndex];
+				Texture2D _TexDecalalbedo = _DecalTextures[albedoIndex];
 
 				// uv derivates
 				// 1. 
@@ -272,8 +362,8 @@ void ShadeSample(in uint2 pixelPos, in uint sampleIdx, in uint numMSAASamples)
 				float2 uv, uvdx, uvdy;
 				uv = decalSpacePos.xz;
 				uv.y *= -1.0f;
-				uvdx = dsDX.xz;
-				uvdy = dsDY.xz;
+				uvdx = dsDX.xz; uvdx.y *= -1.0f;
+				uvdy = dsDY.xz;	uvdy.y *= -1.0f;
 				// if (dsDZ.x > dsDZ.y && dsDZ.x > dsDZ.z)
 				// {
 				// 	uv = decalSpacePos.yz;
@@ -296,20 +386,114 @@ void ShadeSample(in uint2 pixelPos, in uint sampleIdx, in uint numMSAASamples)
 				// }
 
 				uv += 0.5f;
-				// float4 decalAlbedo = albedo.SampleLevel(s_LinearRSampler, uv, 0.0f);
-				float4 decalAlbedo = albedo.SampleGrad(s_LinearRSampler, uv, uvdx, uvdy);
-
+				// float4 decalAlbedo = _TexDecalalbedo.SampleLevel(s_LinearRSampler, uv, 0.0f);
+				float4 decalAlbedo = _TexDecalalbedo.SampleGrad(s_LinearRSampler, uv, uvdx, uvdy);
 				baseColor.rgb = lerp(baseColor.rgb, decalAlbedo.rgb, decalAlbedo.a);
 				// debug
 				// color.rgb = 0.0f;
+				
+				// normal map
+				uint normalIndex = decal.normalIndex;
+				if (normalIndex != uint(-1))
+				{
+					Texture2D _TexDecalNormal = _DecalTextures[normalIndex];
+					float3 decalNormal = _TexDecalNormal.SampleGrad(s_LinearRSampler, uv, uvdx, uvdy).rgb;
+					decalNormal = decalNormal * 2.0f - 1.0f;
+					float3x3 tangentToObject = float3x3(
+						1.0f, 0.0f,  0.0f,
+						0.0f, 0.0f, -1.0f,
+						0.0f, 1.0f,  0.0f);
+					float3x3 decalRotation = (float3x3)decalWorldMat;
+					decalRotation._m00_m01_m02 = normalize(decalRotation._m00_m01_m02);
+					decalRotation._m10_m11_m12 = normalize(decalRotation._m10_m11_m12);
+					decalRotation._m20_m21_m22 = normalize(decalRotation._m20_m21_m22);
+					// float3x3 tangengToWorld = tangentToObject * decalRotation;	// 分量乘法
+					float3x3 tangentToWorld = mul(tangentToObject, decalRotation);	// 矩阵乘法
+					decalNormal = mul(decalNormal, tangentToWorld);
+					normal = lerp(normal, decalNormal, decalAlbedo.a);
+				}
 			}
 		}
-	}	
+	}
 
-	float4 color = baseColor;
+	// shading model
+	float4 color = 0;
+	float3 specularAlbedo = float3(0.56, 0.56, 0.56);
+	float specularMask = 1.0f;
+	if (shadingModel == ShadingModel_MetallicRoughness)
+	{
+		float metallic = _MetallicRoughness.y, perceptualRoughness = _MetallicRoughness.z;
+		if (specularType == ChannelTypeTexture)
+		{
+			float2 metalRough = _TexMetallicRoughness.SampleGrad(s_LinearRSampler, uv, uvdx, uvdy).rg;
+			metallic = metalRough.x, perceptualRoughness = metalRough.y;
+		}
+
+	}
+	else if (shadingModel == ShadingModel_SpecularGlossiness)
+	{
+		specularMask = _TexMetallicRoughness.SampleGrad(s_LinearRSampler, uv, uvdx, uvdy).g;
+	}
+	else 	// unlit
+	{
+
+	}
+
+	float3 worldPos = wPos;
+	float3 viewDir = normalize(worldPos - _CamPos);	// world-space vector from eye to point
+
+	// basic lighting
+	float3 lighting = 0.0f;
+
+	// ambient
+	lighting += 0.25f * ApplyAmbientLight(baseColor.rgb, 1.0f, _AmbientColor);
+
+	// shadows
+	float shadow = 1.0f;
+	{
+		float viewDepth = abs(linearDepth);		// View Space 可能为右手坐标系，Z轴向外，深度为负
+		uint split = NumCascades - 1;
+		const float CascadeSplits[] = {_CascadeSplits.x, _CascadeSplits.y, _CascadeSplits.z};
+		for (uint i = 0; i < NumCascades-1; ++i)
+		{
+			if (viewDepth < _CascadeSplits[i])
+			{
+				split = i;
+				break;
+			}
+		}
+		// debug 指定阴影层级
+		// 目前之渲染一级阴影 -2020-4-29
+		split = 0;
+		matrix activeViewProjMat = _LightViewProjMat[split];
+		float4 shadowCoord = mul(float4(worldPos, 1.0f), activeViewProjMat);
+		shadowCoord.xyz /= shadowCoord.w;
+		// shadow = GetShadow(shadowCoord.xyz, _CascadedShadowMap, split, s_ShadowSampler);
+		// shadow = _CascadedShadowMap.SampleLevel(s_LinearRSampler, float3(shadowCoord.xy, split), 0.0f).r;
+		shadow = _CascadedShadowMap.SampleCmpLevelZero(s_ShadowSampler, float3(shadowCoord.xy, split), shadowCoord.z);
+
+		// float3 uvIndex = float3(screenUV, 0.0f);
+		// shadow = _CascadedShadowMap.SampleLevel(s_LinearRSampler, uvIndex, 0.0f).r;
+	}
+	
+	// sun light
+	lighting += shadow * ApplyDirectionalLight(baseColor.rgb, specularAlbedo, specularMask, gloss, normal, viewDir,
+		_SunDirection, _SunColor, float3(0.0f, 0.0f, 0.0f));
+
+	color = baseColor;
+	color.rgb = lighting;
+
+	// debug normal
+	// color.rgb = normal;
 
 	// debug materialID
 	// color = (float)materialID / 16;
+
+	// debug shadow
+	// color = shadow;
+	
+	// cascade splits
+	// color = DebugColors[split];
 
 	Output[pixelPos] = color;
 
