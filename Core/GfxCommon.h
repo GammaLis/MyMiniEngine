@@ -129,6 +129,9 @@ namespace MyDirectX
 		CD3DX12_SHADER_BYTECODE m_SharpeningUpsamplePS;
 		CD3DX12_SHADER_BYTECODE m_BufferCopyPS;		// blend overlay ui
 
+		// generate mips
+		CD3DX12_SHADER_BYTECODE m_GenerateMips;
+
 		/// text 
 		CD3DX12_SHADER_BYTECODE m_TextVS;
 		CD3DX12_SHADER_BYTECODE m_TextAntialiasPS;

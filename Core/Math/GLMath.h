@@ -70,7 +70,7 @@ namespace MFalcor
 			(float)v0.GetW(), (float)v1.GetW(), (float)v2.GetW(), (float)v3.GetW());
 	}
 	
-	// anix-aligned bounding box
+	// axis-aligned bounding box
 	struct BoundingBox
 	{
 		Vector3 vMin;

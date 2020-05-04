@@ -1,5 +1,6 @@
 #include "ColorBuffer.h"
 #include "Graphics.h"
+#include "CommandContext.h"
 
 using namespace MyDirectX;
 
@@ -51,6 +52,66 @@ void ColorBuffer::CreateArray(ID3D12Device* pDevice, const std::wstring& name, u
 
 	CreateTextureResource(pDevice, name, resourceDesc, clearValue, vidMemPtr);
 	CreateDerivedViews(pDevice, format, arrayCount, 1);
+}
+
+void ColorBuffer::GenerateMipMaps(CommandContext& context, Graphics& gfxCore)
+{
+	if (m_NumMipmaps == 0)
+		return;
+
+	ComputeContext& computeContext = context.GetComputeContext();
+
+	computeContext.TransitionResource(*this, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	computeContext.SetRootSignature(gfxCore.m_GenerateMipsRS);
+	computeContext.SetDynamicDescriptor(1, 0, m_SRVHandle);
+
+	for (uint32_t topMip = 0; topMip < m_NumMipmaps; )
+	{
+		uint32_t srcWidth = m_Width >> topMip;
+		uint32_t srcHieght = m_Height >> topMip;
+		uint32_t dstWidth = srcWidth >> 1;
+		uint32_t dstHeight = srcHieght >> 1;
+
+		// determine if the first downsample is more than 2: 1. This happens whenever the source
+		// width or height is odd.
+		uint32_t NonPowerOfTwo = (srcWidth & 1) | (srcHieght & 1) << 1;
+		//if (m_Format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB)
+		//	computeContext.SetPipelineState(gfxCore.m_GenerateMipsGammaPSO);
+		//else
+		//	computeContext.SetPipelineState(gfxCore.m_GenerateMipsLinearPSO);
+		computeContext.SetPipelineState(gfxCore.m_GenerateMipsPSO);
+
+		// we can downsample up to 4 times, but if the ratio between levels is not exactly 2:1, we have to
+		// shift out blend weights, which gets complicated or expensive. Maybe we can update the code later
+		// to compute sample weights for each successive downsample. We use _BitScanForward to count number
+		// of zeros in the low bits. Zeros indicate we can divide by 2 without truncating.
+		uint32_t AdditionalMips;
+		_BitScanForward((unsigned long*)&AdditionalMips,
+			(dstWidth == 1 ? dstHeight : dstWidth) | (dstHeight == 1 ? dstWidth : dstHeight));
+		uint32_t numMips = 1 + (AdditionalMips > 3 ? 3 : AdditionalMips);
+		if ((topMip + numMips) > m_NumMipmaps)
+			numMips = m_NumMipmaps - topMip;
+
+		// these are clamped to 1 after computing additional mips because clamped dimensions should 
+		// not limit us from downsampling multiple times. (E.g. 16x1 -> 8x1 -> 4x1 -> 2x1 -> 1x1)
+		if (dstWidth == 0)
+			dstWidth = 1;
+		if (dstHeight == 0)
+			dstHeight = 1;
+
+		computeContext.SetConstants(0, topMip, numMips, 1.0f / dstWidth, 1.0f / dstHeight);
+		computeContext.SetDynamicDescriptors(2, 0, numMips, m_UAVHandle + topMip + 1);
+		computeContext.Dispatch2D(dstWidth, dstHeight);
+
+		computeContext.InsertUAVBarrier(*this);
+
+		topMip += numMips;
+	}
+
+	computeContext.TransitionResource(*this, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
+		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
 }
 
 void ColorBuffer::CreateDerivedViews(ID3D12Device* pDevice, DXGI_FORMAT format, uint32_t arraySize, uint32_t numMips)

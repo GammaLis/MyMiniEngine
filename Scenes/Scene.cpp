@@ -22,8 +22,15 @@
 #include "IndirectGBufferPS.h"
 #include "DeferredCS.h"
 
+#include "FrustumCullingCS.h"
+#include "GenerateHiZMipsCS.h"
+#include "OcclusionCullArgsCS.h"
+#include "OcclusionCullingCS.h"
+
 namespace MFalcor
 {
+	static const uint32_t s_HiZMips = 9;
+
 	// deferred render targets
 	static const DXGI_FORMAT rtFormats[] =
 	{
@@ -51,12 +58,21 @@ namespace MFalcor
 		Matrix4x4 invWorldMat;
 	};
 
-	struct alignas(16) CSConstants
+	struct alignas(16) DeferredCSConstants
 	{
 		uint32_t _ViewportWidth, _ViewportHeight;
 		float _NearClip, _FarClip;
 		XMFLOAT4 _CamPos;
 		XMFLOAT4 _CascadeSplits;
+		Matrix4x4 _ViewProjMat;
+		Matrix4x4 _InvViewProjMat;
+		Matrix4x4 _ViewMat;
+		Matrix4x4 _ProjMat;
+	};
+
+	struct alignas(16) CullingCSConstants
+	{
+		XMFLOAT4 _CamPos;
 		Matrix4x4 _ViewProjMat;
 		Matrix4x4 _InvViewProjMat;
 		Matrix4x4 _ViewMat;
@@ -149,6 +165,16 @@ namespace MFalcor
 				m_DeferredCSRS.InitStaticSampler(2, shadowSamplerDesc); // Graphics::s_CommonStates.SamplerShadowDesc
 
 				m_DeferredCSRS.Finalize(pDevice, L"DeferredCSRS");
+
+				// Culling cs
+				m_CullingRS.Reset(5, 1);
+				m_CullingRS[0].InitAsConstants(0, 4);
+				m_CullingRS[1].InitAsConstantBuffer(1);
+				m_CullingRS[2].InitAsBufferSRV(0);
+				m_CullingRS[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4);
+				m_CullingRS[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4);
+				m_CullingRS.InitStaticSampler(0, Graphics::s_CommonStates.SamplerPointClampDesc);
+				m_CullingRS.Finalize(pDevice, L"CullingCSRS");
 			}
 			// command signatures
 			{
@@ -232,11 +258,24 @@ namespace MFalcor
 				m_TransparentModelPSO.Finalize(pDevice);
 
 				// indirect drawing
+				// opaque depth
+				m_DepthIndirectPSO = m_DepthPSO;
+				m_DepthIndirectPSO.SetRootSignature(m_CommonIndirectRS);
+				m_DepthIndirectPSO.SetVertexShader(IndirectDepthVS, sizeof(IndirectDepthVS));
+				m_DepthIndirectPSO.Finalize(pDevice);
+
+				// depth clip
+				m_DepthClipIndirectPSO = m_DepthIndirectPSO;
+				m_DepthClipIndirectPSO.SetPixelShader(IndirectDepthCutoutPS, sizeof(IndirectDepthCutoutPS));
+				m_DepthClipIndirectPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerShadowTwoSided);
+				m_DepthClipIndirectPSO.Finalize(pDevice);
+
 				// opaque indirect model
 				m_OpaqueIndirectPSO = m_OpaqueModelPSO;
 				m_OpaqueIndirectPSO.SetRootSignature(m_CommonIndirectRS);
 				m_OpaqueIndirectPSO.SetVertexShader(CommonIndirectVS, sizeof(CommonIndirectVS));
 				m_OpaqueIndirectPSO.SetPixelShader(CommonIndirectPS, sizeof(CommonIndirectPS));
+				m_OpaqueIndirectPSO.SetDepthStencilState(Graphics::s_CommonStates.DepthStateTestEqual);
 				m_OpaqueIndirectPSO.Finalize(pDevice);
 
 				// mask indirect model
@@ -292,6 +331,32 @@ namespace MFalcor
 				m_DeferredCSPSO.SetComputeShader(DeferredCS, sizeof(DeferredCS));
 				m_DeferredCSPSO.Finalize(pDevice);
 			}
+
+			// culling
+			{
+				// frustum culling
+				m_FrustumCSPSO.SetRootSignature(m_CullingRS);
+				m_FrustumCSPSO.SetComputeShader(FrustumCullingCS, sizeof(FrustumCullingCS));
+				m_FrustumCSPSO.Finalize(pDevice);
+
+				// occlusion culling
+				DXGI_FORMAT depthFormat = depthBuffer.GetFormat();
+				m_HiZBuffer.Create(pDevice, L"HiZBuffer", depthBuffer.GetWidth(), depthBuffer.GetHeight(), s_HiZMips, DXGI_FORMAT_R32_FLOAT);
+
+				// generate Hi-Z mips
+				m_GenerateHiZMipsPSO.SetRootSignature(m_CullingRS);
+				m_GenerateHiZMipsPSO.SetComputeShader(GenerateHiZMipsCS, sizeof(GenerateHiZMipsCS));
+				m_GenerateHiZMipsPSO.Finalize(pDevice);
+
+				// indirect dispatch args
+				m_OcclusionCullArgsPSO.SetRootSignature(m_CullingRS);
+				m_OcclusionCullArgsPSO.SetComputeShader(OcclusionCullArgsCS, sizeof(OcclusionCullArgsCS));
+				m_OcclusionCullArgsPSO.Finalize(pDevice);
+
+				m_OcclusionCullingPSO.SetRootSignature(m_CullingRS);
+				m_OcclusionCullingPSO.SetComputeShader(OcclusionCullingCS, sizeof(OcclusionCullingCS));
+				m_OcclusionCullingPSO.Finalize(pDevice);
+			}
 		}
 
 		return ret;
@@ -313,7 +378,7 @@ namespace MFalcor
 
 		UpdateMatrices();
 
-		UpdateBounds();
+		UpdateBounds(pDevice);
 
 		InitResources(pDevice);
 
@@ -437,6 +502,11 @@ namespace MFalcor
 	void Scene::IndirectRender(GraphicsContext& gfx, GraphicsPSO& pso, AlphaMode alphaMode)
 	{
 		gfx.TransitionResource(m_CommandsBuffer, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+		gfx.TransitionResource(m_FrustumCulledBuffer, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+		gfx.TransitionResource(m_FrustumCulledBuffer.GetCounterBuffer(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+		
+		gfx.TransitionResource(m_OcclusionCulledBuffer, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+		gfx.TransitionResource(m_OcclusionCulledBuffer.GetCounterBuffer(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 
 		gfx.SetConstants((UINT)CommonIndirectRSId::CBConstants, 0, 1, 2, 3);
 
@@ -456,9 +526,25 @@ namespace MFalcor
 		uint32_t transparentOffset = maskCommandsOffset + maskCommandsCount;
 		if (alphaMode == AlphaMode::UNKNOWN)
 		{
-			// 暂时不用 CounterBuffer,不进行Culling	-2020-4-12
 			gfx.SetPipelineState(m_OpaqueIndirectPSO);
-			gfx.ExecuteIndirect(m_CommandSignature, m_CommandsBuffer, opaqueCommandsOffset * sizeof(IndirectCommand), opaqueCommandsCount);
+			
+			if (m_EnableFrustumCulling)
+			{
+				if (m_EnableOcclusionCulling)
+				{
+					gfx.ExecuteIndirect(m_CommandSignature, m_OcclusionCulledBuffer, 0, opaqueCommandsCount,
+						&m_OcclusionCulledBuffer.GetCounterBuffer());
+				}
+				else
+				{
+					gfx.ExecuteIndirect(m_CommandSignature, m_FrustumCulledBuffer, 0, opaqueCommandsCount,
+						&m_FrustumCulledBuffer.GetCounterBuffer());
+				}
+			}
+			else
+			{
+				gfx.ExecuteIndirect(m_CommandSignature, m_CommandsBuffer, opaqueCommandsOffset * sizeof(IndirectCommand), opaqueCommandsCount);
+			}
 
 			gfx.SetPipelineState(m_MaskIndirectPSO);
 			gfx.ExecuteIndirect(m_CommandSignature, m_CommandsBuffer, maskCommandsOffset * sizeof(IndirectCommand), maskCommandsCount);
@@ -469,7 +555,9 @@ namespace MFalcor
 		else if (alphaMode == AlphaMode::kOPAQUE)
 		{
 			gfx.SetPipelineState(pso);
-			gfx.ExecuteIndirect(m_CommandSignature, m_CommandsBuffer, opaqueCommandsOffset * sizeof(IndirectCommand), opaqueCommandsCount);
+			// gfx.ExecuteIndirect(m_CommandSignature, m_CommandsBuffer, opaqueCommandsOffset * sizeof(IndirectCommand), opaqueCommandsCount);
+			gfx.ExecuteIndirect(m_CommandSignature, m_FrustumCulledBuffer, 0, opaqueCommandsCount,
+				&m_FrustumCulledBuffer.GetCounterBuffer());
 		}
 		else if (alphaMode == AlphaMode::kMASK)
 		{
@@ -577,7 +665,7 @@ namespace MFalcor
 
 		computeContext.SetPipelineState(pso);
 
-		CSConstants csConstants;
+		DeferredCSConstants csConstants;
 		csConstants._ViewportWidth = width;
 		csConstants._ViewportHeight = height;
 		csConstants._NearClip = m_Camera->GetNearClip();
@@ -590,7 +678,7 @@ namespace MFalcor
 		csConstants._InvViewProjMat = MMATH::inverse(csConstants._ViewProjMat);
 		csConstants._ViewMat = Cast(m_Camera->GetViewMatrix());
 		csConstants._ProjMat = Cast(m_Camera->GetProjMatrix());
-		computeContext.SetDynamicConstantBufferView((UINT)DeferredCSRSId::CBConstants, sizeof(CSConstants), &csConstants);
+		computeContext.SetDynamicConstantBufferView((UINT)DeferredCSRSId::CBConstants, sizeof(DeferredCSConstants), &csConstants);
 
 		computeContext.SetDynamicConstantBufferView((UINT)DeferredCSRSId::CommonLights, sizeof(CommonLightSettings), &m_CommonLights);
 
@@ -684,12 +772,207 @@ namespace MFalcor
 		// m_CascadedShadowMap.m_LightShadowTempBuffer.EndRendering(gfx);
 	}
 
+	void Scene::FrustumCulling(ComputeContext& computeContext, const Matrix4x4& viewMat, const Matrix4x4& projMat)
+	{
+		computeContext.TransitionResource(m_CommandsBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		// debug
+		if (m_EnableDebugCulling)
+		{
+			computeContext.TransitionResource(m_DCullValues, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			computeContext.TransitionResource(m_DSummedIndex, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		}
+
+		computeContext.ResetCounter(m_FrustumCulledBuffer);
+
+		computeContext.SetRootSignature(m_CullingRS);
+		computeContext.SetPipelineState(m_FrustumCSPSO);
+
+		uint32_t opaqueCommandsCount = (uint32_t)m_OpaqueInstances.size();
+		uint32_t maskCommandsCount = (uint32_t)m_MaskInstancs.size();
+		uint32_t transparentCommandsCount = (uint32_t)m_TransparentInstances.size();
+		uint32_t opaqueCommandsOffset = 0;
+		uint32_t maskCommandsOffset = opaqueCommandsOffset + opaqueCommandsCount;
+		uint32_t transparentOffset = maskCommandsOffset + maskCommandsCount;
+		uint32_t instanceCount = opaqueCommandsCount + maskCommandsCount + transparentCommandsCount;
+		uint32_t gridDimensions = Math::DivideByMultiple(instanceCount, 1024);
+		computeContext.SetConstants((UINT)IndirectCullingCSRSId::CBConstants, opaqueCommandsOffset, opaqueCommandsCount, instanceCount, gridDimensions);
+
+		CullingCSConstants csConstants;
+		csConstants._ViewProjMat = viewMat * projMat;	
+			// 注：MMath::Cast 其实是将Math::Matrix4 转置(0000 | 1111 | 2222 | 3333)->(0123 | 0123 | ...)，
+			// 但是因为Math::Matrix4 将0000视作一行，MMath::Matrix4x4 将0123视作一列，所以其实矩阵没变，
+			// 所以MMath 矩阵乘法 类似 (V^T * P^T) = (P * V)^T
+		csConstants._InvViewProjMat = MMATH::inverse(csConstants._ViewProjMat);
+		csConstants._ViewMat = viewMat;
+		csConstants._ProjMat = projMat;
+		computeContext.SetDynamicConstantBufferView((UINT)IndirectCullingCSRSId::CBCamera, sizeof(CullingCSConstants), &csConstants);
+
+		computeContext.SetShaderResourceView((UINT)IndirectCullingCSRSId::WorldBounds, m_BoundsDynamicBuffer.GetGpuPointer());
+
+		D3D12_CPU_DESCRIPTOR_HANDLE srvs[] =
+		{
+			m_CommandsBuffer.GetSRV()
+		};
+		computeContext.SetDynamicDescriptors((UINT)IndirectCullingCSRSId::ShaderResources, 0, _countof(srvs), srvs);
+
+		D3D12_CPU_DESCRIPTOR_HANDLE uavs[] =
+		{
+			m_FrustumCulledBuffer.GetUAV(),
+			m_DCullValues.GetUAV(),
+			m_DSummedIndex.GetUAV(),
+		};
+		std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> uavVec;
+		uavVec.push_back(m_FrustumCulledBuffer.GetUAV());
+		if (m_EnableDebugCulling)
+		{
+			uavVec.push_back(m_DCullValues.GetUAV());
+			uavVec.push_back(m_DSummedIndex.GetUAV());
+		}
+		// computeContext.SetDynamicDescriptors((UINT)IndirectCullingCSRSId::Output, 0, _countof(uavs), uavs);
+		computeContext.SetDynamicDescriptors((UINT)IndirectCullingCSRSId::Output, 0, (uint32_t)uavVec.size(), uavVec.data());
+
+		computeContext.Dispatch(gridDimensions, 1, 1);
+
+		if (m_EnableDebugCulling)
+		{
+			computeContext.TransitionResource(m_DCullValues, D3D12_RESOURCE_STATE_GENERIC_READ);
+			computeContext.TransitionResource(m_DSummedIndex, D3D12_RESOURCE_STATE_GENERIC_READ);
+		}
+		computeContext.InsertUAVBarrier(m_FrustumCulledBuffer, true);
+
+	}
+
+	void Scene::UpdateHiZBuffer(ComputeContext& computeContext, Graphics& gfxCore)
+	{
+		auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
+		uint32_t width = depthBuffer.GetWidth(), height = depthBuffer.GetHeight();
+
+		computeContext.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		computeContext.TransitionResource(m_HiZBuffer, D3D12_RESOURCE_STATE_COPY_DEST);
+		computeContext.CopySubresource(m_HiZBuffer, 0, depthBuffer, 0);
+
+		computeContext.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+		
+		// generate Hi-Z mips
+		computeContext.TransitionResource(m_HiZBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		computeContext.SetRootSignature(m_CullingRS);
+		computeContext.SetDynamicDescriptor((UINT)IndirectCullingCSRSId::ShaderResources, 0, m_HiZBuffer.GetSRV());
+
+		uint32_t numMipmaps = s_HiZMips - 1;
+		for (uint32_t topMip = 0; topMip < numMipmaps; )
+		{
+			uint32_t srcWidth = width >> topMip;
+			uint32_t srcHieght = height >> topMip;
+			uint32_t dstWidth = srcWidth >> 1;
+			uint32_t dstHeight = srcHieght >> 1;
+
+			// determine if the first downsample is more than 2: 1. This happens whenever the source
+			// width or height is odd.
+			uint32_t NonPowerOfTwo = (srcWidth & 1) | (srcHieght & 1) << 1;
+			computeContext.SetPipelineState(m_GenerateHiZMipsPSO);
+
+			// we can downsample up to 4 times, but if the ratio between levels is not exactly 2:1, we have to
+			// shift out blend weights, which gets complicated or expensive. Maybe we can update the code later
+			// to compute sample weights for each successive downsample. We use _BitScanForward to count number
+			// of zeros in the low bits. Zeros indicate we can divide by 2 without truncating.
+			uint32_t AdditionalMips;
+			_BitScanForward((unsigned long*)&AdditionalMips,
+				(dstWidth == 1 ? dstHeight : dstWidth) | (dstHeight == 1 ? dstWidth : dstHeight));
+			uint32_t numMips = 1 + (AdditionalMips > 3 ? 3 : AdditionalMips);
+			if ((topMip + numMips) > numMipmaps)
+				numMips = numMipmaps - topMip;
+
+			// these are clamped to 1 after computing additional mips because clamped dimensions should 
+			// not limit us from downsampling multiple times. (E.g. 16x1 -> 8x1 -> 4x1 -> 2x1 -> 1x1)
+			if (dstWidth == 0)
+				dstWidth = 1;
+			if (dstHeight == 0)
+				dstHeight = 1;
+
+			computeContext.SetConstants((UINT)IndirectCullingCSRSId::CBConstants, topMip, numMips, 1.0f / dstWidth, 1.0f / dstHeight);
+			computeContext.SetDynamicDescriptors((UINT)IndirectCullingCSRSId::Output, 0, numMips, m_HiZBuffer.GetMipUAVs() + topMip + 1);
+			computeContext.Dispatch2D(dstWidth, dstHeight);
+
+			computeContext.InsertUAVBarrier(m_HiZBuffer);
+
+			topMip += numMips;
+		}
+
+		computeContext.TransitionResource(m_HiZBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
+			D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+	}
+
+	void Scene::OcclusionCulling(ComputeContext& computeContext, const Matrix4x4& viewMat, const Matrix4x4& projMat)
+	{
+		computeContext.SetRootSignature(m_CullingRS);
+
+		// indirect dispatch args
+		{
+			computeContext.TransitionResource(m_FrustumCulledBuffer, D3D12_RESOURCE_STATE_GENERIC_READ);
+			computeContext.TransitionResource(m_OcclusionCullArgs, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+			computeContext.SetPipelineState(m_OcclusionCullArgsPSO);
+			computeContext.SetDynamicDescriptor((UINT)IndirectCullingCSRSId::ShaderResources, 0, m_FrustumCulledBuffer.GetCounterSRV(computeContext));
+			computeContext.SetDynamicDescriptor((UINT)IndirectCullingCSRSId::Output, 0, m_OcclusionCullArgs.GetUAV());
+			computeContext.Dispatch(1, 1, 1);
+		}
+
+		// occlusion culling
+		{
+			uint32_t width = m_HiZBuffer.GetWidth(), height = m_HiZBuffer.GetHeight();
+
+			computeContext.TransitionResource(m_OcclusionCullArgs, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+
+			computeContext.ResetCounter(m_OcclusionCulledBuffer);
+
+			computeContext.SetPipelineState(m_OcclusionCullingPSO);
+
+			computeContext.SetConstants((UINT)IndirectCullingCSRSId::CBConstants, width, height, s_HiZMips - 1);
+
+			CullingCSConstants csConstants;
+			csConstants._ViewProjMat = viewMat * projMat;
+			csConstants._InvViewProjMat = MMATH::inverse(csConstants._ViewProjMat);
+			csConstants._ViewMat = viewMat;
+			csConstants._ProjMat = projMat;
+			computeContext.SetDynamicConstantBufferView((UINT)IndirectCullingCSRSId::CBCamera, sizeof(CullingCSConstants), &csConstants);
+
+			computeContext.SetShaderResourceView((UINT)IndirectCullingCSRSId::WorldBounds, m_BoundsDynamicBuffer.GetGpuPointer());
+
+			D3D12_CPU_DESCRIPTOR_HANDLE srvs[] =
+			{
+				m_FrustumCulledBuffer.GetSRV(),
+				m_FrustumCulledBuffer.GetCounterSRV(computeContext),
+				m_HiZBuffer.GetSRV()
+			};
+			computeContext.SetDynamicDescriptors((UINT)IndirectCullingCSRSId::ShaderResources, 0, _countof(srvs), srvs);
+
+			D3D12_CPU_DESCRIPTOR_HANDLE uavs[] =
+			{
+				m_OcclusionCulledBuffer.GetUAV()
+			};
+			computeContext.SetDynamicDescriptors((UINT)IndirectCullingCSRSId::Output, 0, _countof(uavs), uavs);
+
+			computeContext.DispatchIndirect(m_OcclusionCullArgs);
+		}
+	}
+
 	void Scene::Clean()
 	{
 		// shadows
 		m_CascadedShadowMap.Clean();
 		// bindless deferred
 		m_BindlessDeferred.Clean();
+
+		// culling
+		m_FrustumCulledBuffer.Destroy();
+		m_HiZBuffer.Destroy();
+		m_OcclusionCulledBuffer.Destroy();
+		m_OcclusionCullArgs.Destroy();
+		// debug
+		m_DCullValues.Destroy();
+		m_DSummedIndex.Destroy();
 
 		m_MaterialsDynamicBuffer.Destroy();
 		m_MatricesDynamicBuffer.Destroy();
@@ -859,17 +1142,29 @@ namespace MFalcor
 	}
 
 	// 
-	void Scene::UpdateBounds()
+	void Scene::UpdateBounds(ID3D12Device* pDevice)
 	{
 		std::vector<BoundingBox> instanceBBs;
-		instanceBBs.reserve(m_MeshInstanceData.size());
+		uint32_t numInstance = (uint32_t)m_MeshInstanceData.size();
+		instanceBBs.reserve(numInstance);
 
+		m_BoundsDynamicBuffer.Create(pDevice, L"WorldBounds", numInstance, sizeof(BoundingBox));
+
+		uint32_t instanceIndex = 0;
 		for (const auto& inst : m_MeshInstanceData)
 		{
 			const BoundingBox& meshBB = m_MeshBBs[inst.meshID];
 			const Matrix4x4& transform = m_GlobalMatrices[inst.globalMatrixID];
-			instanceBBs.push_back(meshBB.Transform(transform));
+
+			const BoundingBox& worldBB = meshBB.Transform(transform);
+			instanceBBs.push_back(worldBB);
+
+			//单次拷贝
+			//m_BoundsDynamicBuffer.CopyToGpu((void*)&worldBB, sizeof(BoundingBox), instanceIndex);
+			//++instanceIndex;
 		}
+		// 整体拷贝
+		m_BoundsDynamicBuffer.CopyToGpu(instanceBBs.data(), sizeof(BoundingBox) * numInstance);
 
 		m_SceneBB = instanceBBs.front();
 		for (const auto& bb : instanceBBs)
@@ -901,6 +1196,21 @@ namespace MFalcor
 		}
 
 		m_CommandsBuffer.Create(pDevice, L"CommandBuffer", drawCount, sizeof(IndirectCommand), drawCommands.data());
+
+		// frustum cull
+		m_FrustumCulledBuffer.Create(pDevice, L"FrustumCulledBuffer", drawCount, sizeof(IndirectCommand));
+
+		// debug
+		if (m_EnableDebugCulling)
+		{
+			m_DCullValues.Create(pDevice, L"DebugCullValues", drawCount, 4);
+			m_DSummedIndex.Create(pDevice, L"DebugSummedIndex", drawCount, 4);
+		}
+
+		// occlusion cull (Hi-Z buffer cull)
+		m_OcclusionCulledBuffer.Create(pDevice, L"OcclusionCulledBuffer", drawCount, sizeof(IndirectCommand));
+		alignas(16) UINT initDispatchIndirectArgs[] = { 1, 1, 1 };
+		m_OcclusionCullArgs.Create(pDevice, L"OcclusionCullArgs", 1, sizeof(D3D12_DISPATCH_ARGUMENTS), initDispatchIndirectArgs);
 	}
 
 	Scene::UpdateFlags Scene::UpdateMaterials(bool forceUpdate)

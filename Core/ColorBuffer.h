@@ -4,6 +4,7 @@
 
 namespace MyDirectX
 {
+	class Graphics;
 	class CommandContext;
 
 	class ColorBuffer : public PixelBuffer
@@ -33,6 +34,7 @@ namespace MyDirectX
 		const D3D12_CPU_DESCRIPTOR_HANDLE& GetSRV() const { return m_SRVHandle; }
 		const D3D12_CPU_DESCRIPTOR_HANDLE& GetRTV() const { return m_RTVHandle; }
 		const D3D12_CPU_DESCRIPTOR_HANDLE& GetUAV() const { return m_UAVHandle[0]; }
+		const D3D12_CPU_DESCRIPTOR_HANDLE* GetMipUAVs() const { return m_UAVHandle; }
 
 		void SetClearColor(Color clearColor) { m_ClearColor = clearColor; }
 
@@ -48,7 +50,7 @@ namespace MyDirectX
 		// this will work for all texture size, but it's recommended for speed and quality that you use
 		// dimensions with power of 2 (but not necessarily square.) Pass 0 for arrayCount to reserve
 		// space for mips at creation time
-		void GenerateMipMaps(CommandContext& context);
+		void GenerateMipMaps(CommandContext& context, Graphics &gfxCore);
 
 	protected:
 		D3D12_RESOURCE_FLAGS CombineResourceFlags() const

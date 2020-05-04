@@ -73,6 +73,12 @@ namespace MyDirectX
 		void CreateDeviceResources();
 		void CreateWindowSizeDependentResources();
 
+		RootSignature m_GenerateMipsRS;
+		//ComputePSO m_GenerateMipsLinearPSO[4];
+		//ComputePSO m_GenerateMipsGammaPSO[4];
+		// ÔÝÊ±Ä¬ÈÏ Power_Of_Two£¬Linear	-2020-5-2
+		ComputePSO m_GenerateMipsPSO;
+
 	private:
 		// CreateDeviceResources
 		void EnableDebugLayer();
@@ -122,10 +128,6 @@ namespace MyDirectX
 		GraphicsPSO m_BicubicHorizontalUpsamplePSO;
 		GraphicsPSO m_BicubicVerticalUpsamplePSO;
 		GraphicsPSO m_SharpeningUpsamplePSO;
-
-		RootSignature m_GenerateMipsRS;
-		ComputePSO m_GenerateMipsLinearPSO[4];
-		ComputePSO m_GenerateMipsGammaPSO[4];
 
 		// resources
 		ColorBuffer m_PreDisplayBuffer;

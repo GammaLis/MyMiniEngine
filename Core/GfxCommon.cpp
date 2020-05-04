@@ -26,6 +26,11 @@
 #include "BufferCopyPS.h"
 
 /**
+	generate mips
+*/
+#include "GenerateMips.h"
+
+/**
 	text
 */
 #include "TextVS.h"
@@ -314,6 +319,11 @@ void ShaderManager::CreateFromByteCode()
 
 	// 
 	m_BufferCopyPS = CD3DX12_SHADER_BYTECODE(BufferCopyPS, sizeof(BufferCopyPS));
+
+	/**
+		generate mips
+	*/
+	m_GenerateMips = CD3DX12_SHADER_BYTECODE(GenerateMips, sizeof(GenerateMips));
 
 	/**
 		text

@@ -687,7 +687,15 @@ namespace MyDirectX
         m_PresentRS[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
         m_PresentRS.InitStaticSampler(0, s_CommonStates.SamplerLinearClampDesc);
         m_PresentRS.InitStaticSampler(1, s_CommonStates.SamplerPointClampDesc);
-        m_PresentRS.Finalize(m_Device.Get(), L"Present");
+        m_PresentRS.Finalize(m_Device.Get(), L"PresentRS");
+
+        // generate Mipmaps RootSignature
+        m_GenerateMipsRS.Reset(3, 1);
+        m_GenerateMipsRS[0].InitAsConstants(0, 4);
+        m_GenerateMipsRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
+        m_GenerateMipsRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4);
+        m_GenerateMipsRS.InitStaticSampler(0, s_CommonStates.SamplerLinearClampDesc);
+        m_GenerateMipsRS.Finalize(m_Device.Get(), L"GenerateMipsRS");
     }
 
     void Graphics::InitPSOs()
@@ -736,6 +744,10 @@ namespace MyDirectX
         m_PresentHDRPSO.SetRenderTargetFormats(2, swapChainFormats, DXGI_FORMAT_UNKNOWN);
         m_PresentHDRPSO.Finalize(m_Device.Get());
 
+        // GenerateMipsPSO
+        m_GenerateMipsPSO.SetRootSignature(m_GenerateMipsRS);
+        m_GenerateMipsPSO.SetComputeShader(s_ShaderManager.m_GenerateMips);
+        m_GenerateMipsPSO.Finalize(m_Device.Get());
     }
 
     void Graphics::PreparePresentHDR()

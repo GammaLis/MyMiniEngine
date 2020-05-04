@@ -34,7 +34,7 @@ namespace MyDirectX
 		GraphicsPSO m_ShadowPSO;
 
 		bool m_IndirectRendering = true;
-		bool m_DeferredRendering = true;
+		bool m_DeferredRendering = false;
 	};
 
 }

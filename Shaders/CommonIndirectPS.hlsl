@@ -164,7 +164,7 @@ float4 main(VSOutput i, bool bFront : SV_IsFrontFace) : SV_TARGET
 	float3 worldPos = i.worldPos;
 
 	// view direction
-	float3 viewDir = normalize(_CamPos - worldPos);
+	float3 viewDir = normalize(worldPos - _CamPos);		// world-space vector from eye to point
 
 	float3 lighting = 0;
 	// direct lighting
@@ -180,7 +180,7 @@ float4 main(VSOutput i, bool bFront : SV_IsFrontFace) : SV_TARGET
 	
 #ifdef BASIC_LIGHTING
 	// ambient
-	lighting += ApplyAmbientLight(baseColor.rgb, 1.0, _AmbientColor);
+	lighting += 0.25f * ApplyAmbientLight(baseColor.rgb, 1.0, _AmbientColor);
 	
 	// 1 directional light
 	lighting += ApplyDirectionalLight(baseColor.rgb, specularAlbedo, specularMask, gloss, normal, viewDir,
@@ -197,7 +197,8 @@ float4 main(VSOutput i, bool bFront : SV_IsFrontFace) : SV_TARGET
 	// debug
 	// lighting = baseColor.rgb;
 	
-	//
+	// occlusiont有问题，暂时设置为1.0
+	occlusion = 1.0f;
 	color.rgb = emissive.rgb + lighting * occlusion + indirectLighting;
 	// baseColor.rgb *= baseColor.a;	// premultiplied color
 

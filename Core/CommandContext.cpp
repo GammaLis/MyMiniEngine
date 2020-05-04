@@ -905,10 +905,20 @@ void ComputeContext::SetBufferSRV(UINT rootIndex, const GpuBuffer& srv, UINT64 o
 	m_CommandList->SetComputeRootShaderResourceView(rootIndex, srv.GetGpuVirtualAddress() + offset);
 }
 
+void ComputeContext::SetShaderResourceView(UINT rootIndex, D3D12_GPU_VIRTUAL_ADDRESS srv)
+{
+	m_CommandList->SetComputeRootShaderResourceView(rootIndex, srv);
+}
+
 void ComputeContext::SetBufferUAV(UINT rootIndex, const GpuBuffer& uav, UINT64 offset)
 {
 	ASSERT((uav.m_UsageState & D3D12_RESOURCE_STATE_UNORDERED_ACCESS) != 0);
 	m_CommandList->SetComputeRootUnorderedAccessView(rootIndex, uav.GetGpuVirtualAddress() + offset);
+}
+
+void ComputeContext::SetUnorderedAccessView(UINT rootIndex, D3D12_GPU_VIRTUAL_ADDRESS uav)
+{
+	m_CommandList->SetComputeRootUnorderedAccessView(rootIndex, uav);
 }
 
 void ComputeContext::SetDescriptorTable(UINT rootIndex, D3D12_GPU_DESCRIPTOR_HANDLE firstHandle)

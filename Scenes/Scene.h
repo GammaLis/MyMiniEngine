@@ -18,6 +18,7 @@
 namespace MyDirectX
 {
 	class GameInput;
+	class Graphics;
 	class GraphicsContext;
 	class ComputeContext;
 }
@@ -79,6 +80,16 @@ namespace MFalcor
 		DecalTable,
 		DecalTextures,
 		OutputTarget,
+
+		Count
+	};
+	enum class IndirectCullingCSRSId
+	{
+		CBConstants = 0,
+		CBCamera,
+		WorldBounds,
+		ShaderResources,
+		Output,
 
 		Count
 	};
@@ -186,6 +197,12 @@ namespace MFalcor
 		void DeferredRender(ComputeContext& computeContext, ComputePSO &pso);
 
 		void RenderSunShadows(GraphicsContext& gfx);
+
+		// frustum cull
+		void FrustumCulling(ComputeContext& computeContext, const Matrix4x4 &viewMat, const Matrix4x4 &projMat);
+		// hierarchical z buffer occlusion
+		void UpdateHiZBuffer(ComputeContext& computeContext, Graphics &gfxCore);
+		void OcclusionCulling(ComputeContext& computeContext, const Matrix4x4& viewMat, const Matrix4x4& projMat);
 
 		// render the scene using raytracing
 		void Raytrace();
@@ -350,7 +367,7 @@ namespace MFalcor
 		void UpdateMatrices();
 
 		// update the scene's global bounding box
-		void UpdateBounds();
+		void UpdateBounds(ID3D12Device* pDevice);
 
 		// create the draw list for rasterization
 		void CreateDrawList(ID3D12Device* pDevice);
@@ -438,12 +455,25 @@ namespace MFalcor
 		// resources
 		DynamicUploadBuffer m_MaterialsDynamicBuffer;
 		DynamicUploadBuffer m_MatricesDynamicBuffer;
+		DynamicUploadBuffer m_BoundsDynamicBuffer;
 
 		StructuredBuffer m_MaterialsBuffer;
 		StructuredBuffer m_MeshesBuffer;
 		StructuredBuffer m_MeshInstancesBuffer;
 		StructuredBuffer m_LightsBuffer;
 		StructuredBuffer m_CommandsBuffer;
+		
+		StructuredBuffer m_FrustumCulledBuffer;
+		ColorBuffer m_HiZBuffer;
+		StructuredBuffer m_OcclusionCulledBuffer;
+		IndirectArgsBuffer m_OcclusionCullArgs;
+		bool m_EnableFrustumCulling = true;
+		bool m_EnableOcclusionCulling = true;
+
+		// debug
+		bool m_EnableDebugCulling = false;
+		ByteAddressBuffer m_DCullValues;
+		ByteAddressBuffer m_DSummedIndex;
 
 		// texture srv descriptors
 		UserDescriptorHeap m_TextureDescriptorHeap;
@@ -492,6 +522,8 @@ namespace MFalcor
 		// indirect rendering
 		RootSignature m_CommonIndirectRS;
 		CommandSignature m_CommandSignature;
+		GraphicsPSO m_DepthIndirectPSO;
+		GraphicsPSO m_DepthClipIndirectPSO;
 		GraphicsPSO m_OpaqueIndirectPSO;
 		GraphicsPSO m_MaskIndirectPSO;
 		GraphicsPSO m_TransparentIndirectPSO;
@@ -506,6 +538,13 @@ namespace MFalcor
 		GraphicsPSO m_MaskGBufferPSO;
 		RootSignature m_DeferredCSRS;
 		ComputePSO m_DeferredCSPSO;
+
+		// gpu culling
+		RootSignature m_CullingRS;
+		ComputePSO m_FrustumCSPSO;
+		ComputePSO m_GenerateHiZMipsPSO;
+		ComputePSO m_OcclusionCullArgsPSO;
+		ComputePSO m_OcclusionCullingPSO;
 	};
 
 }

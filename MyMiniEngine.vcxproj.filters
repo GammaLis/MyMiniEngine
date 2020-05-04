@@ -83,6 +83,9 @@
     <Filter Include="Shaders\Common">
       <UniqueIdentifier>{2bad0dd8-7e16-47cf-b9a7-1f3867c1ac60}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Core\Shaders\GenerateMips">
+      <UniqueIdentifier>{73fb146b-cfe7-4387-860d-b13289d42956}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\GpuResource.h">
@@ -663,6 +666,9 @@
     <None Include="Shaders\Quaternion.hlsli">
       <Filter>Shaders\Utility</Filter>
     </None>
+    <None Include="Shaders\CommonCullingRS.hlsli">
+      <Filter>Shaders\IndirectRendering</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Core\Shaders\TextVS.hlsl">
@@ -879,6 +885,21 @@
       <Filter>Shaders\IndirectRendering</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\IndirectDepthCutoutPS.hlsl">
+      <Filter>Shaders\IndirectRendering</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\FrustumCullingCS.hlsl">
+      <Filter>Shaders\IndirectRendering</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\GenerateMips.hlsl">
+      <Filter>Core\Shaders\GenerateMips</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\OcclusionCullingCS.hlsl">
+      <Filter>Shaders\IndirectRendering</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\OcclusionCullArgsCS.hlsl">
+      <Filter>Shaders\IndirectRendering</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\GenerateHiZMipsCS.hlsl">
       <Filter>Shaders\IndirectRendering</Filter>
     </FxCompile>
   </ItemGroup>

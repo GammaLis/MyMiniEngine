@@ -59,21 +59,35 @@ void SceneViewer::RenderForward()
 
 	gfx.ClearColor(colorBuffer);
 	gfx.ClearDepthAndStencil(depthBuffer);
-	gfx.SetRenderTarget(colorBuffer.GetRTV(), depthBuffer.GetDSV());
+	// gfx.SetRenderTarget(colorBuffer.GetRTV(), depthBuffer.GetDSV());
 	gfx.SetViewportAndScissor(m_MainViewport, m_MainScissor);
-
-	gfx.SetRootSignature(m_IndirectRendering ? m_MainScene->m_CommonIndirectRS : m_MainScene->m_CommonRS);
 
 	// camera
 	const auto pCamera = m_MainScene->GetCamera();
+
+	// frustum culling
+	m_MainScene->FrustumCulling(gfx.GetComputeContext(), MFalcor::Cast(pCamera->GetViewMatrix()), MFalcor::Cast(pCamera->GetProjMatrix()));
+
+	gfx.SetRootSignature(m_IndirectRendering ? m_MainScene->m_CommonIndirectRS : m_MainScene->m_CommonRS);
+
 	m_MainScene->SetRenderCamera(gfx, MFalcor::Cast(pCamera->GetViewProjMatrix()), MFalcor::Cast(pCamera->GetPosition()),
 		m_IndirectRendering ? (UINT)CommonIndirectRSId::CBPerCamera : (UINT)CommonRSId::CBPerCamera);
+
+	// Z-prepass
+	gfx.SetRenderTargets(0, nullptr, depthBuffer.GetDSV());
+	m_MainScene->IndirectRender(gfx, m_MainScene->m_DepthIndirectPSO, AlphaMode::kOPAQUE);
+	m_MainScene->IndirectRender(gfx, m_MainScene->m_DepthClipIndirectPSO, AlphaMode::kMASK);
+	// update Hi-Z buffer
+	m_MainScene->UpdateHiZBuffer(gfx.GetComputeContext(), *m_Gfx);
+	m_MainScene->OcclusionCulling(gfx.GetComputeContext(), MFalcor::Cast(pCamera->GetViewMatrix()), MFalcor::Cast(pCamera->GetProjMatrix()));
 
 	// lights
 	m_MainScene->SetAmbientLight(Vector3(0.8f, 0.2f, 0.2f));
 	m_MainScene->SetCommonLights(gfx, m_IndirectRendering ?
-	(UINT)CommonIndirectRSId::CBLights : (UINT)CommonRSId::CBLights);
+		(UINT)CommonIndirectRSId::CBLights : (UINT)CommonRSId::CBLights);
 
+	// normal pass
+	gfx.SetRenderTarget(colorBuffer.GetRTV(), depthBuffer.GetDSV());
 	if (m_IndirectRendering)
 		m_MainScene->IndirectRender(gfx, m_MainScene->m_OpaqueIndirectPSO);
 	else
