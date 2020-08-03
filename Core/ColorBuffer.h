@@ -47,10 +47,22 @@ namespace MyDirectX
 
 		Color GetClearColor() const { return m_ClearColor; }
 
+		uint32_t GetMipNums() const { return m_NumMipmaps; }
+
 		// this will work for all texture size, but it's recommended for speed and quality that you use
 		// dimensions with power of 2 (but not necessarily square.) Pass 0 for arrayCount to reserve
 		// space for mips at creation time
 		void GenerateMipMaps(CommandContext& context, Graphics &gfxCore);
+
+		// compute the number of texture levels needed to reduce to 1x1. This uses _BitScanReverse
+		// to find the highest set bit. Each dimension reduces by half and truncates bits. 
+		// The dimension 256 (0x100) has 9 mip levels, same as the dimension 511 (0x1FF)
+		static inline uint32_t ComputeNumMips(uint32_t width, uint32_t height)
+		{
+			uint32_t highBit;
+			_BitScanReverse((unsigned long*)&highBit, width | height);
+			return highBit + 1;
+		}
 
 	protected:
 		D3D12_RESOURCE_FLAGS CombineResourceFlags() const
@@ -63,16 +75,6 @@ namespace MyDirectX
 			}
 
 			return D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | flags;
-		}
-
-		// compute the number of texture levels needed to reduce to 1x1. This uses _BitScanReverse
-		// to find the highest set bit. Each dimension reduces by half and truncates bits. 
-		// The dimension 256 (0x100) has 9 mip levels, same as the dimension 511 (0x1FF)
-		static inline uint32_t ComputeNumMips(uint32_t width, uint32_t height)
-		{
-			uint32_t highBit;
-			_BitScanReverse((unsigned long*)&highBit, width | height);
-			return highBit + 1;
 		}
 
 		void CreateDerivedViews(ID3D12Device* pDevice, DXGI_FORMAT format, uint32_t arraySize, uint32_t numMips = 1);

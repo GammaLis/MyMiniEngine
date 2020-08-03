@@ -18,14 +18,21 @@
 #include "IndirectDepthVS.h"
 #include "IndirectDepthCutoutPS.h"
 
+// deferred shading
 #include "IndirectGBufferVS.h"
 #include "IndirectGBufferPS.h"
 #include "DeferredCS.h"
 
+// culling
 #include "FrustumCullingCS.h"
 #include "GenerateHiZMipsCS.h"
 #include "OcclusionCullArgsCS.h"
 #include "OcclusionCullingCS.h"
+
+// voxelization
+#include "VoxelizationVS.h"
+#include "VoxelizationGS.h"
+#include "VoxelizationPS.h"
 
 namespace MFalcor
 {
@@ -117,17 +124,18 @@ namespace MFalcor
 				m_CommonRS.Finalize(pDevice, L"AiCommonRS", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 				// common indirect RS
-				m_CommonIndirectRS.Reset(10, 2);
+				m_CommonIndirectRS.Reset(11, 2);
 				m_CommonIndirectRS[0].InitAsConstants(0, 4);
 				m_CommonIndirectRS[1].InitAsConstantBuffer(1);
 				m_CommonIndirectRS[2].InitAsConstantBuffer(2);
-				m_CommonIndirectRS[3].InitAsBufferSRV(0, 1);
-				m_CommonIndirectRS[4].InitAsBufferSRV(1, 1);
-				m_CommonIndirectRS[5].InitAsBufferSRV(2, 1);
-				m_CommonIndirectRS[6].InitAsBufferSRV(3, 1);
-				m_CommonIndirectRS[7].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, -1, 1, D3D12_SHADER_VISIBILITY_PIXEL);
-				m_CommonIndirectRS[8].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 8, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-				m_CommonIndirectRS[9].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2);
+				m_CommonIndirectRS[3].InitAsConstantBuffer(3);
+				m_CommonIndirectRS[4].InitAsBufferSRV(0, 1);
+				m_CommonIndirectRS[5].InitAsBufferSRV(1, 1);
+				m_CommonIndirectRS[6].InitAsBufferSRV(2, 1);
+				m_CommonIndirectRS[7].InitAsBufferSRV(3, 1);
+				m_CommonIndirectRS[8].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, -1, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+				m_CommonIndirectRS[9].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 8, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+				m_CommonIndirectRS[10].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2);
 				m_CommonIndirectRS.InitStaticSampler(0, Graphics::s_CommonStates.SamplerLinearWrapDesc);
 				m_CommonIndirectRS.InitStaticSampler(1, Graphics::s_CommonStates.SamplerPointClampDesc);
 				m_CommonIndirectRS.Finalize(pDevice, L"CommonIndirectRS", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
@@ -341,7 +349,7 @@ namespace MFalcor
 
 				// occlusion culling
 				DXGI_FORMAT depthFormat = depthBuffer.GetFormat();
-				m_HiZBuffer.Create(pDevice, L"HiZBuffer", depthBuffer.GetWidth(), depthBuffer.GetHeight(), s_HiZMips, DXGI_FORMAT_R32_FLOAT);
+				m_HiZBuffer.Create(pDevice, L"HiZBuffer", depthBuffer.GetWidth(), depthBuffer.GetHeight(), 0, DXGI_FORMAT_R32_FLOAT);	// 0 s_HiZMips
 
 				// generate Hi-Z mips
 				m_GenerateHiZMipsPSO.SetRootSignature(m_CullingRS);
@@ -356,6 +364,19 @@ namespace MFalcor
 				m_OcclusionCullingPSO.SetRootSignature(m_CullingRS);
 				m_OcclusionCullingPSO.SetComputeShader(OcclusionCullingCS, sizeof(OcclusionCullingCS));
 				m_OcclusionCullingPSO.Finalize(pDevice);
+			}
+
+			// voxelization
+			{
+				m_VoxelizationPSO = m_DepthIndirectPSO;
+				m_VoxelizationPSO.SetVertexShader(VoxelizationVS, sizeof(VoxelizationVS));
+				m_VoxelizationPSO.SetGeometryShader(VoxelizationGS, sizeof(VoxelizationGS));
+				m_VoxelizationPSO.SetPixelShader(VoxelizationPS, sizeof(VoxelizationPS));
+				m_VoxelizationPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerTwoSided);
+				m_VoxelizationPSO.SetBlendState(Graphics::s_CommonStates.BlendNoColorWrite);
+				m_VoxelizationPSO.SetDepthStencilState(Graphics::s_CommonStates.DepthStateDisabled);	// zwrite off, ztest off
+				m_VoxelizationPSO.SetRenderTargetFormats(0, nullptr, depthBuffer.GetFormat());
+				m_VoxelizationPSO.Finalize(pDevice);
 			}
 		}
 
@@ -859,7 +880,7 @@ namespace MFalcor
 		computeContext.SetRootSignature(m_CullingRS);
 		computeContext.SetDynamicDescriptor((UINT)IndirectCullingCSRSId::ShaderResources, 0, m_HiZBuffer.GetSRV());
 
-		uint32_t numMipmaps = s_HiZMips - 1;
+		uint32_t numMipmaps = m_HiZBuffer.GetMipNums(); // m_HiZBuffer.GetMipNums();	s_HiZMips - 1;
 		for (uint32_t topMip = 0; topMip < numMipmaps; )
 		{
 			uint32_t srcWidth = width >> topMip;
@@ -929,7 +950,8 @@ namespace MFalcor
 
 			computeContext.SetPipelineState(m_OcclusionCullingPSO);
 
-			computeContext.SetConstants((UINT)IndirectCullingCSRSId::CBConstants, width, height, s_HiZMips - 1);
+			uint32_t numMips = m_HiZBuffer.GetMipNums();	// m_HiZBuffer.GetMipNums() s_HiZMips - 1
+			computeContext.SetConstants((UINT)IndirectCullingCSRSId::CBConstants, width, height, numMips);
 
 			CullingCSConstants csConstants;
 			csConstants._ViewProjMat = viewMat * projMat;

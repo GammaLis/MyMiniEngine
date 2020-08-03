@@ -19,6 +19,7 @@ namespace MyDirectX
 
 		void RenderForward();
 		void RenderDeferred();
+		void Voxelization();
 
 		virtual void PostProcess() override;
 

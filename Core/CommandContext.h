@@ -224,6 +224,7 @@ namespace MyDirectX
 		void SetConstants(UINT rootIndex, DWParam X, DWParam Y);
 		void SetConstants(UINT rootIndex, DWParam X, DWParam Y, DWParam Z);
 		void SetConstants(UINT rootIndex, DWParam X, DWParam Y, DWParam Z, DWParam W);
+		void SetConstants(UINT rootIndex, UINT num32BitValuesToSet, const void* pSrcData, UINT destOffsetIn32BitValues = 0);
 		void SetConstantBuffer(UINT rootIndex, D3D12_GPU_VIRTUAL_ADDRESS cbv);
 		void SetDynamicConstantBufferView(UINT rootIndex, size_t bufferSize, const void* bufferData);
 		void SetBufferSRV(UINT rootIndex, const GpuBuffer& srv, UINT64 offset = 0);
@@ -272,6 +273,7 @@ namespace MyDirectX
 		void SetConstants(UINT rootIndex, DWParam X, DWParam Y);
 		void SetConstants(UINT rootIndex, DWParam X, DWParam Y, DWParam Z);
 		void SetConstants(UINT rootIndex, DWParam X, DWParam Y, DWParam Z, DWParam W);
+		void SetConstants(UINT rootIndex, UINT num32BitValuesToSet, const void *pSrcData, UINT destOffsetIn32BitValues = 0);
 		void SetConstantBuffer(UINT rootIndex, D3D12_GPU_VIRTUAL_ADDRESS cbv);
 		void SetDynamicConstantBufferView(UINT rootIndex, size_t bufferSize, const void* bufferData);
 		void SetDynamicSRV(UINT rootIndex, size_t bufferSize, const void* bufferData);

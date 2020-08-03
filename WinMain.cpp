@@ -5,6 +5,7 @@
 #include "ModelViewer.h"
 #include "glTFViewer.h"
 #include "SceneViewer.h"
+#include "OceanViewer.h"
 
 #include "CubemapIBLApp.h"
 
@@ -59,7 +60,8 @@ int main(int argc, const char* argv[])
 	// MyDirectX::IGameApp gApp(hInst);
 	// MyDirectX::ModelViewer gApp(hInst, L"ModelViewer", 1280, 720);
 	// MyDirectX::glTFViewer gApp(hInst, "Models/buster_drone.gltf", L"glTFViewer", 1280, 720);
-	MyDirectX::SceneViewer gApp(hInst, L"SceneViewer"/*, 1280, 720*/);
+	// MyDirectX::SceneViewer gApp(hInst, L"SceneViewer"/*, 1280, 720*/);
+	MyDirectX::OceanViewer gApp(hInst, L"OceanViewer"/*, 1280, 720*/);
 
 	int ret = 0;
 	if (gApp.Init())
@@ -68,7 +70,7 @@ int main(int argc, const char* argv[])
 	}
 
 	gApp.Cleanup();
-
+	
 #elif defined(COMMON_COMPUTE)
 	int ret = 0;
 	MyDirectX::CubemapIBLApp myApp;
@@ -77,6 +79,7 @@ int main(int argc, const char* argv[])
 	myApp.Run();
 	ret = myApp.SaveToFile("CommonCompute/Test.png");
 	myApp.Cleanup();
+
 #else
 	// 2. MyBaseApp
 	MyDirectX::MyBaseApp myApp(hInst, L"Hello, World!");

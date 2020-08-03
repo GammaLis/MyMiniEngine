@@ -6,6 +6,7 @@
 	"RootConstants(b0, num32BitConstants = 4)," \
 	"CBV(b1)," \
 	"CBV(b2)," \
+	"CBV(b3)," \
 	"SRV(t0, space = 1)," \
     "SRV(t1, space = 1)," \
     "SRV(t2, space = 1)," \
@@ -44,29 +45,29 @@
 /**
  * https://docs.microsoft.com/zh-cn/windows/win32/direct3d12/specifying-root-signatures-in-hlsl
  * RootSignature
- * RootFlags - ¿ÉÑ¡µÄRootFlags²ÉÓÃ0£¨Ä¬ÈÏÖµ£¬±íÊ¾ÎÞ±êÖ¾£©£¬»òÒ»¸ö»ò¶à¸öÔ¤¶¨ÒåµÄ¸ù±êÖ¾Öµ£¨Í¨¹ýOR"|"Á¬½Ó£©
- *
+ * RootFlags - 可选的RootFlags采用0（默认值，表示无标志），或一个或多个预定义的根标志值（通过OR"|"连接）
+ * 
  * typedef enum D3D12_ROOT_SIGNATURE_FLAGS {
-      D3D12_ROOT_SIGNATURE_FLAG_NONE,
-      D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT,
-      D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS,
-      D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS,
-      D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS,
-      D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS,
-      D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS,
-      D3D12_ROOT_SIGNATURE_FLAG_ALLOW_STREAM_OUTPUT,
-      D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE
-    } ;
-
- *	RootConstants - 2¸ö±ØÐèµÄ²ÎÊýÊÇcbufferµÄnum32BitConstantsºÍbReg, space ºÍvisibilityÊÇ¿ÉÑ¡µÄ
+	  D3D12_ROOT_SIGNATURE_FLAG_NONE,
+	  D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT,
+	  D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS,
+	  D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS,
+	  D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS,
+	  D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS,
+	  D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS,
+	  D3D12_ROOT_SIGNATURE_FLAG_ALLOW_STREAM_OUTPUT,
+	  D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE
+	} ;
+	
+ *	RootConstants - 2个必需的参数是cbuffer的num32BitConstants和bReg, space 和visibility是可选的
  *	RootCosntants(num32BitConstants = N, bReg[, space = 0, visibility = SHADER_VISIBILITY_ALL])
  *
- * 	Visibility - ¿ÉÑ¡²ÎÊý
- * 	SHADER_VISIBILITY_ALL½«¸ù²ÎÊý¹ã²¥µ½ËùÓÐ×ÅÉ«Æ÷¡£ÔÚÄ³Ð©Ó²¼þÉÏ£¬´Ë²Ù×÷²»»áÔì³É¿ªÏú£¬µ«ÔÚÆäËûÓ²¼þÉÏ£¬
- *½«Êý¾Ý·Ö²æµ½ËùÓÐ×ÅÉ«Æ÷½×¶Î»áÔì³É¿ªÏú¡£ÉèÖÃÆäÖÐÒ»¸öÑ¡Ïî£¨ÀýÈçSHADER_VISIBILITY_VERTEX£©»á½«¸ù²ÎÊý
- *ÏÞÖÆµ½µ¥¸ö×ÅÉ«Æ÷
- *	½«¸ú²ÎÊýÉèÖÃµ½µ¥¸ö×ÅÉ«Æ÷½×¶Î¿ÉÔÚ²»Í¬µÄ½×¶ÎÊ¹ÓÃÏàÍ¬µÄ°ó¶¨Ãû³Æ¡£ ÀýÈç£¬t0, SHADER_VISIBILITY_VERTEX SRV°ó¶¨
- *ºÍt0, SHADER_VISIBILITY_PIXEL SRV °ó¶¨ÊÇÓÐÐ§µÄ¡£
+ * 	Visibility - 可选参数
+ * 	SHADER_VISIBILITY_ALL将根参数广播到所有着色器。在某些硬件上，此操作不会造成开销，但在其他硬件上，
+ *将数据分叉到所有着色器阶段会造成开销。设置其中一个选项（例如SHADER_VISIBILITY_VERTEX）会将根参数
+ *限制到单个着色器
+ *	将跟参数设置到单个着色器阶段可在不同的阶段使用相同的绑定名称。 例如，t0, SHADER_VISIBILITY_VERTEX SRV绑定
+ *和t0, SHADER_VISIBILITY_PIXEL SRV 绑定是有效的。
  *
  * 	CBV(bReg[, space = 0, visibility = ...])
  * 	SRV(tReg[, space = 0, visibliity = ...])
@@ -76,10 +77,10 @@
  * 		CBV(bReg, [numDescriptors = 1, space = 0, offset = DESCRIPTOR_RANGE_OFFSET_APPEND, flags = ...])
  *   	SRV(tReg, [numDescriptors = 1, space = 0, offset = DESCRIPTOR_RANGE_OFFSET_APPEND, flags = ...])
  *   	UAV(uReg, [numDescriptors = 1, space = 0, offset = DESCRIPTOR_RANGE_OFFSET_APPEND, flags = ...])
- * 	µ±numDescriptorsÎªÊý×ÖÊ±£¬¸ÃÌõÄ¿ÉùÃ÷cbuffer·¶Î§[Reg, Reg + numDescriptors - 1]
- * 	Èç¹ûnumDescriptorsµÈÓÚ"unbounded"£¬Ôò·¶Î§Îª[Reg, UINT_MAX],ÕâÒâÎ¶×Å£¬Ó¦ÓÃ±ØÐëÈ·±£Ëü²»»á
- * 	ÒýÓÃ½çÍâÇøÓò
- *
+ * 	当numDescriptors为数字时，该条目声明cbuffer范围[Reg, Reg + numDescriptors - 1]
+ * 	如果numDescriptors等于"unbounded"，则范围为[Reg, UINT_MAX],这意味着，应用必须确保它不会
+ * 	引用界外区域
+ * 
  *  StaticSampler(sReg[,
  *  	filter = FILTER_ANISOTROPIC,
  *  	addressU = TEXTURE_ADDRESS_WRAP,

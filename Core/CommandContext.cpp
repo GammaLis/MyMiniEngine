@@ -645,6 +645,11 @@ void GraphicsContext::SetConstants(UINT rootIndex, DWParam X, DWParam Y, DWParam
 	m_CommandList->SetGraphicsRoot32BitConstant(rootIndex, W.Uint, 3);
 }
 
+void GraphicsContext::SetConstants(UINT rootIndex, UINT num32BitValuesToSet, const void* pSrcData, UINT destOffsetIn32BitValues)
+{
+	m_CommandList->SetGraphicsRoot32BitConstants(rootIndex, num32BitValuesToSet, pSrcData, destOffsetIn32BitValues);
+}
+
 void GraphicsContext::SetConstantBuffer(UINT rootIndex, D3D12_GPU_VIRTUAL_ADDRESS cbv)
 {
 	m_CommandList->SetGraphicsRootConstantBufferView(rootIndex, cbv);
@@ -875,6 +880,11 @@ void ComputeContext::SetConstants(UINT rootIndex, DWParam X, DWParam Y, DWParam 
 	m_CommandList->SetComputeRoot32BitConstant(rootIndex, Y.Uint, 1);
 	m_CommandList->SetComputeRoot32BitConstant(rootIndex, Z.Uint, 2);
 	m_CommandList->SetComputeRoot32BitConstant(rootIndex, W.Uint, 3);
+}
+
+void ComputeContext::SetConstants(UINT rootIndex, UINT num32BitValuesToSet, const void* pSrcData, UINT destOffsetIn32BitValues)
+{
+	m_CommandList->SetComputeRoot32BitConstants(rootIndex, num32BitValuesToSet, pSrcData, destOffsetIn32BitValues);
 }
 
 void ComputeContext::SetConstantBuffer(UINT rootIndex, D3D12_GPU_VIRTUAL_ADDRESS cbv)

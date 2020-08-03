@@ -23,7 +23,7 @@ groupshared float sh_Z[64];
 [numthreads(GroupSize, GroupSize, 1)]
 void main( uint3 dtid : SV_DispatchThreadID, uint gtindex : SV_GroupIndex )
 {
-	float2 uv0 = (dtid.xy + 0.5) * _TexelSize;
+	float2 uv0 = (dtid.xy + float2(0.25, 0.25)) * _TexelSize;
 	float2 uv1 = uv0 + float2(0.5, 0.0) * _TexelSize;
 	float2 uv2 = uv0 + float2(0.0, 0.5) * _TexelSize;
 	float2 uv3 = uv0 + float2(0.5, 0.5) * _TexelSize;

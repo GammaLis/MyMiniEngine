@@ -86,6 +86,12 @@
     <Filter Include="Core\Shaders\GenerateMips">
       <UniqueIdentifier>{73fb146b-cfe7-4387-860d-b13289d42956}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\Voxelization">
+      <UniqueIdentifier>{33b92a70-1dd3-4947-a0d0-c19e2c0f0b11}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\WaterWave">
+      <UniqueIdentifier>{b284a5b4-6d05-4ae1-ab74-736939cc9dfa}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\GpuResource.h">
@@ -364,6 +370,12 @@
     <ClInclude Include="ShadowUtility.h">
       <Filter>Scenes</Filter>
     </ClInclude>
+    <ClInclude Include="Voxelization.h" />
+    <ClInclude Include="Texture3D.h" />
+    <ClInclude Include="OceanViewer.h" />
+    <ClInclude Include="Scenes\DebugPass.h">
+      <Filter>Scenes</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -564,6 +576,10 @@
     <ClCompile Include="ShadowUtility.cpp">
       <Filter>Scenes</Filter>
     </ClCompile>
+    <ClCompile Include="Voxelization.cpp" />
+    <ClCompile Include="Texture3D.cpp" />
+    <ClCompile Include="OceanViewer.cpp" />
+    <ClCompile Include="Scenes\DebugPass.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Core\Math\Functions.inl">
@@ -668,6 +684,18 @@
     </None>
     <None Include="Shaders\CommonCullingRS.hlsli">
       <Filter>Shaders\IndirectRendering</Filter>
+    </None>
+    <None Include="Shaders\Voxelization\VoxelUtility.hlsli">
+      <Filter>Shaders\Utility</Filter>
+    </None>
+    <None Include="Shaders\Utility.hlsli">
+      <Filter>Shaders\Utility</Filter>
+    </None>
+    <None Include="Shaders\WaterWave\WaterWaveRS.hlsli">
+      <Filter>Shaders\WaterWave</Filter>
+    </None>
+    <None Include="Shaders\WaterWave\FFT.hlsli">
+      <Filter>Shaders\WaterWave</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -901,6 +929,42 @@
     </FxCompile>
     <FxCompile Include="Shaders\GenerateHiZMipsCS.hlsl">
       <Filter>Shaders\IndirectRendering</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Voxelization\VoxelizationVS.hlsl">
+      <Filter>Shaders\Voxelization</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Voxelization\VoxelizationGS.hlsl">
+      <Filter>Shaders\Voxelization</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Voxelization\VoxelizationPS.hlsl">
+      <Filter>Shaders\Voxelization</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\WaterWave\InitH0SpectrumCS.hlsl">
+      <Filter>Shaders\WaterWave</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\WaterWave\UpdateSpectrumCS.hlsl">
+      <Filter>Shaders\WaterWave</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\WaterWave\GenerateFFTWeightsCS.hlsl">
+      <Filter>Shaders\WaterWave</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\WaterWave\FFTHorizontalCS.hlsl">
+      <Filter>Shaders\WaterWave</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\WaterWave\WaterShadingVS.hlsl">
+      <Filter>Shaders\WaterWave</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\WaterWave\WaterShadingPS.hlsl">
+      <Filter>Shaders\WaterWave</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\CommonDebug.hlsl">
+      <Filter>Shaders\Common</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\WaterWave\FFTVerticalCS.hlsl">
+      <Filter>Shaders\WaterWave</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\WaterWave\CombineIFFTOutputsCS.hlsl">
+      <Filter>Shaders\WaterWave</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

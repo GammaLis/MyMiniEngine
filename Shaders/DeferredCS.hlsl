@@ -463,7 +463,7 @@ void ShadeSample(in uint2 pixelPos, in uint sampleIdx, in uint numMSAASamples)
 			}
 		}
 		// debug 指定阴影层级
-		// 目前之渲染一级阴影 -2020-4-29
+		// 目前只渲染一级阴影 -2020-4-29
 		split = 0;
 		matrix activeViewProjMat = _LightViewProjMat[split];
 		float4 shadowCoord = mul(float4(worldPos, 1.0f), activeViewProjMat);

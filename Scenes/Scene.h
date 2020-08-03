@@ -46,6 +46,7 @@ namespace MFalcor
 		CBConstants = 0,
 		CBPerCamera,
 		CBLights,
+		CBMiscs,		// others
 		MatrixTable,
 		MaterialTable,
 		MeshTable,
@@ -196,6 +197,7 @@ namespace MFalcor
 		void RenderToGBuffer(GraphicsContext& gfx, GraphicsPSO &pso, AlphaMode alphaMode = AlphaMode::UNKNOWN);
 		void DeferredRender(ComputeContext& computeContext, ComputePSO &pso);
 
+		// sun shadows
 		void RenderSunShadows(GraphicsContext& gfx);
 
 		// frustum cull
@@ -545,6 +547,9 @@ namespace MFalcor
 		ComputePSO m_GenerateHiZMipsPSO;
 		ComputePSO m_OcclusionCullArgsPSO;
 		ComputePSO m_OcclusionCullingPSO;
+
+		// voxelization
+		GraphicsPSO m_VoxelizationPSO;
 	};
 
 }
