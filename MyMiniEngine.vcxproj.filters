@@ -92,6 +92,9 @@
     <Filter Include="Shaders\WaterWave">
       <UniqueIdentifier>{b284a5b4-6d05-4ae1-ab74-736939cc9dfa}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\Misc">
+      <UniqueIdentifier>{4f390f97-b945-46aa-8185-072149613648}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\GpuResource.h">
@@ -372,9 +375,14 @@
     </ClInclude>
     <ClInclude Include="Voxelization.h" />
     <ClInclude Include="Texture3D.h" />
-    <ClInclude Include="OceanViewer.h" />
     <ClInclude Include="Scenes\DebugPass.h">
       <Filter>Scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="OceanViewer.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="VoronoiTextureGenerator.h">
+      <Filter>Game</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -578,8 +586,15 @@
     </ClCompile>
     <ClCompile Include="Voxelization.cpp" />
     <ClCompile Include="Texture3D.cpp" />
-    <ClCompile Include="OceanViewer.cpp" />
-    <ClCompile Include="Scenes\DebugPass.cpp" />
+    <ClCompile Include="OceanViewer.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="VoronoiTextureGenerator.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Scenes\DebugPass.cpp">
+      <Filter>Scenes</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Core\Math\Functions.inl">
@@ -696,6 +711,9 @@
     </None>
     <None Include="Shaders\WaterWave\FFT.hlsli">
       <Filter>Shaders\WaterWave</Filter>
+    </None>
+    <None Include="Shaders\Misc\VoronoiRS.hlsli">
+      <Filter>Shaders\Misc</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -965,6 +983,21 @@
     </FxCompile>
     <FxCompile Include="Shaders\WaterWave\CombineIFFTOutputsCS.hlsl">
       <Filter>Shaders\WaterWave</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Misc\VoronoiVS.hlsl">
+      <Filter>Shaders\Misc</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Misc\VoronoiPS.hlsl">
+      <Filter>Shaders\Misc</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Misc\InitSeedsCS.hlsl">
+      <Filter>Shaders\Misc</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Misc\JumpFloodVoronoiCS.hlsl">
+      <Filter>Shaders\Misc</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Misc\JFAVoronoiTexCS.hlsl">
+      <Filter>Shaders\Misc</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

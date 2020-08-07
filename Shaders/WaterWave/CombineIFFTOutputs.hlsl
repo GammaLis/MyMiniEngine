@@ -63,7 +63,9 @@ void main( uint3 dtid : SV_DispatchThreadID )
 	float dh = _HeightMap[dcoord].r;
 	float hx = (rh - lh) * _HeightScale / (2.0f * xyScale);
 	float hy = (dh - uh) * _HeightScale / (2.0f * xyScale);
-	float3 normal = normalize(float3(-hx, 1.0f, -hy));
+	float3 normal = float3(0.0f, 0.0f, 1.0f);
+	// normal = normalize(float3(-hx, 1.0f, -hy));
+	normal = normalize(float3(-hx, -hy, 1.0f));
 
 	// fold
 	// J = Jxx * Jzz - Jxz * Jzx
