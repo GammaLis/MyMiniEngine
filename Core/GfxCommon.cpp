@@ -15,6 +15,15 @@
 #include "PresentHDRPS.h"
 #include "PresentSDRPS.h"
 #include "MagnifyPixelsPS.h"
+// composite
+#include "CompositeSDRPS.h"
+#include "CompositeHDRPS.h"
+#include "ScaleAndCompositeSDRPS.h"
+#include "ScaleAndCompositeHDRPS.h"
+// blend overlay ui
+#include "BufferCopyPS.h"
+#include "BlendUIHDRPS.h"
+
 // bicubic upsample
 #include "BicubicHorizontalUpsamplePS.h"
 #include "BicubicVerticalUpsamplePS.h"
@@ -22,13 +31,15 @@
 #include "SharpeningUpsamplePS.h"
 // bilinear upsample
 #include "BilinearUpsamplePS.h"
-// blend overlay ui
-#include "BufferCopyPS.h"
+
+#include "LanczosCS.h"
+#include "BicubicUpsampleCS.h"
 
 /**
 	generate mips
 */
 #include "GenerateMips.h"
+#include "Generate3DTexMips.h"
 
 /**
 	text
@@ -78,6 +89,7 @@ void GfxStates::SetNativeResolution(ID3D12Device* pDevice, Resolutions nativeRes
 	if (s_NativeRes == nativeRes)
 		return;
 
+	/**
 	switch (nativeRes)
 	{
 	default:
@@ -116,6 +128,8 @@ void GfxStates::SetNativeResolution(ID3D12Device* pDevice, Resolutions nativeRes
 		s_NativeHeight = 2160;
 		break;
 	}
+	*/
+	GetWHFromResolution(nativeRes, s_NativeWidth, s_NativeHeight);
 
 	DEBUGPRINT("Changing native resolution to %ux%u", s_NativeWidth, s_NativeHeight);
 
@@ -190,6 +204,7 @@ void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferW
 	m_SceneColorBuffer.Create(pDevice, L"Main Color Buffer", bufferWidth, bufferHeight, 1, GfxStates::s_DefaultHdrColorFormat);
 	m_SceneColorBuffer.SetClearColor(Color(0.2f, 0.4f, 0.4f));
 	m_SceneDepthBuffer.Create(pDevice, L"Scene Depth Buffer", bufferWidth, bufferHeight, GfxStates::s_DefaultDSVFormat);
+	m_SceneNormalBuffer.Create(pDevice, L"Scene Normal Buffer", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16B16A16_FLOAT);
 
 	m_VelocityBuffer.Create(pDevice, L"Motion Vectors", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R32_UINT);
 
@@ -206,6 +221,9 @@ void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferW
 	m_TemporalColor[0].Create(pDevice, L"Temporal Color 0", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16B16A16_FLOAT);
 	m_TemporalColor[1].Create(pDevice, L"Temporal Color 1", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16B16A16_FLOAT);
 	Effects::s_TemporalAA.ClearHistory(initContext);		// Çå¿Õ
+
+	m_TemporalMinBound.Create(pDevice, L"Temporal Min Color", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R11G11B10_FLOAT);
+	m_TemporalMaxBound.Create(pDevice, L"Temporal Max Color", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R11G11B10_FLOAT);
 
 	// post effects
 	// this is useful for storing per-pixel weights such as motion strength or pixel luminance
@@ -257,6 +275,7 @@ void BufferManager::DestroyRenderingBuffers()
 {
 	m_SceneColorBuffer.Destroy();
 	m_SceneDepthBuffer.Destroy();
+	m_SceneNormalBuffer.Destroy();
 
 	m_VelocityBuffer.Destroy();
 
@@ -271,6 +290,8 @@ void BufferManager::DestroyRenderingBuffers()
 	// temporal effects
 	m_TemporalColor[0].Destroy();
 	m_TemporalColor[1].Destroy();
+	m_TemporalMinBound.Destroy();
+	m_TemporalMaxBound.Destroy();
 
 	// post effects
 	m_LumaBuffer.Destroy();
@@ -307,6 +328,17 @@ void ShaderManager::CreateFromByteCode()
 	m_PresentSDRPS = CD3DX12_SHADER_BYTECODE(PresentSDRPS, sizeof(PresentSDRPS));
 	m_MagnifyPixelsPS = CD3DX12_SHADER_BYTECODE(MagnifyPixelsPS, sizeof(MagnifyPixelsPS));
 
+	// composite
+	m_CompositeSDRPS = CD3DX12_SHADER_BYTECODE(CompositeSDRPS, sizeof(CompositeSDRPS));
+	m_CompositeHDRPS = CD3DX12_SHADER_BYTECODE(CompositeHDRPS, sizeof(CompositeHDRPS));
+	m_ScaleAndCompositeSDRPS = CD3DX12_SHADER_BYTECODE(ScaleAndCompositeSDRPS, sizeof(ScaleAndCompositeSDRPS));
+	m_ScaleAndCompositeHDRPS = CD3DX12_SHADER_BYTECODE(ScaleAndCompositeHDRPS, sizeof(ScaleAndCompositeHDRPS));
+
+	// blend ui
+	m_BufferCopyPS = CD3DX12_SHADER_BYTECODE(BufferCopyPS, sizeof(BufferCopyPS));
+	m_BlendUIHDRPS = CD3DX12_SHADER_BYTECODE(BlendUIHDRPS, sizeof(BlendUIHDRPS));
+
+	/// image scaling
 	// bicubic upsample
 	m_BicubicHorizontalUpsamplePS = CD3DX12_SHADER_BYTECODE(BicubicHorizontalUpsamplePS, sizeof(BicubicHorizontalUpsamplePS));
 	m_BicubicVerticalUpsamplePS = CD3DX12_SHADER_BYTECODE(BicubicVerticalUpsamplePS, sizeof(BicubicVerticalUpsamplePS));
@@ -317,14 +349,16 @@ void ShaderManager::CreateFromByteCode()
 	// bilinear upsample
 	m_BilinearUpsamplePS = CD3DX12_SHADER_BYTECODE(BilinearUpsamplePS, sizeof(BilinearUpsamplePS));
 
-	// 
-	m_BufferCopyPS = CD3DX12_SHADER_BYTECODE(BufferCopyPS, sizeof(BufferCopyPS));
+	// cs
+	m_BicubicUpsampleCS = CD3DX12_SHADER_BYTECODE(BicubicUpsampleCS, sizeof(BicubicUpsampleCS));
+	m_LanczosCS = CD3DX12_SHADER_BYTECODE(LanczosCS, sizeof(LanczosCS));
 
 	/**
 		generate mips
 	*/
 	m_GenerateMips = CD3DX12_SHADER_BYTECODE(GenerateMips, sizeof(GenerateMips));
-
+	m_Generete3DTexMips = CD3DX12_SHADER_BYTECODE(Generate3DTexMips, sizeof(Generate3DTexMips));
+	
 	/**
 		text
 	*/

@@ -31,10 +31,15 @@ namespace MyDirectX
 		IGameApp(HINSTANCE hInstance, const wchar_t* title = L"Hello, World!", UINT width = SCR_WIDTH, UINT height = SCR_HEIGHT);
 		virtual ~IGameApp();
 
+		// this function can be used to initialize application state and will run after essential hardware resource are allocated.
+		// some state that does not depend on these resources should still be initialized in the constructor such as pointers and flags.
 		virtual bool Init();
 		virtual void OnResize();
+		// the update method will be invoked once per frame. Both state updating and scene rendering should be handled by this method.
 		virtual void Update(float deltaTime);
+		// main rendering pass
 		virtual void Render();
+		// optional UI (overlay) rendering pass. This is LDR. The buffer is already cleared
 		virtual void RenderUI();
 		virtual void Cleanup();
 

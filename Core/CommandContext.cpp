@@ -4,8 +4,16 @@
 
 #include "ColorBuffer.h"
 #include "DepthBuffer.h"
+#include "GpuBuffer.h"
+#include "UploadBuffer.h"
+#include "ReadbackBuffer.h"
 
 #include "CommandSignature.h"
+
+#pragma warning(push)
+#pragma warning(disable:4100)	// unreferenced formal parameters in PIXCopyEventArguments() (WinPixEventRuntime.1.0.200127001)
+#include <pix3.h>
+#pragma warning(pop)
 
 using namespace MyDirectX;
 
@@ -213,6 +221,28 @@ void CommandContext::CopySubresource(GpuResource& dest, UINT destSubIndex, GpuRe
 	m_CommandList->CopyTextureRegion(&destLocation, 0, 0, 0, &srcLocation, nullptr);
 }
 
+uint32_t CommandContext::ReadbackTexture(ID3D12Device* pDevice, ReadbackBuffer& dstBuffer, PixelBuffer& srcBuffer)
+{
+	uint64_t copySize = 0;
+
+	// the footprint may depend on the device of the resource, but we assume there is only one device
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT placedFootprint;
+	auto resourceDesc = srcBuffer.GetResource()->GetDesc();
+	pDevice->GetCopyableFootprints(&resourceDesc, 0, 1, 0, 
+		&placedFootprint, nullptr, nullptr, &copySize);
+
+	dstBuffer.Create(pDevice, L"Readback",(uint32_t)copySize, 1);
+
+	TransitionResource(srcBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE, true);
+
+	CD3DX12_TEXTURE_COPY_LOCATION dstLoc(dstBuffer.GetResource(), placedFootprint);
+	CD3DX12_TEXTURE_COPY_LOCATION srcLoc(srcBuffer.GetResource(), 0);
+	m_CommandList->CopyTextureRegion(&dstLoc, 0, 0, 0,
+		&srcLoc, nullptr);
+
+	return placedFootprint.Footprint.RowPitch;
+}
+
 void CommandContext::InitializeTexture(GpuResource& dest, UINT numSubresources, D3D12_SUBRESOURCE_DATA subData[])
 {
 	UINT64 uploadBufferSize = GetRequiredIntermediateSize(dest.GetResource(), 0, numSubresources);
@@ -228,7 +258,7 @@ void CommandContext::InitializeTexture(GpuResource& dest, UINT numSubresources, 
 	initContext.Finish(true);
 }
 
-void CommandContext::InitializeBuffer(GpuResource& dest, const void* data, size_t numBytes, size_t offset)
+void CommandContext::InitializeBuffer(GpuBuffer& dest, const void* data, size_t numBytes, size_t offset)
 {
 	CommandContext& initContext = CommandContext::Begin();
 
@@ -239,6 +269,22 @@ void CommandContext::InitializeBuffer(GpuResource& dest, const void* data, size_
 	// copy data to the intermediate upload heap and then schedule a copy from the upload heap to the default buffer
 	initContext.TransitionResource(dest, D3D12_RESOURCE_STATE_COPY_DEST, true);
 	initContext.m_CommandList->CopyBufferRegion(dest.GetResource(), offset, mem.buffer.GetResource(), 0, numBytes);
+	initContext.TransitionResource(dest, D3D12_RESOURCE_STATE_GENERIC_READ, true);
+
+	// execute the command list and wait for it to finish so we can release the upload buffer
+	initContext.Finish(true);
+}
+
+void CommandContext::InitializeBuffer(GpuBuffer& dest, const UploadBuffer& src, size_t srcOffset, size_t numBytes, size_t destOffset)
+{
+	CommandContext &initContext = CommandContext::Begin();
+
+	size_t maxBytes = std::min<size_t>(dest.GetBufferSize() - destOffset, src.GetBufferSize() - srcOffset);
+	numBytes = std::min<size_t>(maxBytes, numBytes);
+
+	// copy data to the intermediate upload heap and then schedule a copy from the upload heap to the default texture
+	initContext.TransitionResource(dest, D3D12_RESOURCE_STATE_COPY_DEST, true);
+	initContext.m_CommandList->CopyBufferRegion(dest.GetResource(), destOffset, (ID3D12Resource*)src.GetResource(), srcOffset, numBytes);
 	initContext.TransitionResource(dest, D3D12_RESOURCE_STATE_GENERIC_READ, true);
 
 	// execute the command list and wait for it to finish so we can release the upload buffer
@@ -464,13 +510,15 @@ void CommandContext::BindDescriptorHeaps()
 			heapsToBind[nonNullHeaps++] = pHeap;
 	}
 
-	if (nonNullHeaps)
+	if (nonNullHeaps > 0)
 		m_CommandList->SetDescriptorHeaps(nonNullHeaps, heapsToBind);
 }
 
 // GraphicsContext
 void GraphicsContext::ClearUAV(GpuBuffer& target)
 {
+	FlushResourceBarriers();
+
 	// after binding a UAV, we can get a GPU handle that is required to clear it as a UAV (because it essentially
 	// runs a shader to set all of the values).
 	D3D12_GPU_DESCRIPTOR_HANDLE gpuVisibleHandle = m_DynamicViewDescriptorHeap.UploadDirect(target.GetUAV());
@@ -481,6 +529,8 @@ void GraphicsContext::ClearUAV(GpuBuffer& target)
 
 void GraphicsContext::ClearUAV(ColorBuffer& target)
 {
+	FlushResourceBarriers();
+
 	// After binding a UAV, we can get a GPU handle that is required to clear it as a UAV (because it essentially runs
 	// a shader to set all of the values).
 	D3D12_GPU_DESCRIPTOR_HANDLE gpuVisibleHandle = m_DynamicViewDescriptorHeap.UploadDirect(target.GetUAV());
@@ -491,25 +541,35 @@ void GraphicsContext::ClearUAV(ColorBuffer& target)
 		clearColor, 1, &clearRect);
 }
 
-void GraphicsContext::ClearColor(ColorBuffer& target)
+void GraphicsContext::ClearColor(ColorBuffer& target, D3D12_RECT* rect)
 {
-	m_CommandList->ClearRenderTargetView(target.GetRTV(), target.GetClearColor().GetPtr(), 0, nullptr);
+	FlushResourceBarriers();
+	m_CommandList->ClearRenderTargetView(target.GetRTV(), target.GetClearColor().GetPtr(), (rect == nullptr) ? 0 : 1, rect);
+}
+
+void GraphicsContext::ClearColor(ColorBuffer& target, float color[4], D3D12_RECT* rect)
+{
+	FlushResourceBarriers();
+	m_CommandList->ClearRenderTargetView(target.GetRTV(), color, (rect == nullptr) ? 0 : 1, rect);
 }
 
 void GraphicsContext::ClearDepth(DepthBuffer& target)
 {
+	FlushResourceBarriers();
 	m_CommandList->ClearDepthStencilView(target.GetDSV(), D3D12_CLEAR_FLAG_DEPTH, 
 		target.GetClearDepth(), target.GetClearStencil(), 0, nullptr);
 }
 
 void GraphicsContext::ClearStencil(DepthBuffer& target)
 {
+	FlushResourceBarriers();
 	m_CommandList->ClearDepthStencilView(target.GetDSV(), D3D12_CLEAR_FLAG_STENCIL,
 		target.GetClearDepth(), target.GetClearStencil(), 0, nullptr);
 }
 
-void MyDirectX::GraphicsContext::ClearDepthAndStencil(DepthBuffer& target)
+void GraphicsContext::ClearDepthAndStencil(DepthBuffer& target)
 {
+	FlushResourceBarriers();
 	m_CommandList->ClearDepthStencilView(target.GetDSV(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
 		target.GetClearDepth(), target.GetClearStencil(), 0, nullptr);
 }
@@ -765,7 +825,7 @@ void GraphicsContext::SetDynamicSRV(UINT rootIndex, size_t bufferSize, const voi
 	ASSERT(bufferData != nullptr && Math::IsAligned(bufferData, 16));
 	DynAlloc cb = m_CpuLinearAllocator.Allocate(bufferSize);
 
-	SIMDMemCopy(cb.dataPtr, bufferData, bufferSize);
+	SIMDMemCopy(cb.dataPtr, bufferData, Math::AlignUp(bufferSize, 16) >> 4);
 	m_CommandList->SetGraphicsRootShaderResourceView(rootIndex, cb.GpuAddress);
 }
 
@@ -816,6 +876,8 @@ void GraphicsContext::ExecuteIndirect(CommandSignature& commandSig, GpuBuffer& a
 // ComputeContext
 void ComputeContext::ClearUAV(GpuBuffer& target)
 {
+	FlushResourceBarriers();
+
 	// after binding a UAV, we can get a GPU handle that is required to clear it as a UAV (because it essentially runs
 	// a shader to set all of the values)
 	D3D12_GPU_DESCRIPTOR_HANDLE gpuVisibleHandle = m_DynamicViewDescriptorHeap.UploadDirect(target.GetUAV());
@@ -826,6 +888,8 @@ void ComputeContext::ClearUAV(GpuBuffer& target)
 
 void ComputeContext::ClearUAV(ColorBuffer& target)
 {
+	FlushResourceBarriers();
+
 	// After binding a UAV, we can get a GPU handle that is required to clear it as a UAV (because it essentially runs
 	// a shader to set all of the values).
 	D3D12_GPU_DESCRIPTOR_HANDLE gpuVisibleHandle = m_DynamicViewDescriptorHeap.UploadDirect(target.GetUAV());
@@ -896,7 +960,7 @@ void ComputeContext::SetDynamicConstantBufferView(UINT rootIndex, size_t bufferS
 {
 	ASSERT(bufferData != nullptr && Math::IsAligned(bufferData, 16));
 	DynAlloc cb = m_CpuLinearAllocator.Allocate(bufferSize);
-	//SIMDMemCopy(cb.dataPtr, bufferData, bufferSize);
+	//SIMDMemCopy(cb.dataPtr, bufferData, Math::AlignUp(bufferSize, 16) >> 4);
 	memcpy(cb.dataPtr, bufferData, bufferSize);
 	m_CommandList->SetComputeRootConstantBufferView(rootIndex, cb.GpuAddress);
 }

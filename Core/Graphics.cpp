@@ -28,7 +28,88 @@ namespace MyDirectX
         D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
     };
 
-    Graphics::Graphics(DXGI_FORMAT backBufferFormat, D3D_FEATURE_LEVEL minFeatureLevel, 
+    /// Vendors
+#pragma region Vendors
+    static const uint32_t s_VendorID_Nvidia = 4318;
+    static const uint32_t s_VendorID_AMD = 4098;
+    static const uint32_t s_VendorID_Intel = 8086;
+
+    uint32_t GetDesiredGPUVendor(std::wstring vendorVal)
+    {
+        uint32_t desiredVendor = 0;
+
+        // convert to lower case
+        std::transform(vendorVal.begin(), vendorVal.end(), vendorVal.begin(), std::towlower);   // <cwctype>
+        if (vendorVal.find(L"amd") != std::wstring::npos)
+        {
+            desiredVendor = s_VendorID_AMD;
+        }
+        else if (vendorVal.find(L"nvidia") != std::wstring::npos || vendorVal.find(L"nvd") != std::wstring::npos ||
+            vendorVal.find(L"nvda") != std::wstring::npos || vendorVal.find(L"nv") != std::wstring::npos)
+        {
+            desiredVendor = s_VendorID_Nvidia;
+        }
+        else if (vendorVal.find(L"intel") != std::wstring::npos || vendorVal.find(L"intc") != std::wstring::npos)
+        {
+            desiredVendor = s_VendorID_Intel;
+        }
+
+        return desiredVendor;
+    }
+
+    const wchar_t* GPUVendorToString(uint32_t vendorID)
+    {
+        switch (vendorID)
+        {
+        case s_VendorID_Nvidia:
+            return L"Nvdia";
+        case s_VendorID_AMD:
+            return L"AMD";
+        case s_VendorID_Intel:
+            return L"Intel";
+        default:
+            return L"Unknown";
+        }
+    }
+
+    uint32_t GetVendorIdFromDevice(ID3D12Device* pDevice)
+    {
+        LUID luid = pDevice->GetAdapterLuid();
+
+        // obtain the DXGI factory
+        ComPtr<IDXGIFactory4> dxgiFactory;
+        ASSERT_SUCCEEDED(CreateDXGIFactory2(0, IID_PPV_ARGS(&dxgiFactory)));
+
+        ComPtr<IDXGIAdapter1> pAdapter;
+        if (SUCCEEDED(dxgiFactory->EnumAdapterByLuid(luid, IID_PPV_ARGS(&pAdapter))))
+        {
+            DXGI_ADAPTER_DESC1 adapterDesc;
+            if (SUCCEEDED(pAdapter->GetDesc1(&adapterDesc)))
+            {
+                return adapterDesc.VendorId;
+            }
+        }
+
+        return 0;
+    }
+
+    bool Graphics::IsDeviceNvidia(ID3D12Device* pDevice)
+    {
+        return GetVendorIdFromDevice(pDevice) == s_VendorID_Nvidia;
+    }
+
+    bool Graphics::IsDeviceAMD(ID3D12Device* pDevice)
+    {
+        return GetVendorIdFromDevice(pDevice) == s_VendorID_AMD;
+    }
+
+    bool Graphics::IsDeviceIntel(ID3D12Device* pDevice)
+    {
+        return GetVendorIdFromDevice(pDevice) == s_VendorID_Intel;
+    }
+#pragma endregion
+
+    Graphics::Graphics(DXGI_FORMAT backBufferFormat, D3D_FEATURE_LEVEL minFeatureLevel,
         unsigned flags, Resolutions nativeRes)
         : m_SwapChainFormat{ backBufferFormat },
         m_BackBufferIndex{ 0 },
@@ -266,6 +347,17 @@ namespace MyDirectX
         if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(debugInterface.GetAddressOf()))))
         {
             debugInterface->EnableDebugLayer();
+
+            // gpu based validation
+            uint32_t useGPUBasedValidation = 0;
+            if (useGPUBasedValidation)
+            {
+                ComPtr<ID3D12Debug1> debugInterface1;
+                if (SUCCEEDED((debugInterface->QueryInterface(IID_PPV_ARGS(&debugInterface1)))))
+                {
+                    debugInterface1->SetEnableGPUBasedValidation(true);
+                }
+            }
         }
         else
         {
@@ -293,11 +385,11 @@ namespace MyDirectX
     }
    
     // obtain the DXGI factory
-    ComPtr<IDXGIFactory4> Graphics::CreateFactory()
+    ComPtr<IDXGIFactory6> Graphics::CreateFactory()
     {
-        ComPtr<IDXGIFactory4> dxgiFactory4;
-        ASSERT_SUCCEEDED(CreateDXGIFactory2(0, IID_PPV_ARGS(dxgiFactory4.GetAddressOf())));
-        return dxgiFactory4;
+        ComPtr<IDXGIFactory6> dxgiFactory6;
+        ASSERT_SUCCEEDED(CreateDXGIFactory2(m_DxgiFactoryFlags, IID_PPV_ARGS(dxgiFactory6.GetAddressOf())));
+        return dxgiFactory6;
     }
 
     // determines whether tearing support is available for fullscreen borderless windows
@@ -309,12 +401,9 @@ namespace MyDirectX
         {
             // rather than create the DXGIFactory5 directly, we create the DXGIFactory4 and query for DXGIFactory5.
             // this is to enable the graphics debugging tools which will not support the DXGIFactory5 until a future update
-            ComPtr<IDXGIFactory5> dxgiFactory5;
-            HRESULT hr = m_Factory.As(&dxgiFactory5);
-            if (SUCCEEDED(hr))
-            {
-                hr = dxgiFactory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allowTearing, sizeof(allowTearing));
-            }
+            ComPtr<IDXGIFactory5> dxgiFactory5 = m_Factory;
+            HRESULT hr = TRUE;  // m_Factory.As(&dxgiFactory5);
+            hr = dxgiFactory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allowTearing, sizeof(allowTearing));
 
             if (FAILED(hr) || !allowTearing)
             {
@@ -335,35 +424,36 @@ namespace MyDirectX
         ComPtr<IDXGIAdapter1> dxgiAdapter1;
 
 #if defined(__dxgi1_6_h__) && defined(NTDDI_WIN10_RS4)
-        ComPtr<IDXGIFactory6> dxgiFactory6;
+        ComPtr<IDXGIFactory6> dxgiFactory6 = m_Factory;
+        /**
         HRESULT hr = m_Factory.As(&dxgiFactory6);
         if (SUCCEEDED(hr))
+        {   }
+        */
+        for (UINT adapterIndex = 0;
+            SUCCEEDED(dxgiFactory6->EnumAdapterByGpuPreference(
+                adapterIndex,
+                DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
+                IID_PPV_ARGS(dxgiAdapter1.ReleaseAndGetAddressOf())));
+            ++adapterIndex)
         {
-            for (UINT adapterIndex = 0;
-                SUCCEEDED(dxgiFactory6->EnumAdapterByGpuPreference(
-                    adapterIndex,
-                    DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
-                    IID_PPV_ARGS(dxgiAdapter1.ReleaseAndGetAddressOf())));
-                ++adapterIndex)
+            DXGI_ADAPTER_DESC1 desc;
+            ASSERT_SUCCEEDED(dxgiAdapter1->GetDesc1(&desc));
+
+            if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
             {
-                DXGI_ADAPTER_DESC1 desc;
-                ASSERT_SUCCEEDED(dxgiAdapter1->GetDesc1(&desc));
+                // don't select the Basic Render Driver adapter
+                continue;
+            }
 
-                if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-                {
-                    // don't select the Basic Render Driver adapter
-                    continue;
-                }
-
-                // check to see if the adpater supports Direct3D 12, but don't create the actual device yet.
-                if (SUCCEEDED(D3D12CreateDevice(dxgiAdapter1.Get(), m_D3DMinFeatureLevel, __uuidof(ID3D12Device), nullptr)))
-                {
+            // check to see if the adpater supports Direct3D 12, but don't create the actual device yet.
+            if (SUCCEEDED(D3D12CreateDevice(dxgiAdapter1.Get(), m_D3DMinFeatureLevel, __uuidof(ID3D12Device), nullptr)))
+            {
 #if defined(_DEBUG)
-                    Utility::Printf(L"Direct3D Adapter *(%u): VID:%04x, PID:%04x - %ls\n", adapterIndex,
-                        desc.VendorId, desc.DeviceId, desc.Description);
+                Utility::Printf(L"Direct3D Adapter *(%u): VID:%04x, PID:%04x - %ls\n", adapterIndex,
+                    desc.VendorId, desc.DeviceId, desc.Description);
 #endif
-                    break;
-                }
+                break;
             }
         }
 #endif
@@ -433,7 +523,7 @@ namespace MyDirectX
         ComPtr<ID3D12InfoQueue> d3dInfoQueue;
         if (SUCCEEDED(d3d12Device.As(&d3dInfoQueue)))   
         // (d3d12Device->QueryInterface(IID_PPV_ARGS(d3dInfoQueue.GetAddressOf())));
-        {            
+        {
 #if defined(_DEBUG)
             d3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
             d3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
@@ -684,7 +774,7 @@ namespace MyDirectX
         m_PresentRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);    // SceanColorBuffer, OveralyBuffer
         m_PresentRS[1].InitAsConstants(0, 6, 0, D3D12_SHADER_VISIBILITY_ALL);
         m_PresentRS[2].InitAsBufferSRV(2, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-        m_PresentRS[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
+        m_PresentRS[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2);
         m_PresentRS.InitStaticSampler(0, s_CommonStates.SamplerLinearClampDesc);
         m_PresentRS.InitStaticSampler(1, s_CommonStates.SamplerPointClampDesc);
         m_PresentRS.Finalize(m_Device.Get(), L"PresentRS");
@@ -696,6 +786,13 @@ namespace MyDirectX
         m_GenerateMipsRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4);
         m_GenerateMipsRS.InitStaticSampler(0, s_CommonStates.SamplerLinearClampDesc);
         m_GenerateMipsRS.Finalize(m_Device.Get(), L"GenerateMipsRS");
+
+        m_Generate3DTexMipsRS.Reset(3, 1);
+        m_Generate3DTexMipsRS[0].InitAsConstants(0, 8);
+        m_Generate3DTexMipsRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
+        m_Generate3DTexMipsRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 3);
+        m_Generate3DTexMipsRS.InitStaticSampler(0, s_CommonStates.SamplerLinearClampDesc);
+        m_Generate3DTexMipsRS.Finalize(m_Device.Get(), L"Generate3DTexMipsRS");
     }
 
     void Graphics::InitPSOs()
@@ -713,30 +810,6 @@ namespace MyDirectX
         m_PresentSDRPSO.SetRenderTargetFormat(m_SwapChainFormat, DXGI_FORMAT_UNKNOWN);
         m_PresentSDRPSO.Finalize(m_Device.Get());
 
-        auto CreatePSO = [&](GraphicsPSO &pso, const CD3DX12_SHADER_BYTECODE &pixelShader)
-        {
-            pso = m_PresentSDRPSO;
-            pso.SetPixelShader(pixelShader);
-            pso.Finalize(m_Device.Get());
-        };
-        CreatePSO(m_MagnifyPixelsPSO, s_ShaderManager.m_MagnifyPixelsPS);
-        CreatePSO(m_BilinearUpsamplePSO, s_ShaderManager.m_BilinearUpsamplePS);
-        CreatePSO(m_BicubicVerticalUpsamplePSO, s_ShaderManager.m_BicubicVerticalUpsamplePS);
-        CreatePSO(m_SharpeningUpsamplePSO, s_ShaderManager.m_SharpeningUpsamplePS);
-
-        // BlendUIPSO
-        m_BlendUIPSO = m_PresentSDRPSO;
-        m_BlendUIPSO.SetRasterizerState(s_CommonStates.RasterizerTwoSided);
-        m_BlendUIPSO.SetBlendState(s_CommonStates.BlendPreMultiplied);
-        m_BlendUIPSO.SetPixelShader(s_ShaderManager.m_BufferCopyPS);
-        m_BlendUIPSO.Finalize(m_Device.Get());
-
-        // BicubicHorizontalUpsamplePSO
-        m_BicubicHorizontalUpsamplePSO = m_PresentSDRPSO;
-        m_BicubicHorizontalUpsamplePSO.SetPixelShader(s_ShaderManager.m_BicubicHorizontalUpsamplePS);
-        m_BicubicHorizontalUpsamplePSO.SetRenderTargetFormat(GfxStates::s_DefaultHdrColorFormat, DXGI_FORMAT_UNKNOWN);
-        m_BicubicHorizontalUpsamplePSO.Finalize(m_Device.Get());
-
         // PresentHDRPSO
         m_PresentHDRPSO = m_PresentSDRPSO;
         m_PresentHDRPSO.SetPixelShader(s_ShaderManager.m_PresentHDRPS);
@@ -744,15 +817,81 @@ namespace MyDirectX
         m_PresentHDRPSO.SetRenderTargetFormats(2, swapChainFormats, DXGI_FORMAT_UNKNOWN);
         m_PresentHDRPSO.Finalize(m_Device.Get());
 
+        auto CreatePSO = [&](GraphicsPSO &pso, const CD3DX12_SHADER_BYTECODE &pixelShader, const GraphicsPSO &templatePSO /*= m_PresentSDRPSO*/)
+            // 错误	C2648	“MyDirectX::Graphics::m_PresentSDRPSO”: 将成员作为默认参数使用要求静态成员
+        {
+            pso = templatePSO;
+            pso.SetPixelShader(pixelShader);
+            pso.Finalize(m_Device.Get());
+        };
+        CreatePSO(m_MagnifyPixelsPSO, s_ShaderManager.m_MagnifyPixelsPS, m_PresentSDRPSO);
+        CreatePSO(m_CompositeSDRPSO, s_ShaderManager.m_CompositeSDRPS, m_PresentSDRPSO);
+        CreatePSO(m_CompositeHDRPSO, s_ShaderManager.m_CompositeHDRPS, m_PresentSDRPSO);
+        CreatePSO(m_ScaleAndCompositeSDRPSO, s_ShaderManager.m_ScaleAndCompositeSDRPS, m_PresentSDRPSO);
+        CreatePSO(m_ScaleAndCompositeHDRPSO, s_ShaderManager.m_ScaleAndCompositeHDRPS, m_PresentSDRPSO);
+        
+        // BlendUIPSO
+        m_BlendUIPSO = m_PresentSDRPSO;
+        m_BlendUIPSO.SetRasterizerState(s_CommonStates.RasterizerTwoSided);
+        m_BlendUIPSO.SetBlendState(s_CommonStates.BlendPreMultiplied);
+        m_BlendUIPSO.SetPixelShader(s_ShaderManager.m_BufferCopyPS);
+        m_BlendUIPSO.Finalize(m_Device.Get());
+
+        // BlendUIHDRPSO
+        /**
+        m_BlendUIHDRPSO = m_BlendUIPSO;
+        m_BlendUIHDRPSO.SetPixelShader(s_ShaderManager.m_BlendUIHDRPS);
+        m_BlendUIHDRPSO.Finalize(m_Device.Get());
+        */
+        CreatePSO(m_BlendUIHDRPSO, s_ShaderManager.m_BlendUIHDRPS, m_BlendUIPSO);
+
+        /// image scaling
+        m_BilinearUpsamplePSO = m_PresentSDRPSO;
+        m_BilinearUpsamplePSO.SetPixelShader(s_ShaderManager.m_BilinearUpsamplePS);
+        m_BilinearUpsamplePSO.Finalize(m_Device.Get());
+
+        CreatePSO(m_BicubicVerticalUpsamplePSO, s_ShaderManager.m_BicubicVerticalUpsamplePS, m_BilinearUpsamplePSO);
+        CreatePSO(m_SharpeningUpsamplePSO, s_ShaderManager.m_SharpeningUpsamplePS, m_BilinearUpsamplePSO);
+
+        // BicubicHorizontalUpsamplePSO
+        m_BicubicHorizontalUpsamplePSO = m_BilinearUpsamplePSO;
+        m_BicubicHorizontalUpsamplePSO.SetPixelShader(s_ShaderManager.m_BicubicHorizontalUpsamplePS);
+        m_BicubicHorizontalUpsamplePSO.SetRenderTargetFormat(s_BufferManager.m_HorizontalBuffer.GetFormat(), DXGI_FORMAT_UNKNOWN);    // GfxStates::s_DefaultHdrColorFormat
+        m_BicubicHorizontalUpsamplePSO.Finalize(m_Device.Get());
+
+        // CreatePSO(m_LanczosHorizontalPS, )
+        // CreatePSO(m_LanczosVerticalPS, )
+
+        // cs
+        auto CreateCS = [&](ComputePSO& pso, const CD3DX12_SHADER_BYTECODE& computeShader)
+        {
+            pso.SetRootSignature(m_PresentRS);
+            pso.SetComputeShader(computeShader);
+            pso.Finalize(m_Device.Get());
+        };
+
+        // 目前仅添加DefaultUpsample -2021-4-16
+        // TODO: 完善剩余CS
+        CreateCS(m_BicubicCS[(uint32_t)UpsampleCS::kDefaultCS], s_ShaderManager.m_BicubicUpsampleCS);
+        CreateCS(m_LanczosCS[(uint32_t)UpsampleCS::kDefaultCS], s_ShaderManager.m_LanczosCS);
+
+        /// mips
         // GenerateMipsPSO
         m_GenerateMipsPSO.SetRootSignature(m_GenerateMipsRS);
         m_GenerateMipsPSO.SetComputeShader(s_ShaderManager.m_GenerateMips);
         m_GenerateMipsPSO.Finalize(m_Device.Get());
+
+        m_Generate3DTexMipsPSO.SetRootSignature(m_Generate3DTexMipsRS);
+        m_Generate3DTexMipsPSO.SetComputeShader(s_ShaderManager.m_Generete3DTexMips);
+        m_Generate3DTexMipsPSO.Finalize(m_Device.Get());
     }
 
     void Graphics::PreparePresentHDR()
     {
         GraphicsContext& context = GraphicsContext::Begin(L"Present");
+
+        bool bNeedsScaling = GfxStates::s_NativeWidth != GfxStates::s_DisplayWidth || 
+            GfxStates::s_NativeHeight != GfxStates::s_DisplayHeight;
 
         // we're going to be reading these buffers to write to the swap chain buffer(s)
         auto& backBuffer = m_BackBuffer[m_BackBufferIndex];
@@ -765,30 +904,43 @@ namespace MyDirectX
         context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
         context.SetDynamicDescriptor(0, 0, s_BufferManager.m_SceneColorBuffer.GetSRV());
-        context.SetDynamicDescriptor(1, 0, s_BufferManager.m_OverlayBuffer.GetSRV());
         
-        D3D12_CPU_DESCRIPTOR_HANDLE rtvs[] =
+        ColorBuffer &destBuffer = GfxStates::s_DebugZoom == DebugZoom::Off ? backBuffer : m_PreDisplayBuffer;
+        if (GfxStates::s_DebugZoom == DebugZoom::Off)
         {
-            backBuffer.GetRTV()
-        };
-        context.SetRenderTargets(_countof(rtvs), rtvs);
-        // debug
-        //{
-        //    static bool b = true;
-        //    if (b == false)
-        //    {
-        //        GfxStates::s_NativeWidth /= 2;
-        //        GfxStates::s_NativeHeight /= 2;
-        //        b = true;
-        //    }
-        //}
-        // end debug
-        context.SetViewportAndScissor(0, 0, GfxStates::s_NativeWidth, GfxStates::s_NativeHeight);
+            context.SetDynamicDescriptor(1, 1, s_BufferManager.m_OverlayBuffer.GetSRV());
+            context.SetPipelineState(bNeedsScaling ? m_ScaleAndCompositeHDRPSO : m_CompositeHDRPSO);
+        }
+        else
+        {
+            context.SetDynamicDescriptor(1, 1, TextureManager::GetDefaultTexture(EDefaultTexture::kBlackTransparent2D));
+            context.SetPipelineState(bNeedsScaling ? m_ScaleAndCompositeHDRPSO : m_PresentHDRPSO);
+        }
+
+        context.TransitionResource(destBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        context.SetRenderTarget(destBuffer.GetRTV());
+
+        // Debug
+        /**
+        {
+            static bool b = true;
+            if (b == false)
+            {
+                GfxStates::s_NativeWidth /= 2;
+                GfxStates::s_NativeHeight /= 2;
+                b = true;
+            }
+        }
+        */
+        // Debug end
+        
+        // context.SetViewportAndScissor(0, 0, GfxStates::s_NativeWidth, GfxStates::s_NativeHeight);
         // Note: -20-1-21
         // MS MiniEngine采用NativeWidth和NativeHeight
         // 但是 如果 DisplayWidth和DisplayHeight与之不同，显示部分图像（截断）（默认Display W和H更小），
         // 这样 shader里面应该采用 采样 （Sample）而非 取值（Tex[xy]）
-        // context.SetViewportAndScissor(0, 0, GfxStates::s_DisplayWidth, GfxStates::s_DisplayHeight);
+        // NOTE: -21-4-17 MS已经修改为 DisplayWidth/DisplayHeight
+        context.SetViewportAndScissor(0, 0, GfxStates::s_DisplayWidth, GfxStates::s_DisplayHeight);
         struct Constants
         {
             float RcpDstWidth;
@@ -801,8 +953,27 @@ namespace MyDirectX
             1.f / GfxStates::s_NativeWidth, 1.f / GfxStates::s_NativeHeight,
             (float)GfxStates::s_HDRPaperWhite, (float)GfxStates::s_MaxDisplayLuminance, 0
         };
-        context.SetConstantArray(1, sizeof(Constants) / 4, (float*)&consts);
+        // context.SetConstantArray(1, sizeof(Constants) / 4, (float*)&consts);
+        // -->
+        context.SetConstants(1, GfxStates::s_HDRPaperWhite / 10000.0f, GfxStates::s_MaxDisplayLuminance,
+            0.7071f / GfxStates::s_NativeWidth, 0.7071f / GfxStates::s_NativeHeight);   // 1/WH / sqrt(2)
         context.Draw(3);
+
+        // magnify without stretching
+        if (GfxStates::s_DebugZoom != DebugZoom::Off)
+        {
+            context.SetPipelineState(m_MagnifyPixelsPSO);
+            context.TransitionResource(m_PreDisplayBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            context.TransitionResource(backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+            context.SetDynamicDescriptor(0, 0, m_PreDisplayBuffer.GetSRV());
+            context.SetConstants(1, 1.0f / ((int)GfxStates::s_DebugZoom + 1.0f));
+            context.SetRenderTarget(backBuffer.GetRTV());
+            context.SetViewportAndScissor(0, 0, GfxStates::s_DisplayWidth, GfxStates::s_DisplayHeight);
+
+            context.Draw(3);
+
+            CompositeOverlays(context);
+        }
 
         context.TransitionResource(backBuffer, D3D12_RESOURCE_STATE_PRESENT);
 
@@ -833,11 +1004,14 @@ namespace MyDirectX
 
         // ** Debug end
 
-        context.SetPipelineState(m_BlendUIPSO);
-        context.SetConstants(1, 1.0f / GfxStates::s_NativeWidth, 1.0f / GfxStates::s_NativeHeight);
+        context.SetPipelineState(GfxStates::s_bEnableHDROutput ? m_BlendUIHDRPSO : m_BlendUIPSO);
+        // context.SetConstants(1, 1.0f / GfxStates::s_NativeWidth, 1.0f / GfxStates::s_NativeHeight);
+        // NOTE: m_BlendUIPSO旧有参数为_RcpDestDim，没有用到
+        context.SetConstants(1, GfxStates::s_HDRPaperWhite / 10000.0f, (float)GfxStates::s_MaxDisplayLuminance);
         context.Draw(3);
     }
 
+    // ** TODO: 有待修改   -2021-4-17
     void Graphics::PreparePresentLDR()
     {
         GraphicsContext &context = GraphicsContext::Begin(L"Present");
@@ -933,4 +1107,9 @@ namespace MyDirectX
         // close the final context to be executed before frame present
         context.Finish();
     }
+
+#pragma region Upscaling
+    // ** TODO
+#pragma endregion
+
 }

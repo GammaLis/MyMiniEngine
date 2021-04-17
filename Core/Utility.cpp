@@ -140,3 +140,113 @@ std::wstring MakeWStr( const std::string& str )
 {
     return std::wstring(str.begin(), str.end());
 }
+
+std::wstring Utility::UTF8ToWideString(const std::string& str)
+{
+    wchar_t wstr[MAX_PATH];
+    if (!MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, str.c_str(), -1, wstr, MAX_PATH))
+        wstr[0] = L'\0';
+    return wstr;
+}
+
+std::string Utility::WideStringToUTF8(const std::wstring& wstr)
+{
+    char str[MAX_PATH];
+    if (!WideCharToMultiByte(CP_ACP, MB_PRECOMPOSED, wstr.c_str(), -1, str, MAX_PATH, nullptr, nullptr))
+        str[0] = L'\0';
+    return str;
+}
+
+/// string
+std::string Utility::ToLower(const std::string& str)
+{
+    std::string lower_case = str;
+    std::locale loc;
+    for (char &s : lower_case)
+        s = std::tolower(s, loc);
+    return lower_case;
+}
+
+std::string Utility::GetBasePath(const std::string& str)
+{
+    size_t lastSlash;
+    if ((lastSlash = str.rfind('/')) != std::string::npos)
+        return str.substr(0, lastSlash + 1);
+    else if ((lastSlash = str.rfind('\\')) != std::string::npos)
+        return str.substr(0, lastSlash + 1);
+    else 
+        return "";
+}
+
+std::string Utility::RemoveBasePath(const std::string& str)
+{
+    size_t lastSlash;
+    if ((lastSlash = str.rfind('/')) != std::string::npos)
+        return str.substr(lastSlash + 1, std::string::npos);
+    else if ((lastSlash = str.rfind('\\')) != std::string::npos)
+        return str.substr(lastSlash + 1, std::string::npos);
+    else
+        return str;
+}
+
+std::string Utility::GetFileExtension(const std::string& str)
+{
+    std::string fileName = RemoveBasePath(str);
+    size_t extOffset = fileName.rfind('.');
+    if (extOffset != std::string::npos)
+        return "";
+
+    return str.substr(extOffset + 1);
+}
+
+std::string Utility::RemoveExtension(const std::string& str)
+{
+    return str.substr(0, str.rfind('.'));
+}
+
+/// wstring
+std::wstring Utility::ToLower(const std::wstring& str)
+{
+    std::wstring lower_case = str;
+    std::locale loc;
+    for (wchar_t &s : lower_case)
+        s = std::tolower(s, loc);
+    return lower_case;
+}
+
+std::wstring Utility::GetBasePath(const std::wstring& str)
+{
+    size_t lastSlash;
+    if ((lastSlash = str.rfind(L'/')) != std::wstring::npos)
+        return str.substr(0, lastSlash + 1);
+    else if ((lastSlash = str.rfind(L'\\')) != std::wstring::npos)
+        return str.substr(0, lastSlash + 1);
+    else
+        return L"";
+}
+
+std::wstring Utility::RemoveBasePath(const std::wstring& str)
+{
+    size_t lastSlash;
+    if ((lastSlash = str.rfind(L'/')) != std::wstring::npos)
+        return str.substr(lastSlash + 1, std::wstring::npos);
+    else if ((lastSlash = str.rfind(L'\\')) != std::wstring::npos)
+        return str.substr(lastSlash + 1, std::wstring::npos);
+    else
+        return str;
+}
+
+std::wstring Utility::GetFileExtension(const std::wstring& str)
+{
+    std::wstring fileName = RemoveBasePath(str);
+    size_t extOffset = fileName.rfind(L'.');
+    if (extOffset == std::wstring::npos)
+        return L"";
+
+    return fileName.substr(extOffset + 1);
+}
+
+std::wstring Utility::RemoveExtension(const std::wstring& str)
+{
+    return str.substr(0, str.rfind(L"."));
+}

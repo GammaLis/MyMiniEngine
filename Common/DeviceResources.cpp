@@ -764,7 +764,7 @@ void DeviceResources::UpdateDepthStencilViews()
 			m_DepthBufferFormat,
 			m_Width,
 			m_Height,
-			1,	// this depht stencil view has only one texture
+			1,	// this depth stencil view has only one texture
 			1	// use a single mipmap level
 		);
 		depthStencilDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;

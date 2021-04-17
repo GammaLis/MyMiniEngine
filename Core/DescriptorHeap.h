@@ -13,7 +13,10 @@ namespace MyDirectX
 	class DescriptorAllocator
 	{
 	public:
-		DescriptorAllocator(D3D12_DESCRIPTOR_HEAP_TYPE type) : m_Type(type), m_CurrentHeap(nullptr) {  }
+		DescriptorAllocator(D3D12_DESCRIPTOR_HEAP_TYPE type) : m_Type(type), m_CurrentHeap(nullptr)
+		{ 
+			m_CurrentHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
+		}
 
 		D3D12_CPU_DESCRIPTOR_HANDLE Allocate(ID3D12Device *pDevice, uint32_t count);
 
@@ -32,7 +35,7 @@ namespace MyDirectX
 		uint32_t m_RemainingFreeHandles = 0;
 	};
 
-	//
+	// this handle refersto a descriptor or a descriptor table (contiguous descriptors) that is shader visible
 	class DescriptorHandle
 	{
 	public:
@@ -64,9 +67,15 @@ namespace MyDirectX
 				m_GpuHandle.ptr += offsetScaledByDescriptorSize;
 		}
 
-		D3D12_CPU_DESCRIPTOR_HANDLE GetCpuHandle() const { return m_CpuHandle; }
+		const D3D12_CPU_DESCRIPTOR_HANDLE *operator&() const { return &m_CpuHandle; }
+		operator D3D12_CPU_DESCRIPTOR_HANDLE() const { return m_CpuHandle; }
+		operator D3D12_GPU_DESCRIPTOR_HANDLE() const { return m_GpuHandle; }
 
+		D3D12_CPU_DESCRIPTOR_HANDLE GetCpuHandle() const { return m_CpuHandle; }
 		D3D12_GPU_DESCRIPTOR_HANDLE GetGpuHandle() const { return m_GpuHandle; }
+
+		size_t GetCpuPtr() const { return m_CpuHandle.ptr; }
+		uint64_t GetGpuPtr() const { return m_GpuHandle.ptr; }
 
 		bool IsNull() const { return m_CpuHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN; }
 		bool IsShaderVisible() const { return m_GpuHandle.ptr != D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN; }
@@ -87,17 +96,28 @@ namespace MyDirectX
 			m_HeapDesc.NodeMask = 1;
 			m_HeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		}
+		~UserDescriptorHeap() { Destroy(); }
 
 		void Create(ID3D12Device* pDevice, const std::wstring& debugHeapName);
+		void Create(ID3D12Device *pDevice, const std::wstring &debugHeapName, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t maxCount);
+		void Destroy() { m_DescriptorHeap = nullptr; }
 
 		bool HasAvailableSpace(uint32_t count) const { return count <= m_NumFreeDescriptors; }
 		DescriptorHandle Alloc(uint32_t count = 1);
 
+		DescriptorHandle operator[] (uint32_t arrayIdx) const { return m_FirstHandle + arrayIdx * m_DescriptorSize; }
 		DescriptorHandle GetHandleAtOffset(uint32_t offset) const { return m_FirstHandle + offset * m_DescriptorSize; }
+
+		uint32_t GetOffsetOfHandle(const DescriptorHandle& handle) 
+		{
+			return (uint32_t)(handle.GetCpuPtr() - m_FirstHandle.GetCpuPtr()) / m_DescriptorSize;
+		}
 
 		bool ValidateHandle(const DescriptorHandle& descHandle) const;
 
 		ID3D12DescriptorHeap* GetHeapPointer() const { return m_DescriptorHeap.Get(); }
+
+		uint32_t GetDescriptorSize() const { return m_DescriptorSize; }
 
 	private:
 		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_DescriptorHeap;
@@ -107,5 +127,4 @@ namespace MyDirectX
 		DescriptorHandle m_FirstHandle;
 		DescriptorHandle m_NextFreeHandle;
 	};
-
 }

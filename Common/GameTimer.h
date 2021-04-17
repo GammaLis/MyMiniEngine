@@ -32,4 +32,3 @@ namespace MyDirectX
 		bool mStopped;
 	};
 }
-

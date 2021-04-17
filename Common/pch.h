@@ -5,6 +5,11 @@
 
 #pragma once
 
+#pragma warning(disable:4201)	// nonstandard extension used : nameless structure/union
+#pragma warning(disable:4238)	// nonstandard extension used : class rvalue used as lvalue
+#pragma warning(disable:4239)	// a non-const reference may only be bound to an lvalue; assignment operator takes a reference to non-const
+#pragma warning(disable:4324)	// structure was padded due to __declspec(align())
+
 #include <winsdkver.h>
 #define _WIN32_WINNT 0x0A00
 #include <sdkddkver.h>
@@ -27,8 +32,8 @@
 #define NOHELP
 
 #define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
 
+#include <Windows.h>
 #include <wrl/client.h>
 #include <wrl/event.h>
 
@@ -50,14 +55,21 @@
 
 #include "d3dx12.h"
 
-#include <vector>
-#include <map>
-#include <algorithm>
-#include <exception>
-#include <memory>
-#include <stdexcept>
+#include <cstdint>
+#include <cstdio>
+#include <cstdarg>
 #include <cassert>
-#include <stdio.h>
+#include <vector>
+#include <string>
+#include <cwctype>
+#include <map>
+#include <memory>
+#include <algorithm>
+#include <functional>
+#include <exception>
+#include <stdexcept>
+
+#include <ppltasks.h>
 
 // To use graphics and CPU markup events with the latest version of PIX, change this to include <pix3.h>
 // then add the NuGet package WinPixEventRuntime to the project.

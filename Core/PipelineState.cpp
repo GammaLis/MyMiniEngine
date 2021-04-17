@@ -12,20 +12,20 @@ namespace MyDirectX
 	static std::map<size_t, ComPtr<ID3D12PipelineState>> s_GraphicsPSOHashMap;
 	static std::map<size_t, ComPtr<ID3D12PipelineState>> s_ComputePSOHashMap;
 
-	// PSO
+	/// PSO
 	void PSO::DestroyAll()
 	{
 		s_GraphicsPSOHashMap.clear();
 		s_ComputePSOHashMap.clear();
 	}
 
-	// GraphicsPSO
-	GraphicsPSO::GraphicsPSO()
+	/// GraphicsPSO
+	GraphicsPSO::GraphicsPSO(const wchar_t *name) : PSO(name)
 	{
 		ZeroMemory(&m_PSODesc, sizeof(m_PSODesc));
 		m_PSODesc.NodeMask = 1;
 		m_PSODesc.SampleMask = 0xFFFFFFFFu;
-		m_PSODesc.SampleDesc.Count = 0;
+		m_PSODesc.SampleDesc.Count = 1;
 		m_PSODesc.InputLayout.NumElements = 0;
 	}
 
@@ -55,6 +55,11 @@ namespace MyDirectX
 		m_PSODesc.PrimitiveTopologyType = topologyType;
 	}
 
+	void GraphicsPSO::SetDepthTargetFormat(DXGI_FORMAT dsvFormat, UINT msaaCount, UINT msaaQuality)
+	{
+		SetRenderTargetFormats(0, nullptr, dsvFormat, msaaCount, msaaQuality);
+	}
+
 	void GraphicsPSO::SetRenderTargetFormat(DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat, UINT msaaCount, UINT msaaQuality)
 	{
 		SetRenderTargetFormats(1, &rtvFormat, dsvFormat, msaaCount, msaaQuality);
@@ -64,7 +69,10 @@ namespace MyDirectX
 	{
 		ASSERT(numRTVs == 0 || rtvFormats != nullptr, "Null format array conflicts with non-zero length");
 		for (UINT i = 0; i < numRTVs; ++i)
+		{
+			ASSERT(rtvFormats[i] != DXGI_FORMAT_UNKNOWN);
 			m_PSODesc.RTVFormats[i] = rtvFormats[i];
+		}
 		for (UINT i = numRTVs; i < m_PSODesc.NumRenderTargets; ++i)
 			m_PSODesc.RTVFormats[i] = DXGI_FORMAT_UNKNOWN;
 		m_PSODesc.NumRenderTargets = numRTVs;
@@ -100,6 +108,7 @@ namespace MyDirectX
 		// make sure the root signature is finalized first
 		m_PSODesc.pRootSignature = m_RootSignature->GetSignature();
 		ASSERT(m_PSODesc.pRootSignature != nullptr);
+
 		m_PSODesc.InputLayout.pInputElementDescs = nullptr;
 		size_t hashCode = Utility::HashState(&m_PSODesc);
 		hashCode = Utility::HashState(m_InputLayouts.get(), m_PSODesc.InputLayout.NumElements, hashCode);
@@ -124,8 +133,10 @@ namespace MyDirectX
 
 		if (firstCompile)
 		{
+			// ASSERT(m_PSODesc.DepthStencilState.DepthEnable != (m_PSODesc.DSVFormat == DXGI_FORMAT_UNKNOWN));	// MS这样设置了，mf并不强制要求
 			ASSERT_SUCCEEDED(pDevice->CreateGraphicsPipelineState(&m_PSODesc, IID_PPV_ARGS(&m_PSO)));
 			s_GraphicsPSOHashMap[hashCode].Attach(m_PSO);
+			m_PSO->SetName(m_Name);
 		}
 		else
 		{
@@ -135,8 +146,8 @@ namespace MyDirectX
 		}
 	}
 
-	// ComputePSO
-	ComputePSO::ComputePSO()
+	/// ComputePSO
+	ComputePSO::ComputePSO(const wchar_t *name) : PSO(name)
 	{
 		ZeroMemory(&m_PSODesc, sizeof(m_PSODesc));
 		m_PSODesc.NodeMask = 1;
@@ -159,7 +170,7 @@ namespace MyDirectX
 			std::lock_guard<std::mutex> lockGuard(s_HashMapMutex);
 
 			auto iter = s_ComputePSOHashMap.find(hashCode);
-			// reserve space so the nect inquiry will find that someone got here first
+			// reserve space so the next inquiry will find that someone got here first
 			if (iter == s_ComputePSOHashMap.end())
 			{
 				firstCompile = true;
@@ -172,6 +183,7 @@ namespace MyDirectX
 			{
 				ASSERT_SUCCEEDED(pDevice->CreateComputePipelineState(&m_PSODesc, IID_PPV_ARGS(&m_PSO)));
 				s_ComputePSOHashMap[hashCode].Attach(m_PSO);
+				m_PSO->SetName(m_Name);
 			}
 			else
 			{

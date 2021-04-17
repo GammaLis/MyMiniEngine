@@ -25,6 +25,10 @@ namespace MyDirectX
 		static const uint32_t c_AllowTearing = 0x1;
 		static const uint32_t c_EnableHDR = 0x2;
 
+		static bool IsDeviceNvidia(ID3D12Device *pDevice);
+		static bool IsDeviceAMD(ID3D12Device *pDevice);
+		static bool IsDeviceIntel(ID3D12Device *pDevice);
+
 		Graphics(
 			DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R10G10B10A2_UNORM,
 			D3D_FEATURE_LEVEL minFeatureLevel = D3D_FEATURE_LEVEL_11_0,
@@ -44,8 +48,16 @@ namespace MyDirectX
 
 		ColorBuffer& GetRenderTarget() { return m_BackBuffer[m_BackBufferIndex]; }
 		const ColorBuffer &GetRenderTarget() const { return m_BackBuffer[m_BackBufferIndex]; }
+		
 		UINT GetCurrentFrameIndex() const { return m_BackBufferIndex; }
+		// returns the number of elapsed frames since application start
 		uint64_t GetFrameCount() const { return m_FrameIndex; }
+		// the amount of time elapsed during the last completed frame. The CPU and/or GPU may be idle during parts of the frame.
+		// The frame time measures the time between calls to present each frame
+		float GetFrameTime() const;
+		// the total number of frames per second
+		float GetFrameRate() const;
+
 
 		// static members
 		static ID3D12Device* s_Device;
@@ -78,11 +90,14 @@ namespace MyDirectX
 		//ComputePSO m_GenerateMipsGammaPSO[4];
 		// 暂时默认 Power_Of_Two，Linear	-2020-5-2
 		ComputePSO m_GenerateMipsPSO;
+		// 3D texture, now only support Power_Of_Two size	-2020-9-7
+		RootSignature m_Generate3DTexMipsRS;
+		ComputePSO m_Generate3DTexMipsPSO;
 
 	private:
 		// CreateDeviceResources
 		void EnableDebugLayer();
-		Microsoft::WRL::ComPtr<IDXGIFactory4> CreateFactory();
+		Microsoft::WRL::ComPtr<IDXGIFactory6> CreateFactory();
 		bool CheckTearingSupport();
 		Microsoft::WRL::ComPtr<IDXGIAdapter1> GetAdapter();
 		Microsoft::WRL::ComPtr<ID3D12Device> CreateDevice();
@@ -111,23 +126,42 @@ namespace MyDirectX
 		// class members
 		
 		// Direct3D objects
-		Microsoft::WRL::ComPtr<IDXGIFactory4> m_Factory;
+		Microsoft::WRL::ComPtr<IDXGIFactory6> m_Factory;
 		Microsoft::WRL::ComPtr<IDXGIAdapter1> m_Adapter;
 		Microsoft::WRL::ComPtr<ID3D12Device> m_Device;
 		Microsoft::WRL::ComPtr<IDXGISwapChain4> m_SwapChain;
 
 		// PSOs
+		// TODO: 考虑移到其它地方	-2021-4-8
 		RootSignature m_EmptyRS;
 		RootSignature m_PresentRS;
-		GraphicsPSO m_BlendUIPSO;		// blend overlay UI
-		GraphicsPSO m_PresentSDRPSO;
-		GraphicsPSO m_PresentHDRPSO;
-		GraphicsPSO m_MagnifyPixelsPSO;
+		GraphicsPSO m_BlendUIPSO{ L"Core: BlendUI" };		// blend overlay UI
+		GraphicsPSO m_BlendUIHDRPSO{ L"Core: BlendUIHDR"};
+		GraphicsPSO m_PresentSDRPSO{ L"Core: PresentSDRPSO" };
+		GraphicsPSO m_PresentHDRPSO{ L"Core: PresentHDRPSO" };
+		GraphicsPSO m_CompositeSDRPSO{ L"Core: CompositeSDRPSO" };
+		GraphicsPSO m_CompositeHDRPSO{ L"Core: CompositeHDRPSO"};
+		GraphicsPSO m_ScaleAndCompositeSDRPSO{ L"Core: ScaleAndCompositeSDRPSO"};
+		GraphicsPSO m_ScaleAndCompositeHDRPSO{ L"Core: ScaleAndCompositeHDRPSO"};
+		GraphicsPSO m_MagnifyPixelsPSO{ L"Core: MagnifyPixels" };
 		// upsample 
-		GraphicsPSO m_BilinearUpsamplePSO;
-		GraphicsPSO m_BicubicHorizontalUpsamplePSO;
-		GraphicsPSO m_BicubicVerticalUpsamplePSO;
-		GraphicsPSO m_SharpeningUpsamplePSO;
+		GraphicsPSO m_BilinearUpsamplePSO{ L"ImageScaling: BilinearUpsamplePSO" };
+		GraphicsPSO m_BicubicHorizontalUpsamplePSO{ L"ImageScaling: BicubicHUpsamplePSO" };
+		GraphicsPSO m_BicubicVerticalUpsamplePSO{ L"ImageScaling: BicubicVUpsamplePSO" };
+		GraphicsPSO m_SharpeningUpsamplePSO{ L"ImageScaling: SharpeningUpsamplePSO" };
+		GraphicsPSO m_LanczosHorizontalPS{ L"ImageScaling: Lanczos Horizontal PSO"};
+		GraphicsPSO m_LanczosVerticalPS{ L"ImageScaling: Lanczos Vertical PSO"};
+		// cs
+		enum class UpsampleCS
+		{
+			kDefaultCS,
+			kFast16CS,
+			kFast24CS,
+			kFast32CS,
+			kNumCSModes,
+		};
+		ComputePSO m_LanczosCS[(uint32_t)UpsampleCS::kNumCSModes];
+		ComputePSO m_BicubicCS[(uint32_t)UpsampleCS::kNumCSModes];
 
 		// resources
 		ColorBuffer m_PreDisplayBuffer;
@@ -135,6 +169,7 @@ namespace MyDirectX
 		UINT m_BackBufferIndex = 0;
 
 		uint64_t m_FrameIndex = 0;
+		int64_t m_FrameStartTick = 0;	// TODO
 
 		// features
 		D3D_FEATURE_LEVEL m_D3DMinFeatureLevel;

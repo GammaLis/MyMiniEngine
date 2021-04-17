@@ -112,7 +112,8 @@ void main(
 }
 
 /**
- * 	https://wickedengine.net/2017/08/30/voxel-based-global-illumination/
+ * https://developer.nvidia.com/content/basics-gpu-voxelization
+ * https://wickedengine.net/2017/08/30/voxel-based-global-illumination/
  *  
  *  GPU Pro4 - 7. Rasterized Voxel-Based Dynamic Global Illumination
  *  	http://hd-prg.com/RVGlobalIllumination.html

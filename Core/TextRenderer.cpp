@@ -72,7 +72,7 @@ namespace MyDirectX
 			}
 			
 			// SDF font texture
-			m_Texture.Create(Graphics::s_Device, textureWidth, textureHeight, DXGI_FORMAT_R8_SNORM, texelData);
+			m_Texture.Create2D(Graphics::s_Device, textureWidth, textureHeight, DXGI_FORMAT_R8_SNORM, texelData);
 
 			DEBUGPRINT("Loaded SDF font: %ls (ver. %d.%d)", fontName, header->majorVersion, header->minorVersion);
 

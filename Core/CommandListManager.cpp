@@ -1,6 +1,5 @@
 #include "CommandListManager.h"
 #include "Graphics.h"
-#include "CommandListManager.h"
 
 using namespace MyDirectX;
 

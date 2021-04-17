@@ -110,6 +110,11 @@ void PixelBuffer::ExportToFile(ID3D12Device* pDevice, const std::wstring& filePa
 
 	CommandContext::ReadbackTexture2D(TempBuffer, *this);
 
+	// TODO	(Microsoft ÐÞ¸Ä)
+	// This very short command list only issues one API and will be synchronized so we can immediately read the buffer contents
+	// CommandContext &context = CommandContext::Begin(L"Copy texture to memory");
+	// uint32_t rowPitch = context.read
+
 	// Retrieve a CPU-visible pointer to the buffer memory.  Map the whole range for reading.
 	void* Memory = TempBuffer.Map();
 
@@ -181,7 +186,7 @@ void PixelBuffer::AssociateWithResource(ID3D12Device* pDevice, const std::wstrin
 	m_pResource.Attach(pResource);
 	m_UsageState = currentState;
 
-	m_Width = (uint32_t)resourceDesc.Width;
+	m_Width = (uint32_t)resourceDesc.Width;		// we don't care about the large virtual textures yet
 	m_Height = resourceDesc.Height;
 	m_ArraySize = resourceDesc.DepthOrArraySize;
 	m_Format = resourceDesc.Format;

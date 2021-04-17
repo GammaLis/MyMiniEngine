@@ -46,8 +46,8 @@ namespace MyDirectX
 		// allocate new descriptor as needed, return handle to existing descriptor when possible
 		D3D12_CPU_DESCRIPTOR_HANDLE CreateDescriptor(ID3D12Device *pDevice);
 
-		// create descriptor in place (no deduplication)
-		void CreateDescriptor(ID3D12Device* pDevice, D3D12_CPU_DESCRIPTOR_HANDLE& handle);
+		// create descriptor in place (no deduplication). Handle must preallocated.
+		void CreateDescriptor(ID3D12Device* pDevice, D3D12_CPU_DESCRIPTOR_HANDLE handle);
 	};
 
 }

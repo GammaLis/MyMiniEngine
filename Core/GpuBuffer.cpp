@@ -1,4 +1,5 @@
 #include "GpuBuffer.h"
+#include "UploadBuffer.h"
 #include "Graphics.h"
 #include "CommandContext.h"
 
@@ -38,6 +39,40 @@ void GpuBuffer::Create(ID3D12Device* pDevice, const std::wstring& name, uint32_t
 
 #ifdef RELEASE
 	(name)
+#else
+	m_pResource->SetName(name.c_str());
+#endif
+
+	CreateDerivedViews(pDevice);
+}
+
+void GpuBuffer::Create(ID3D12Device* pDevice, const std::wstring& name, uint32_t numElements, uint32_t elementSize,
+	const UploadBuffer& srcData, uint32_t srcOffset)
+{
+	Destroy();
+
+	m_ElementCount = numElements;
+	m_ElementSize = elementSize;
+	m_BufferSize = numElements * elementSize;
+
+	D3D12_RESOURCE_DESC resourceDesc = DescribeBuffer();
+
+	m_UsageState = D3D12_RESOURCE_STATE_COMMON;
+
+	D3D12_HEAP_PROPERTIES heapProps = {};
+	heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+	heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	heapProps.CreationNodeMask = 1;
+	heapProps.VisibleNodeMask = 1;
+
+	ASSERT_SUCCEEDED(pDevice->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE,
+		&resourceDesc, m_UsageState, nullptr, IID_PPV_ARGS(&m_pResource)));
+
+	CommandContext::InitializeBuffer(*this, srcData, srcOffset);
+
+#ifdef RELEASE
+	(name);
 #else
 	m_pResource->SetName(name.c_str());
 #endif

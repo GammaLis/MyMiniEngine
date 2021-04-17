@@ -20,6 +20,13 @@ namespace MyDirectX
 		k2160p,
 		kNumRes
 	};
+	enum class EQAAQuality
+	{
+		kEQAA1x1,
+		kEQAA1x8,
+		kEQAA1x16,
+		kNumEQAA,
+	};
 	enum class DebugZoom
 	{
 		Off,
@@ -34,6 +41,7 @@ namespace MyDirectX
 		kBilinear,
 		kBicubic,
 		kSharpening,
+		kLanczos,
 		kNumFilter
 	};
 
@@ -51,9 +59,9 @@ namespace MyDirectX
 		static void SetNativeResolution(ID3D12Device *pDevice, Resolutions nativeRes);
 		static void GetWHFromResolution(Resolutions res, uint32_t& width, uint32_t &height);
 
-		static float s_HDRPaperWhite;				// 100.0 - 500.0	stepSize - 50.0
-		static float s_MaxDisplayLuminance;			// 500.0 - 10000.0	stepSize - 100.0
-		static float s_BicubicUpsampleWeight;		// -1.0  - 0.25		stepSize - 0.25
+		static float s_HDRPaperWhite;				// 100.0 - 500.0	stepSize - 50.0		Paper White (nits)
+		static float s_MaxDisplayLuminance;			// 500.0 - 10000.0	stepSize - 100.0	Peak Brightness (nits)
+		static float s_BicubicUpsampleWeight;		// -1.0  - -0.25	stepSize - 0.25
 		static float s_SharpeningSpread;			// 0.7	 - 2.0		stepSize - 0.1
 		static float s_SharpeningRotation;			// 0.0	 - 90.0		stepSize - 15.0f
 		static float s_SharpeningStrength;			// 0.0	 - 1.0		stepSize - 0.01
@@ -77,6 +85,7 @@ namespace MyDirectX
 		// resources
 		ColorBuffer m_SceneColorBuffer;		// R11G11B10_FLOAT
 		DepthBuffer m_SceneDepthBuffer;		// D32_FLOAT_S8_UINT
+		ColorBuffer m_SceneNormalBuffer;	// R16G16B16A16_FLOAT
 
 		ColorBuffer m_PostEffectsBuffer;	// R32_UINT (to support Read-Modify-Write with a UAV)
 		ColorBuffer m_VelocityBuffer;		// R10G10B10 (3D velocity)
@@ -92,6 +101,8 @@ namespace MyDirectX
 
 		// temporal effects
 		ColorBuffer m_TemporalColor[2];		// 犹豫是将相关资源统一管理还是各个效果各自管理？？？ -20-2-19
+		ColorBuffer m_TemporalMinBound;
+		ColorBuffer m_TemporalMaxBound;
 
 		// post effects
 		// bloom
@@ -123,14 +134,23 @@ namespace MyDirectX
 		CD3DX12_SHADER_BYTECODE m_PresentHDRPS;
 		CD3DX12_SHADER_BYTECODE m_PresentSDRPS;
 		CD3DX12_SHADER_BYTECODE m_MagnifyPixelsPS;
+		CD3DX12_SHADER_BYTECODE m_CompositeSDRPS;
+		CD3DX12_SHADER_BYTECODE m_CompositeHDRPS;
+		CD3DX12_SHADER_BYTECODE m_ScaleAndCompositeSDRPS;
+		CD3DX12_SHADER_BYTECODE m_ScaleAndCompositeHDRPS;
+		CD3DX12_SHADER_BYTECODE m_BufferCopyPS;		// blend overlay ui
+		CD3DX12_SHADER_BYTECODE m_BlendUIHDRPS;
+		// image scaling
 		CD3DX12_SHADER_BYTECODE m_BilinearUpsamplePS;
 		CD3DX12_SHADER_BYTECODE m_BicubicHorizontalUpsamplePS;
 		CD3DX12_SHADER_BYTECODE m_BicubicVerticalUpsamplePS;
 		CD3DX12_SHADER_BYTECODE m_SharpeningUpsamplePS;
-		CD3DX12_SHADER_BYTECODE m_BufferCopyPS;		// blend overlay ui
+		CD3DX12_SHADER_BYTECODE m_BicubicUpsampleCS;
+		CD3DX12_SHADER_BYTECODE m_LanczosCS;
 
 		// generate mips
 		CD3DX12_SHADER_BYTECODE m_GenerateMips;
+		CD3DX12_SHADER_BYTECODE m_Generete3DTexMips;
 
 		/// text 
 		CD3DX12_SHADER_BYTECODE m_TextVS;
@@ -174,12 +194,12 @@ namespace MyDirectX
 		D3D12_RASTERIZER_DESC RasterizerShadowCW;
 		D3D12_RASTERIZER_DESC RasterizerShadowTwoSided;
 
-		D3D12_BLEND_DESC BlendNoColorWrite;
-		D3D12_BLEND_DESC BlendDisable;
-		D3D12_BLEND_DESC BlendPreMultiplied;
-		D3D12_BLEND_DESC BlendTraditional;
-		D3D12_BLEND_DESC BlendAdditive;
-		D3D12_BLEND_DESC BlendTraditionalAdditive;
+		D3D12_BLEND_DESC BlendNoColorWrite;	// XXX
+		D3D12_BLEND_DESC BlendDisable;		// 1, 0
+		D3D12_BLEND_DESC BlendPreMultiplied;	// 1, 1-SrcA
+		D3D12_BLEND_DESC BlendTraditional;	// SrcA, 1-SrcA
+		D3D12_BLEND_DESC BlendAdditive;		// 1, 1
+		D3D12_BLEND_DESC BlendTraditionalAdditive;	// SrcA, 1
 
 		D3D12_DEPTH_STENCIL_DESC DepthStateDisabled;
 		D3D12_DEPTH_STENCIL_DESC DepthStateReadWrite;

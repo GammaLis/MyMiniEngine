@@ -8,7 +8,7 @@ namespace MyDirectX
 	class PSO
 	{
 	public:
-		PSO() : m_RootSignature(nullptr) {  }
+		PSO(const wchar_t* name) : m_Name(name), m_RootSignature(nullptr) {  }
 
 		static void DestroyAll();
 
@@ -26,6 +26,8 @@ namespace MyDirectX
 		ID3D12PipelineState* GetPipelineStateObject() const { return m_PSO; }
 		
 	protected:
+		const wchar_t *m_Name;
+
 		const RootSignature* m_RootSignature;
 
 		ID3D12PipelineState* m_PSO;		// 这里并不管理生命周期
@@ -35,13 +37,14 @@ namespace MyDirectX
 	{
 	public:
 		// start with empty state
-		GraphicsPSO();
+		GraphicsPSO(const wchar_t *name = L"Unnamed Graphics PSO");
 
 		void SetRasterizerState(const D3D12_RASTERIZER_DESC& rasterizerDesc);
 		void SetBlendState(const D3D12_BLEND_DESC& blendDesc);
 		void SetDepthStencilState(const D3D12_DEPTH_STENCIL_DESC& depthStencilDesc);
 		void SetSampleMask(UINT sampleMask);
 		void SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE topologyType);
+		void SetDepthTargetFormat(DXGI_FORMAT dsvFormat, UINT msaaCount = 1, UINT msaaQuality = 0);
 		void SetRenderTargetFormat(DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat, UINT msaaCount = 1, UINT msaaQuality = 0);
 		void SetRenderTargetFormats(UINT numRTVs, const DXGI_FORMAT* rtvFormats, DXGI_FORMAT dsvFormat, UINT msaaCount = 1, UINT msaaQuality = 0);
 		void SetInputLayout(UINT numElements, const D3D12_INPUT_ELEMENT_DESC* pInputElementDesc);
@@ -71,7 +74,7 @@ namespace MyDirectX
 	class ComputePSO : public PSO
 	{
 	public:
-		ComputePSO();
+		ComputePSO(const wchar_t *name = L"Unnamed Compute PSO");
 
 		void SetComputeShader(const void* binary, size_t size) { m_PSODesc.CS = CD3DX12_SHADER_BYTECODE(const_cast<void*>(binary), size); }
 		void SetComputeShader(const D3D12_SHADER_BYTECODE& binary) { m_PSODesc.CS = binary; }

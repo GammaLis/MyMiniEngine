@@ -46,7 +46,8 @@ namespace MyDirectX
 		D3D12_RESOURCE_DESC DescribeTex3D(uint32_t width, uint32_t height, uint32_t depth, uint32_t numMips,
 			DXGI_FORMAT format, UINT flags);
 
-		void CreateTextrureResource(ID3D12Device* pDevice, const std::wstring& name, const D3D12_RESOURCE_DESC& resourceDesc);
+		void CreateTextureResource(ID3D12Device* pDevice, const std::wstring& name, const D3D12_RESOURCE_DESC& resourceDesc);
+		void CreateDerivedViews(ID3D12Device *pDevice, DXGI_FORMAT format, uint32_t numMips);
 
 	private:
 

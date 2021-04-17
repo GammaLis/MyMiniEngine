@@ -3,7 +3,6 @@
 
 namespace MyDirectX
 {
-
 	using Microsoft::WRL::ComPtr;
 
 	std::mutex DescriptorAllocator::s_AllocationMutex;
@@ -54,7 +53,7 @@ namespace MyDirectX
 		return pHeap.Get();
 	}
 
-	// UserDescriptorHeap
+	/// UserDescriptorHeap
 	void UserDescriptorHeap::Create(ID3D12Device* pDevice, const std::wstring& debugHeapName)
 	{
 		ASSERT(pDevice != nullptr);
@@ -72,22 +71,33 @@ namespace MyDirectX
 		m_NextFreeHandle = m_FirstHandle;
 	}
 
+	void UserDescriptorHeap::Create(ID3D12Device* pDevice, const std::wstring& debugHeapName, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t maxCount)
+	{
+		m_HeapDesc.Type = type;
+		m_HeapDesc.NumDescriptors = maxCount;
+		m_HeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		m_HeapDesc.NodeMask = 1;
+		
+		Create(pDevice, debugHeapName);
+	}
+
 	DescriptorHandle UserDescriptorHeap::Alloc(uint32_t count)
 	{
 		ASSERT(HasAvailableSpace(count), "Descriptor Heap out of space. Increase heap size");
 		DescriptorHandle ret = m_NextFreeHandle;
 		m_NextFreeHandle += count * m_DescriptorSize;
+		m_NumFreeDescriptors -= count;
 		return ret;
 	}
 
 	bool UserDescriptorHeap::ValidateHandle(const DescriptorHandle& descHandle) const
 	{
-		if (descHandle.GetCpuHandle().ptr < m_FirstHandle.GetCpuHandle().ptr ||
-			descHandle.GetCpuHandle().ptr >= m_FirstHandle.GetCpuHandle().ptr + m_HeapDesc.NumDescriptors * m_DescriptorSize)
+		if (descHandle.GetCpuPtr() < m_FirstHandle.GetCpuPtr() ||
+			descHandle.GetCpuPtr() >= m_FirstHandle.GetCpuPtr() + m_HeapDesc.NumDescriptors * m_DescriptorSize)
 			return false;
 
-		if (descHandle.GetGpuHandle().ptr - m_FirstHandle.GetGpuHandle().ptr !=
-			descHandle.GetCpuHandle().ptr - m_FirstHandle.GetCpuHandle().ptr)
+		if (descHandle.GetGpuPtr() - m_FirstHandle.GetGpuPtr() !=
+			descHandle.GetCpuPtr() - m_FirstHandle.GetCpuPtr())
 			return false;
 
 		return true;

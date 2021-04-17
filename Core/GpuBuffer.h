@@ -5,6 +5,7 @@
 namespace MyDirectX
 {
 	class CommandContext;
+	class UploadBuffer;
 
 	class GpuBuffer : public GpuResource
 	{
@@ -15,6 +16,9 @@ namespace MyDirectX
 		// command context
 		void Create(ID3D12Device *pDevice, const std::wstring& name, uint32_t numElements, uint32_t elementSize,
 			const void* initialData = nullptr);
+
+		void Create(ID3D12Device *pDevice, const std::wstring &name, uint32_t numElements, uint32_t elementSize,
+			const UploadBuffer &srcData, uint32_t srcOffset = 0);
 
 		// sub-allocate a buffer out of a pre-allocated heap. If initial data is provided, it will be copied into
 		// the buffer

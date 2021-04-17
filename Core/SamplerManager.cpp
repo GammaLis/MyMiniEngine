@@ -22,7 +22,8 @@ D3D12_CPU_DESCRIPTOR_HANDLE SamplerDesc::CreateDescriptor(ID3D12Device* pDevice)
 	return handle;
 }
 
-void SamplerDesc::CreateDescriptor(ID3D12Device* pDevice, D3D12_CPU_DESCRIPTOR_HANDLE& handle)
+void SamplerDesc::CreateDescriptor(ID3D12Device* pDevice, D3D12_CPU_DESCRIPTOR_HANDLE handle)
 {
+	ASSERT(handle.ptr != 0 && handle.ptr != -1);
 	pDevice->CreateSampler(this, handle);
 }

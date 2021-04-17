@@ -15,4 +15,3 @@ namespace Utility
 	// same as previous except that it does not block but instead returns a task
 	concurrency::task<ByteArray> ReadFileAsync(const std::wstring& fileName);
 }
-

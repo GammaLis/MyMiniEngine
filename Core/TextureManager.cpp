@@ -11,14 +11,23 @@
 namespace MyDirectX
 {
 
+	Texture TextureManager::s_DefaultTexture[(int)EDefaultTexture::kNumDefaultTextures];
+
 	static UINT BytesPerPixel(DXGI_FORMAT format)
 	{
 		return (UINT)BitsPerPixel(format) / 8;
 	}
 
-	void Texture::Create(ID3D12Device* pDevice, size_t pitch, size_t width, size_t height, DXGI_FORMAT format, const void* pInitData)
+	/// Texture
+	void Texture::Create2D(ID3D12Device* pDevice, size_t rowPitchBytes, size_t width, size_t height, DXGI_FORMAT format, const void* pInitData)
 	{
+		Destroy();
+
 		m_UsageState = D3D12_RESOURCE_STATE_COPY_DEST;
+
+		m_Width = (uint32_t)width;
+		m_Height = (uint32_t)height;
+		m_Depth = 1;
 
 		D3D12_HEAP_PROPERTIES heapProps;
 		heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
@@ -39,13 +48,13 @@ namespace MyDirectX
 		texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 		texDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
-		pDevice->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &texDesc,
-			m_UsageState, nullptr, IID_PPV_ARGS(&m_pResource));
+		ASSERT_SUCCEEDED(pDevice->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &texDesc,
+			m_UsageState, nullptr, IID_PPV_ARGS(m_pResource.ReleaseAndGetAddressOf())));
 		m_pResource->SetName(L"Texture");
 
 		D3D12_SUBRESOURCE_DATA texResource;
 		texResource.pData = pInitData;
-		texResource.RowPitch = pitch * BytesPerPixel(format);
+		texResource.RowPitch = rowPitchBytes /* width * BytesPerPixel(format)*/;
 		texResource.SlicePitch = texResource.RowPitch * height;
 
 		CommandContext::InitializeTexture(*this, 1, &texResource);
@@ -71,6 +80,65 @@ namespace MyDirectX
 		// (if not typeless) and for buffers SRVs target a full buffer and are typed (not raw or structured), and for textures 
 		// SRVs target a full texture, all mips and all array slices. Not all resources support null descriptor initialization.
 		pDevice->CreateShaderResourceView(m_pResource.Get(), nullptr, m_hCpuDescriptorHandle);
+	}
+
+	void Texture::Create2D(ID3D12Device* pDevice, size_t width, size_t height, DXGI_FORMAT format, const void* pInitData)
+	{
+		Create2D(pDevice, width * BytesPerPixel(format), width, height, format, pInitData);
+	}
+
+	void Texture::CreateCube(ID3D12Device* pDevice, size_t rowPitchBytes, size_t width, size_t height, DXGI_FORMAT format, const void* pInitData)
+	{
+		Destroy();
+
+		m_UsageState = D3D12_RESOURCE_STATE_COPY_DEST;
+
+		m_Width = (uint32_t)width;
+		m_Height = (uint32_t)height;
+		m_Depth = 6;
+
+		D3D12_HEAP_PROPERTIES heapProps = {};
+		heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+		heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		heapProps.CreationNodeMask = 1;
+		heapProps.VisibleNodeMask = 1;
+
+		D3D12_RESOURCE_DESC texDesc = {};
+		texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		texDesc.Width = width;
+		texDesc.Height = (UINT)height;
+		texDesc.DepthOrArraySize = 6;
+		texDesc.MipLevels = 1;
+		texDesc.Format = format;
+		texDesc.SampleDesc.Count = 1;
+		texDesc.SampleDesc.Quality = 0;
+		texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		texDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+		ASSERT_SUCCEEDED(pDevice->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &texDesc, 
+			m_UsageState, nullptr, IID_PPV_ARGS(m_pResource.ReleaseAndGetAddressOf())));
+		m_pResource->SetName(L"Texture");
+
+		D3D12_SUBRESOURCE_DATA texResource;
+		texResource.pData = pInitData;
+		texResource.RowPitch = rowPitchBytes;
+		texResource.SlicePitch = texResource.RowPitch * height;
+
+		CommandContext::InitializeTexture(*this, 1, &texResource);
+
+		if (m_hCpuDescriptorHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
+			m_hCpuDescriptorHandle = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Format = format;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+		srvDesc.TextureCube.MipLevels = 1;
+		srvDesc.TextureCube.MostDetailedMip = 0;
+		srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+		pDevice->CreateShaderResourceView(m_pResource.Get(), &srvDesc, m_hCpuDescriptorHandle);
+
 	}
 
 	void Texture::CreateTGAFromMemory(ID3D12Device* pDevice, const void* memBuffer, size_t fileSize, bool sRGB)
@@ -125,7 +193,7 @@ namespace MyDirectX
 			break;
 		}
 
-		Create(pDevice, imageWidth, imageHeight, sRGB ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM, formattedData);
+		Create2D(pDevice, imageWidth, imageHeight, sRGB ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM, formattedData);
 
 		delete[] formattedData;
 	}
@@ -135,10 +203,18 @@ namespace MyDirectX
 		if (m_hCpuDescriptorHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
 			m_hCpuDescriptorHandle = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-		HRESULT hr = CreateDDSTextureFromMemory(pDevice,
-			(const uint8_t*)memBuffer, fileSize, 0, sRGB, &m_pResource, m_hCpuDescriptorHandle);
+		bool valid = SUCCEEDED(CreateDDSTextureFromMemory(pDevice,
+			(const uint8_t*)memBuffer, fileSize, 0, sRGB, &m_pResource, m_hCpuDescriptorHandle));
+
+		if (valid)
+		{
+			D3D12_RESOURCE_DESC desc = GetResource()->GetDesc();
+			m_Width = (uint32_t)desc.Width;
+			m_Height = desc.Height;
+			m_Depth = desc.DepthOrArraySize;
+		}
 		
-		return SUCCEEDED(hr);
+		return valid;
 	}
 
 	void Texture::CreatePIXImageFromMemory(ID3D12Device* pDevice, const void* memBuffer, size_t fileSize)
@@ -155,8 +231,8 @@ namespace MyDirectX
 
 		ASSERT(fileSize >= header.pitch * BytesPerPixel(header.format) * header.height + sizeof(Header),
 			"Raw PIX image dump has an invalid file size");
-
-		Create(pDevice, header.pitch, header.width, header.height, header.format, (uint8_t*)memBuffer + sizeof(Header));
+		// 这里的pitch似乎不是rowPitchBytes？上面是pitch * BytesPerPixel	??? -2021-3-8	MS-Graphic Samples-Texture.cpp
+		Create2D(pDevice, header.pitch * BytesPerPixel(header.format), header.width, header.height, header.format, (uint8_t*)memBuffer + sizeof(Header));
 	}
 
 	void Texture::CreateTexBySTB_IMAGE(ID3D12Device* pDevice, const void* memBuffer, size_t fileSize, bool sRGB)
@@ -179,12 +255,12 @@ namespace MyDirectX
 				format = sRGB ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM;
 				break;
 			}
-			Create(pDevice, width, height, format, data);
+			Create2D(pDevice, width, height, format, data);
 		}
 		stbi_image_free(data);
 	}
 
-	// ManagedTexture
+	/// ManagedTexture
 	void ManagedTexture::WaitForLoad() const
 	{
 		volatile D3D12_CPU_DESCRIPTOR_HANDLE& volHandle = (volatile D3D12_CPU_DESCRIPTOR_HANDLE&)m_hCpuDescriptorHandle;
@@ -194,8 +270,10 @@ namespace MyDirectX
 		// 这2个初始值 改变一个，即可返回，结束等待	
 		// 注：之前纠结 为什么是 volValid = true时等待，如果 volValid = false时等待，如果加载失败，
 		// volHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN && volValid == false 无法结束等待	-20-2-26
-		while (volHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN && volValid)
-			std::this_thread::yield();
+		// while (volHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN && volValid) std::this_thread::yield();
+
+		// 更新 -2021-3-8
+		while ((volatile bool&)m_IsLoading) std::this_thread::yield();
 	}
 
 	void ManagedTexture::Unload()
@@ -216,16 +294,42 @@ namespace MyDirectX
 		m_RootPath = textureLibRoot;
 	}
 
+	void TextureManager::InitDefaultTextures(ID3D12Device* pDevice)
+	{
+		uint32_t MagentPixel = 0xFFFF00FF;
+		s_DefaultTexture[(int)EDefaultTexture::kMagenta2D].Create2D(pDevice, 4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &MagentPixel);
+		uint32_t BlackOpaqueTexel = 0xFF000000;
+		s_DefaultTexture[(int)EDefaultTexture::kBlackOpaque2D].Create2D(pDevice, 4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &BlackOpaqueTexel);
+		uint32_t BlackTransparentTexel = 0x00000000;
+		s_DefaultTexture[(int)EDefaultTexture::kBlackTransparent2D].Create2D(pDevice, 4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &BlackTransparentTexel);
+		uint32_t WhiteOpaqueTexel = 0xFFFFFFFF;
+		s_DefaultTexture[(int)EDefaultTexture::kWhiteOpaque2D].Create2D(pDevice, 4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &WhiteOpaqueTexel);
+		uint32_t WhiteTransparentTexel = 0x00FFFFFF;
+		s_DefaultTexture[(int)EDefaultTexture::kWhiteTransparent2D].Create2D(pDevice, 4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &WhiteTransparentTexel);
+		uint32_t FlatNormalTexel = 0x00FF8080;
+		s_DefaultTexture[(int)EDefaultTexture::kDefaultNormalMap].Create2D(pDevice, 4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &FlatNormalTexel);
+		uint32_t BlackCubeTexels[6] = {};
+		s_DefaultTexture[(int)EDefaultTexture::kBlackCubeMap].CreateCube(pDevice, 4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, BlackCubeTexels);
+	}
+
 	void TextureManager::Shutdown()
 	{
+		DestroyDefaultTextures();
+
 		m_TextureCache.clear();
 	}
 
-	std::pair<ManagedTexture*, bool> TextureManager::FindOrLoadTexture(const std::wstring& fileName)
+	// <ManagedTexture*, bRequestLoad : bool>
+	std::pair<ManagedTexture*, bool> TextureManager::FindOrLoadTexture(const std::wstring& fileName, bool forceSRGB)
 	{
 		std::lock_guard<std::mutex> lockGuard(m_TexMutex);
 
-		auto iter = m_TextureCache.find(fileName);
+		std::wstring key = fileName;
+		if (forceSRGB)
+			key += L"_SRGB";
+
+		// searching for an existing managed texture
+		auto iter = m_TextureCache.find(key);
 
 		// if it's found, it has already been loaded or the load process has begun
 		if (iter != m_TextureCache.end())
@@ -233,8 +337,8 @@ namespace MyDirectX
 			return std::make_pair(iter->second.get(), false);
 		}
 
-		ManagedTexture* newTexture = new ManagedTexture(fileName);
-		m_TextureCache[fileName].reset(newTexture);
+		ManagedTexture* newTexture = new ManagedTexture(key);
+		m_TextureCache[key].reset(newTexture);
 
 		// this was the first time it was request, so indicate that the caller must read the file
 		return std::make_pair(newTexture, true);
@@ -268,7 +372,11 @@ namespace MyDirectX
 		if (ba->size() == 0 || !tex->CreateDDSFromMemory(pDevice, ba->data(), ba->size(), sRGB))
 			tex->SetToInvalidTexture();
 		else
+		{
 			tex->GetResource()->SetName(fileName.c_str());
+			tex->m_IsValid = true;
+		}
+		tex->m_IsLoading = false;
 
 		return tex;
 	}
@@ -291,9 +399,11 @@ namespace MyDirectX
 		{
 			tex->CreateTGAFromMemory(pDevice, ba->data(), ba->size(), sRGB);
 			tex->GetResource()->SetName(fileName.c_str());
+			tex->m_IsValid = true;
 		}
 		else
 			tex->SetToInvalidTexture();
+		tex->m_IsLoading = false;
 
 		return tex;
 	}
@@ -316,9 +426,11 @@ namespace MyDirectX
 		{
 			tex->CreatePIXImageFromMemory(pDevice, ba->data(), ba->size());
 			tex->GetResource()->SetName(fileName.c_str());
+			tex->m_IsValid = true;
 		}
 		else
 			tex->SetToInvalidTexture();
+		tex->m_IsLoading = false;
 
 		return tex;
 	}
@@ -337,7 +449,8 @@ namespace MyDirectX
 		}
 
 		// 直接使用stbi_load
-		/*std::wstring path = (m_RootPath + fileName);
+		/**
+		std::wstring path = (m_RootPath + fileName);
 		size_t len = path.size() + 1;
 		char* cpath = (char*)_malloca(len);
 		size_t r;
@@ -365,17 +478,19 @@ namespace MyDirectX
 		}
 		else
 			tex->SetToInvalidTexture();
-		stbi_image_free(data);*/
-		// 
+		stbi_image_free(data);
+		*/
 
 		Utility::ByteArray ba = Utility::ReadFileSync(m_RootPath + fileName);
 		if (ba->size() > 0)
 		{
 			tex->CreateTexBySTB_IMAGE(pDevice, ba->data(), ba->size(), sRGB);
 			tex->GetResource()->SetName(fileName.c_str());
+			tex->m_IsValid = true;
 		}
 		else
 			tex->SetToInvalidTexture();
+		tex->m_IsLoading = false;
 
 		return tex;
 	}
@@ -390,7 +505,6 @@ namespace MyDirectX
 		for (size_t i = 0; i < numTex; ++i)
 		{
 			auto iter = m_TextureCache.find(fileName[i]);
-
 			if (iter != m_TextureCache.end())
 			{
 				auto &pTex = iter->second;
@@ -402,6 +516,7 @@ namespace MyDirectX
 		}		
 	}
 
+#pragma region Default Textures
 	// static members 
 	const Texture& TextureManager::GetBlackTex2D()
 	{
@@ -417,7 +532,9 @@ namespace MyDirectX
 		}
 
 		uint32_t blackPixel = 0;
-		tex->Create(Graphics::s_Device, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &blackPixel);
+		tex->Create2D(Graphics::s_Device, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &blackPixel);
+		tex->m_IsLoading = false;
+
 		return *tex;
 	}
 
@@ -435,7 +552,9 @@ namespace MyDirectX
 		}
 
 		uint32_t whitePixel = 0xFFFFFFFFul;
-		tex->Create(Graphics::s_Device, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &whitePixel);
+		tex->Create2D(Graphics::s_Device, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &whitePixel);
+		tex->m_IsLoading = false;
+
 		return *tex;
 	}
 
@@ -453,11 +572,82 @@ namespace MyDirectX
 		}
 
 		uint32_t magentaPixel = 0x00FF00FF;
-		tex->Create(Graphics::s_Device, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &magentaPixel);
+		tex->Create2D(Graphics::s_Device, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &magentaPixel);
+		tex->m_IsLoading = false;
+
 		return *tex;
 	}
 
-	
+	D3D12_CPU_DESCRIPTOR_HANDLE TextureManager::GetDefaultTexture(EDefaultTexture texID)
+	{
+		ASSERT(texID < EDefaultTexture::kNumDefaultTextures);
+		return s_DefaultTexture[(int)texID].GetSRV();
+	}
+
+	void TextureManager::DestroyDefaultTextures()
+	{
+		for (int i = 0; i < (int)EDefaultTexture::kNumDefaultTextures; ++i)
+		{
+			s_DefaultTexture[i].Destroy();
+		}
+	}
+#pragma endregion
+
+	/// TextureRef
+	TextureRef::TextureRef(ManagedTexture* tex) : m_ref{tex}
+	{
+		if (m_ref != nullptr)
+			++m_ref->m_ReferenceCount;
+	}
+
+	TextureRef::TextureRef(const TextureRef& ref) : m_ref{ref.m_ref}
+	{
+		if (m_ref != nullptr)
+			++m_ref->m_ReferenceCount;
+	}
+
+	TextureRef::~TextureRef()
+	{
+		if (m_ref != nullptr && --m_ref->m_ReferenceCount == 0)
+			m_ref->Unload();
+	}
+
+	void TextureRef::operator=(const TextureRef& rhs)
+	{
+		if (&rhs != this)
+		{
+			if (m_ref != nullptr && --m_ref->m_ReferenceCount == 0)
+				m_ref->Unload();
+			m_ref = rhs.m_ref;
+			if (m_ref != nullptr)
+				++m_ref->m_ReferenceCount;
+		}
+	}
+
+	void TextureRef::operator=(std::nullptr_t)
+	{
+		if (m_ref != nullptr && --m_ref->m_ReferenceCount == 0)
+			m_ref->Unload();
+		m_ref = nullptr;
+	}
+
+	D3D12_CPU_DESCRIPTOR_HANDLE TextureRef::GetSRV() const
+	{
+		if (m_ref != nullptr)
+			return m_ref->GetSRV();
+		else 
+			return TextureManager::GetDefaultTexture(EDefaultTexture::kMagenta2D);
+	}
+
+	const Texture* TextureRef::Get() const
+	{
+		return m_ref;
+	}
+
+	const Texture* TextureRef::operator->() const
+	{
+		ASSERT(m_ref != nullptr);
+		return m_ref;
+	}
 
 }
-

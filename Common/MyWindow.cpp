@@ -56,6 +56,72 @@ bool MyWindow::Init()
 	return true;
 }
 
+// 显示窗口
+void MyWindow::Show(int nCmdShow)
+{
+	ShowWindow(m_HWnd, nCmdShow);
+}
+
+// convert a styled window into a fullscreen borderless window and back again
+void MyWindow::ToggleFullscreenWindow(IDXGISwapChain* pSwapchain)
+{
+	using Microsoft::WRL::ComPtr;
+
+	if (m_bFullscreenMode)
+	{
+		// full screen -> windowed screen 转为窗口模式
+		// restore the window's attribute and size
+		SetWindowLong(m_HWnd, GWL_STYLE, m_WindowStyle);
+		SetWindowPos(m_HWnd, 
+			HWND_NOTOPMOST, 
+			m_WindowRect.left, m_WindowRect.top, m_WindowRect.right - m_WindowRect.left, m_WindowRect.bottom - m_WindowRect.top,
+			SWP_FRAMECHANGED | SWP_NOACTIVATE);
+		ShowWindow(m_HWnd, SW_NORMAL);
+	}
+	else
+	{
+		// save the old window rect so we can restore it when existing fullscreen mode
+		GetWindowRect(m_HWnd, &m_WindowRect);
+
+		// make the window borderless so that the client area can fill the screen
+		SetWindowLong(m_HWnd, GWL_STYLE, m_WindowStyle & ~(WS_CAPTION | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SYSMENU | WS_THICKFRAME));
+
+		RECT fullscreenWindowRect;
+		if (pSwapchain)
+		{
+			// get the settings of the display on which the app's window is currently displaed
+			ComPtr<IDXGIOutput> pOutput;
+			ThrowIfFailed(pSwapchain->GetContainingOutput(&pOutput));
+			DXGI_OUTPUT_DESC outputDesc;
+			ThrowIfFailed(pOutput->GetDesc(&outputDesc));
+			fullscreenWindowRect = outputDesc.DesktopCoordinates;
+		}
+		else
+		{
+			throw com_exception(S_FALSE);
+		}
+
+		SetWindowPos(m_HWnd, HWND_TOPMOST,
+			fullscreenWindowRect.left, fullscreenWindowRect.top, 
+			fullscreenWindowRect.right - fullscreenWindowRect.left, fullscreenWindowRect.bottom - fullscreenWindowRect.top,
+			SWP_FRAMECHANGED | SWP_NOACTIVATE);
+		ShowWindow(m_HWnd, SW_MAXIMIZE);
+	}
+
+	m_bFullscreenMode = !m_bFullscreenMode;
+}
+
+void MyWindow::SetWindowZorderToTopMost(bool setToTopMost)
+{
+	RECT windowRect;
+	GetWindowRect(m_HWnd, &windowRect);
+
+	SetWindowPos(m_HWnd, (setToTopMost) ? HWND_TOPMOST : HWND_NOTOPMOST,
+		windowRect.left, windowRect.top,
+		windowRect.right - windowRect.left, windowRect.bottom - windowRect.top,
+		SWP_FRAMECHANGED | SWP_NOACTIVATE);
+}
+
 LRESULT CALLBACK MyWindow::WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	auto myWindow = reinterpret_cast<MyWindow*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
@@ -79,8 +145,8 @@ LRESULT CALLBACK MyWindow::WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
 
 int MyWindow::RegisterWindowClass()
 {
-	WNDCLASSEXW wcex = {};
-	wcex.cbSize = sizeof(WNDCLASSEXW);			// the size, in bytes, of the structure
+	WNDCLASSEX wcex = {};
+	wcex.cbSize = sizeof(WNDCLASSEX);			// the size, in bytes, of the structure
 	wcex.style = CS_HREDRAW | CS_VREDRAW;		// the class style, CS_HREDRAW specifies that the entire window is redrawn 
 												// if a movement or size adjustment changes the width of the client area
 	wcex.hInstance = m_HInstance;				// a handle to the instance that contains the window procudure for the class
@@ -134,5 +200,3 @@ int MyWindow::CreateWindowInstance()
 
 	return 0;
 }
-
-

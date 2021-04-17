@@ -1,4 +1,14 @@
 #define MINI_ENGINE		// MINI_ENGINE COMMON_COMPUTE
+
+#define IMPLEMENTED_IGAMEAPP	0
+#define IMPLEMENTED_MODELVIEWER 1
+#define IMPLEMENTED_GLTFVIEWER	2
+#define IMPLEMENTED_SCENEVIEWER 3
+#define IMPLEMENTED_OCEANVIEWER 4
+#define IMPLEMENTED_VORONOITEXTURE	5
+
+#define IMPLEMENTED IMPLEMENTED_MODELVIEWER
+
 #include "MyBaseApp.h"
 #include "Utility.h"
 #include "IGameApp.h"
@@ -9,6 +19,16 @@
 #include "VoronoiTextureGenerator.h"
 
 #include "CubemapIBLApp.h"
+
+/**
+*	TODO:
+*	ERROR C2102: “&”要求左值	==>	https://stackoverflow.com/questions/65315241/how-can-i-fix-requires-l-value
+*	The problem is that pattern is actually not conformant（一致，符合）. The fix is to use:
+		auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		m_commandList->ResourceBarrier(1, &barrier);
+
+*	for now by disabling /permissive- by changing "Conformance Mode" to "No" in the C/C++ -> Language project settings.
+*/
 
 // I. windows程序 预处理定义-_WINDOWS,连接器子系统SubSystem:WINDOWS
 //int WINAPI WinMain(_In_ HINSTANCE hInstance,
@@ -57,13 +77,28 @@ int main(int argc, const char* argv[])
 #pragma endregion
 
 #if defined(MINI_ENGINE)
-	// 1. IGameApp
-	// MyDirectX::IGameApp gApp(hInst);
-	// MyDirectX::ModelViewer gApp(hInst, L"ModelViewer", 1280, 720);
-	// MyDirectX::glTFViewer gApp(hInst, "Models/buster_drone.gltf", L"glTFViewer", 1280, 720);
-	// MyDirectX::SceneViewer gApp(hInst, L"SceneViewer"/*, 1280, 720*/);
-	// MyDirectX::OceanViewer gApp(hInst, L"OceanViewer"/*, 1280, 720*/);
-	MyDirectX::VoronoiTextureGenerator gApp(hInst, L"VoronoiTextureGenerator"/*, 1280, 720*/);
+	constexpr int SceneWidth = 1280, SceneHeight = 720;
+
+#if IMPLEMENTED == IMPLEMENTED_IGAMEAPP
+	// 0. IGameApp
+	MyDirectX::IGameApp gApp(hInst);
+
+#elif IMPLEMENTED == IMPLEMENTED_MODELVIEWER
+	MyDirectX::ModelViewer gApp(hInst, L"ModelViewer", SceneWidth, SceneHeight);
+
+#elif IMPLEMENTED == IMPLEMENTED_GLTFVIEWER
+	MyDirectX::glTFViewer gApp(hInst, "Models/buster_drone.gltf", L"glTFViewer", SceneWidth, SceneHeight);
+
+#elif IMPLEMENTED == IMPLEMENTED_SCENEVIWER
+	MyDirectX::SceneViewer gApp(hInst, L"SceneViewer", SceneWidth, SceneHeight);
+
+#elif IMPLEMENTED == IMPLEMENTED_OCEANVIEWER
+	MyDirectX::OceanViewer gApp(hInst, L"OceanViewer", SceneWidth, SceneHeight);
+
+#else
+	MyDirectX::VoronoiTextureGenerator gApp(hInst, L"VoronoiTextureGenerator", SceneWidth, SceneHeight);
+
+#endif	// IMPLEMENTED
 
 	int ret = 0;
 	if (gApp.Init())

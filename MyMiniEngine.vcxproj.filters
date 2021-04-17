@@ -374,7 +374,6 @@
       <Filter>Scenes</Filter>
     </ClInclude>
     <ClInclude Include="Voxelization.h" />
-    <ClInclude Include="Texture3D.h" />
     <ClInclude Include="Scenes\DebugPass.h">
       <Filter>Scenes</Filter>
     </ClInclude>
@@ -383,6 +382,12 @@
     </ClInclude>
     <ClInclude Include="VoronoiTextureGenerator.h">
       <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\UploadBuffer.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Texture3D.h">
+      <Filter>Core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -585,7 +590,6 @@
       <Filter>Scenes</Filter>
     </ClCompile>
     <ClCompile Include="Voxelization.cpp" />
-    <ClCompile Include="Texture3D.cpp" />
     <ClCompile Include="OceanViewer.cpp">
       <Filter>Game</Filter>
     </ClCompile>
@@ -594,6 +598,12 @@
     </ClCompile>
     <ClCompile Include="Scenes\DebugPass.cpp">
       <Filter>Scenes</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\UploadBuffer.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Texture3D.cpp">
+      <Filter>Core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -617,9 +627,6 @@
       <Filter>Core\Shaders\Misc</Filter>
     </None>
     <None Include="Core\Shaders\PixelPacking_RGBM.hlsli">
-      <Filter>Core\Shaders\Misc</Filter>
-    </None>
-    <None Include="Core\Shaders\ToneMappingUtility.hlsli">
       <Filter>Core\Shaders\Misc</Filter>
     </None>
     <None Include="Core\Shaders\ColorSpaceUtility.hlsli">
@@ -714,6 +721,18 @@
     </None>
     <None Include="Shaders\Misc\VoronoiRS.hlsli">
       <Filter>Shaders\Misc</Filter>
+    </None>
+    <None Include="Core\Shaders\CommonRS.hlsli">
+      <Filter>Core\Shaders\Misc</Filter>
+    </None>
+    <None Include="Core\Shaders\ToneMappingUtility.hlsli">
+      <Filter>Core\Shaders\HDR</Filter>
+    </None>
+    <None Include="Core\Shaders\LanczosFunctions.hlsli">
+      <Filter>Core\Shaders\Present</Filter>
+    </None>
+    <None Include="Core\Shaders\BicubicFilterFunctions.hlsli">
+      <Filter>Core\Shaders\Present</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -998,6 +1017,39 @@
     </FxCompile>
     <FxCompile Include="Shaders\Misc\JFAVoronoiTexCS.hlsl">
       <Filter>Shaders\Misc</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\Generate3DTexMips.hlsl">
+      <Filter>Core\Shaders\GenerateMips</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\ScreenQuadCommonVS.hlsl">
+      <Filter>Core\Shaders\Misc</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\CompositeSDRPS.hlsl">
+      <Filter>Core\Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\CompositeHDRPS.hlsl">
+      <Filter>Core\Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\BlendUIHDRPS.hlsl">
+      <Filter>Core\Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\ScaleAndCompositeSDRPS.hlsl">
+      <Filter>Core\Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\ScaleAndCompositeHDRPS.hlsl">
+      <Filter>Core\Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\LanczosHorizontalPS.hlsl">
+      <Filter>Core\Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\LanczosVerticalPS.hlsl">
+      <Filter>Core\Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\LanczosCS.hlsl">
+      <Filter>Core\Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\BicubicUpsampleCS.hlsl">
+      <Filter>Core\Shaders\Present</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

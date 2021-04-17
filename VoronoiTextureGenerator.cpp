@@ -50,7 +50,7 @@ void VoronoiTextureGenerator::Render()
 	gfx.SetViewportAndScissor(m_MainViewport, m_MainScissor);
 
 	// pingpong buffers
-	uint32_t nPass = std::ceil(std::log2(s_Size));
+	uint32_t nPass = static_cast<uint32_t>(std::ceil(std::log2(s_Size)));
 	uint32_t finalPass = nPass & 1;
 	auto &finalTex = m_PingpongBuffers[finalPass];
 	
@@ -237,7 +237,7 @@ void VoronoiTextureGenerator::DoJFA(ComputeContext& computeContext)
 
 	computeContext.SetConstants((UINT)VoronoiTextureRSId::CBConstants, s_Size, s_Size);
 
-	uint32_t nPass = std::ceil(std::log2(s_Size));
+	uint32_t nPass = static_cast<uint32_t>(std::ceil(std::log2(s_Size)));
 
 	uint32_t inId = 0;
 	uint32_t outId = 1;
@@ -268,7 +268,7 @@ void VoronoiTextureGenerator::GenerateVoronoiTexture(ComputeContext& computeCont
 {
 	computeContext.SetPipelineState(m_GenVoronoiTexPSO);
 
-	uint32_t nPass = std::ceil(std::log2(s_Size));
+	uint32_t nPass = static_cast<uint32_t>(std::ceil(std::log2(s_Size)));
 	uint32_t finalPass = nPass & 1;
 	auto& finalTex = m_PingpongBuffers[finalPass];
 	computeContext.TransitionResource(finalTex, D3D12_RESOURCE_STATE_GENERIC_READ);

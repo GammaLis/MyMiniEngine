@@ -21,6 +21,8 @@ namespace MyDirectX
 
 	class ColorBuffer;
 	class DepthBuffer;
+	class UploadBuffer;
+	class ReadbackBuffer;
 
 	struct DWParam
 	{
@@ -47,7 +49,7 @@ namespace MyDirectX
 	| D3D12_RESOURCE_STATE_COPY_DEST \
 	| D3D12_RESOURCE_STATE_COPY_SOURCE)
 
-	// CommandContext 管理器，分配/销毁 CommandContext，全局唯一
+	/// CommandContext 管理器，分配/销毁 CommandContext，全局唯一
 	class ContextManager
 	{
 	public:
@@ -116,7 +118,12 @@ namespace MyDirectX
 		void CopyBufferRegion(GpuResource& dest, size_t destOffset, GpuResource& src, size_t srcOffset, size_t numBytes);
 		void CopySubresource(GpuResource& dest, UINT destSubIndex, GpuResource& src, UINT srcSubIndex);
 		void CopyCounter(GpuResource& dest, size_t destOffset, StructuredBuffer& src);
+		void CopyTextureRegion(GpuResource &dest, UINT x, UINT y, UINT z, GpuResource &source, RECT &rect);
 		void ResetCounter(StructuredBuffer& buf, uint32_t value = 0);
+
+		// creates a readback buffer of sufficient size, copies the texture into it,
+		// and returns row pitch in bytes
+		uint32_t ReadbackTexture(ID3D12Device* pDevice, ReadbackBuffer &dstBuffer, PixelBuffer &srcBuffer);
 
 		DynAlloc ReserveUploadMemory(size_t sizeInBytes)
 		{
@@ -124,7 +131,8 @@ namespace MyDirectX
 		}
 
 		static void InitializeTexture(GpuResource& dest, UINT numSubresources, D3D12_SUBRESOURCE_DATA subData[]);
-		static void InitializeBuffer(GpuResource& dest, const void* data, size_t numBytes, size_t offset = 0);
+		static void InitializeBuffer(GpuBuffer& dest, const void* data, size_t numBytes, size_t offset = 0);
+		static void InitializeBuffer(GpuBuffer& dest, const UploadBuffer &src, size_t srcOffset, size_t numBytes = -1, size_t destOffset = 0);
 		static void InitializeTextureArraySlice(GpuResource& dest, UINT sliceIndex, GpuResource& src);
 		static void ReadbackTexture2D(GpuResource& readbackBuffer, PixelBuffer& srcBuffer);
 
@@ -179,7 +187,7 @@ namespace MyDirectX
 		void SetID(const std::wstring& ID) { m_ID = ID; }
 	};
 
-	// Graphics Context
+	/// Graphics Context
 	class GraphicsContext : public CommandContext
 	{
 	public:
@@ -190,7 +198,8 @@ namespace MyDirectX
 
 		void ClearUAV(GpuBuffer& target);
 		void ClearUAV(ColorBuffer& target);
-		void ClearColor(ColorBuffer& target);
+		void ClearColor(ColorBuffer& target, D3D12_RECT *rect = nullptr);
+		void ClearColor(ColorBuffer &target, float color[4], D3D12_RECT *rect = nullptr);
 		void ClearDepth(DepthBuffer& target);
 		void ClearStencil(DepthBuffer& target);
 		void ClearDepthAndStencil(DepthBuffer& target);
@@ -256,7 +265,7 @@ namespace MyDirectX
 
 	};
 
-	// Compute Context
+	/// Compute Context
 	class ComputeContext : public CommandContext
 	{
 	public:
@@ -297,7 +306,7 @@ namespace MyDirectX
 			uint32_t maxCommands = 1, GpuBuffer* commandCounterBuffer = nullptr, uint64_t counterOffset = 0);
 	};
 
-	// inline functions
+	/// inline functions
 	inline void CommandContext::FlushResourceBarriers()
 	{
 		if (m_NumBarriersToFlush > 0)
@@ -370,6 +379,25 @@ namespace MyDirectX
 		TransitionResource(src.GetCounterBuffer(), D3D12_RESOURCE_STATE_COPY_SOURCE);
 		FlushResourceBarriers();
 		m_CommandList->CopyBufferRegion(dest.GetResource(), destOffset, src.GetCounterBuffer().GetResource(), 0, 4);
+	}
+
+	inline void CommandContext::CopyTextureRegion(GpuResource& dest, UINT x, UINT y, UINT z, GpuResource& source, RECT& rect)
+	{
+		TransitionResource(dest, D3D12_RESOURCE_STATE_COPY_DEST);
+		TransitionResource(source, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		FlushResourceBarriers();
+
+		D3D12_TEXTURE_COPY_LOCATION destLoc = CD3DX12_TEXTURE_COPY_LOCATION(dest.GetResource(), 0);
+		D3D12_TEXTURE_COPY_LOCATION srcLoc = CD3DX12_TEXTURE_COPY_LOCATION(source.GetResource(), 0);
+
+		D3D12_BOX box = {};
+		box.back = 1;
+		box.left = rect.left;
+		box.right = rect.right;
+		box.top = rect.top;
+		box.bottom = rect.bottom;
+
+		m_CommandList->CopyTextureRegion(&destLoc, x, y, z, &srcLoc, &box);
 	}
 
 	inline void CommandContext::ResetCounter(StructuredBuffer& buf, uint32_t value)

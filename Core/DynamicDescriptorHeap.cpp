@@ -41,7 +41,6 @@ namespace MyDirectX
 			ASSERT_SUCCEEDED(Graphics::s_Device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&pHeap)));
 			s_DescriptorHeapPool[idx].emplace_back(pHeap);
 			return pHeap.Get();
-
 		}
 	}
 
