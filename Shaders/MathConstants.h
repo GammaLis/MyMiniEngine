@@ -1,4 +1,5 @@
-#pragma once
+#ifndef MATH_CONSTANTS_INCLUDED
+#define MATH_CONSTANTS_INCLUDED
 
 // "Falcor/.../MathConstants.slangh"
 // Constants from <math.h>
@@ -24,3 +25,5 @@
 #define M_1_4PI             0.079577471545947667884 // 1/4pi
 #define M_SQRTPI            1.77245385090551602730  // sqrt(pi)
 #define M_1_SQRT2           0.707106781186547524401 // 1/sqrt(2)
+
+#endif // MATH_CONSTANTS_INCLUDED

@@ -54,7 +54,7 @@ void ColorBuffer::CreateArray(ID3D12Device* pDevice, const std::wstring& name, u
 	CreateDerivedViews(pDevice, format, arrayCount, 1);
 }
 
-void ColorBuffer::GenerateMipMaps(CommandContext& context, Graphics& gfxCore)
+void ColorBuffer::GenerateMipMaps(CommandContext& context)
 {
 	if (m_NumMipmaps == 0)
 		return;
@@ -63,7 +63,7 @@ void ColorBuffer::GenerateMipMaps(CommandContext& context, Graphics& gfxCore)
 
 	computeContext.TransitionResource(*this, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-	computeContext.SetRootSignature(gfxCore.m_GenerateMipsRS);
+	computeContext.SetRootSignature(Graphics::s_CommonStates.GenerateMipsRS);
 	computeContext.SetDynamicDescriptor(1, 0, m_SRVHandle);
 
 	for (uint32_t topMip = 0; topMip < m_NumMipmaps; )
@@ -80,7 +80,7 @@ void ColorBuffer::GenerateMipMaps(CommandContext& context, Graphics& gfxCore)
 		//	computeContext.SetPipelineState(gfxCore.m_GenerateMipsGammaPSO);
 		//else
 		//	computeContext.SetPipelineState(gfxCore.m_GenerateMipsLinearPSO);
-		computeContext.SetPipelineState(gfxCore.m_GenerateMipsPSO);
+		computeContext.SetPipelineState(Graphics::s_CommonStates.GenerateMipsPSO);
 
 		// we can downsample up to 4 times, but if the ratio between levels is not exactly 2:1, we have to
 		// shift out blend weights, which gets complicated or expensive. Maybe we can update the code later

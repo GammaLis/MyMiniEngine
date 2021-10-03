@@ -95,21 +95,21 @@ float MaxOf(float4 depths)
 
 int2 GetClosestPixel(uint index, out float closestDepth)
 {
-	float center = ldsDepth[index];
-	float left = ldsDepth[index - 1];
-	float right = ldsDepth[index + 1];
-	float up = ldsDepth[index - kLdsPitch];
-	float down = ldsDepth[index + kLdsPitch];
+	float depthO = ldsDepth[index];
+	float depthW = ldsDepth[index - 1];
+	float depthE = ldsDepth[index + 1];
+	float depthN = ldsDepth[index - kLdsPitch];
+	float depthS = ldsDepth[index + kLdsPitch];
 
-	closestDepth = min(center, min(min(left, right), min(up, down)));
+	closestDepth = min(depthO, min(min(depthW, depthE), min(depthN, depthS)));
 
-	if (closestDepth == left)
+	if (closestDepth == depthW)
 		return int2(-1, 0);
-	else if (closestDepth == right)
+	else if (closestDepth == depthE)
 		return int2(+1, 0);
-	else if (closestDepth == up)
+	else if (closestDepth == depthN)
 		return int2(0, -1);
-	else if (closestDepth == down)
+	else if (closestDepth == depthS)
 		return int2(0, +1);
 
 	return int2(0, 0);
@@ -133,7 +133,7 @@ void ApplyTemporalBlend(uint2 st, uint ldsIndex, float3 boxMin, float3 boxMax)
 	// 注：因为这里使用Gather，采样不经滤波，所以需要加上_ViewportJitter，
 	// 如果使用Sample，应该不用再加，因为考虑了滤波，Jitter因素其实已经考虑进去（大概如此，尚不确定 -20-2-22） 
 	float temporalDepth = MaxOf(_PreDepth.Gather(s_LinearSampler, STtoUV(st + velocity.xy + _ViewportJitter))) + 1e-3;
-	// float temporalDepth = _PreDepth.SampleLevel(s_LinearSampler, STtoUV(st + velocity.xy), 0);	// 每帧都在变化
+	// temporalDepth = _PreDepth.SampleLevel(s_LinearSampler, STtoUV(st + velocity.xy), 0);	// 每帧都在变化
 
 	// fast-moving pixels cause motion blur and probably don't need TAA
 	float speedFactor = saturate(1.0 - length(velocity.xy) * _RcpSpeedLimiter);
@@ -200,7 +200,7 @@ void main(
 		uint Y = (i / ldsHalfPitch) * 2;
 		uint topLeftIdx = X + Y * kLdsPitch;
         
-		float2 uv = _RcpBufferDim * (groupId.xy * uint2(8, 8) * float2(2, 1) + float2(X, Y) + 1);
+		float2 uv = _RcpBufferDim * (groupId.xy * uint2(8, 8) * float2(2, 1) + float2(X, Y));
 
 		// gather
 		// w - z

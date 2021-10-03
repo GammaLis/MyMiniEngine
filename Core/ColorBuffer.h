@@ -52,7 +52,7 @@ namespace MyDirectX
 		// this will work for all texture size, but it's recommended for speed and quality that you use
 		// dimensions with power of 2 (but not necessarily square.) Pass 0 for arrayCount to reserve
 		// space for mips at creation time
-		void GenerateMipMaps(CommandContext& context, Graphics &gfxCore);
+		void GenerateMipMaps(CommandContext& context);
 
 		// compute the number of texture levels needed to reduce to 1x1. This uses _BitScanReverse
 		// to find the highest set bit. Each dimension reduces by half and truncates bits. 

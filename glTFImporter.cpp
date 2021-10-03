@@ -1414,7 +1414,7 @@ namespace glTF
 	{
 		using namespace MyDirectX;
 
-		uint32_t activeMatCount = m_ActiveMaterials.size();
+		uint32_t activeMatCount = (uint32_t)m_ActiveMaterials.size();
 		if (activeMatCount > 0)
 		{
 			m_SRVs.reset(new D3D12_CPU_DESCRIPTOR_HANDLE[activeMatCount * Material::TextureNum]);
@@ -1484,7 +1484,7 @@ namespace glTF
 					matTextures[4] = dynamic_cast<const ManagedTexture*>(&TextureManager::GetBlackTex2D());
 				}
 
-				uint32_t ind = i * Material::TextureNum;
+				uint32_t ind = (uint32_t)i * Material::TextureNum;
 				m_SRVs[ind + 0] = matTextures[0]->GetSRV();
 				m_SRVs[ind + 1] = matTextures[1]->GetSRV();
 				m_SRVs[ind + 2] = matTextures[2]->GetSRV();

@@ -71,11 +71,11 @@ void ModelViewer::Update(float deltaTime)
 	auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 	auto bufferWidth = colorBuffer.GetWidth(), bufferHeight = colorBuffer.GetHeight();
 	
-	// test (改变Viewport位置，尺寸，Scissor位置，尺寸)
+	// >>> test (改变Viewport位置，尺寸，Scissor位置，尺寸)
 	// m_MainViewport.TopLeftX = m_MainViewport.TopLeftY = 0.0f;
-	//m_MainViewport.TopLeftX = 10;
-	//m_MainViewport.TopLeftY = 10;
-	// test end
+	// m_MainViewport.TopLeftX = 10;
+	// m_MainViewport.TopLeftY = 10;
+	// <<< test end
 	m_MainViewport.Width = (float)bufferWidth;
 	m_MainViewport.Height = (float)bufferHeight;
 	m_MainViewport.MinDepth = 0.0f;
@@ -241,21 +241,23 @@ void ModelViewer::Render()
 	}
 
 	
-	//// 普通渲染顺序，不经z prepass
-	//{
-	//	gfxContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-	//	gfxContext.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
-	//	gfxContext.ClearColor(colorBuffer);
-	//	gfxContext.ClearDepth(depthBuffer);
-	//	gfxContext.SetRenderTarget(colorBuffer.GetRTV(), depthBuffer.GetDSV());	// GetDSV_DepthReadOnly
-	//	gfxContext.SetViewportAndScissor(m_MainViewport, m_MainScissor);
+	// 普通渲染顺序，不经z prepass
+	/**
+	{
+		gfxContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+		gfxContext.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
+		gfxContext.ClearColor(colorBuffer);
+		gfxContext.ClearDepth(depthBuffer);
+		gfxContext.SetRenderTarget(colorBuffer.GetRTV(), depthBuffer.GetDSV());	// GetDSV_DepthReadOnly
+		gfxContext.SetViewportAndScissor(m_MainViewport, m_MainScissor);
 
-	//	gfxContext.SetPipelineState(m_ModelPSO);
+		gfxContext.SetPipelineState(m_ModelPSO);
 
-	//	gfxContext.SetDynamicConstantBufferView(1, sizeof(psConstants), &psConstants);
+		gfxContext.SetDynamicConstantBufferView(1, sizeof(psConstants), &psConstants);
 
-	//	RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kOpaque);
-	//}
+		RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kOpaque);
+	}
+	*/
 
 	gfxContext.Finish();
 }

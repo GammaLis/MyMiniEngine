@@ -336,7 +336,7 @@ namespace MyDirectX
 
         m_BackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
 
-        // TO DO
+        // TODO
         // create display dependent buffers
     }
 
@@ -778,21 +778,6 @@ namespace MyDirectX
         m_PresentRS.InitStaticSampler(0, s_CommonStates.SamplerLinearClampDesc);
         m_PresentRS.InitStaticSampler(1, s_CommonStates.SamplerPointClampDesc);
         m_PresentRS.Finalize(m_Device.Get(), L"PresentRS");
-
-        // generate Mipmaps RootSignature
-        m_GenerateMipsRS.Reset(3, 1);
-        m_GenerateMipsRS[0].InitAsConstants(0, 4);
-        m_GenerateMipsRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
-        m_GenerateMipsRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4);
-        m_GenerateMipsRS.InitStaticSampler(0, s_CommonStates.SamplerLinearClampDesc);
-        m_GenerateMipsRS.Finalize(m_Device.Get(), L"GenerateMipsRS");
-
-        m_Generate3DTexMipsRS.Reset(3, 1);
-        m_Generate3DTexMipsRS[0].InitAsConstants(0, 8);
-        m_Generate3DTexMipsRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
-        m_Generate3DTexMipsRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 3);
-        m_Generate3DTexMipsRS.InitStaticSampler(0, s_CommonStates.SamplerLinearClampDesc);
-        m_Generate3DTexMipsRS.Finalize(m_Device.Get(), L"Generate3DTexMipsRS");
     }
 
     void Graphics::InitPSOs()
@@ -874,16 +859,6 @@ namespace MyDirectX
         // TODO: 完善剩余CS
         CreateCS(m_BicubicCS[(uint32_t)UpsampleCS::kDefaultCS], s_ShaderManager.m_BicubicUpsampleCS);
         CreateCS(m_LanczosCS[(uint32_t)UpsampleCS::kDefaultCS], s_ShaderManager.m_LanczosCS);
-
-        /// mips
-        // GenerateMipsPSO
-        m_GenerateMipsPSO.SetRootSignature(m_GenerateMipsRS);
-        m_GenerateMipsPSO.SetComputeShader(s_ShaderManager.m_GenerateMips);
-        m_GenerateMipsPSO.Finalize(m_Device.Get());
-
-        m_Generate3DTexMipsPSO.SetRootSignature(m_Generate3DTexMipsRS);
-        m_Generate3DTexMipsPSO.SetComputeShader(s_ShaderManager.m_Generete3DTexMips);
-        m_Generate3DTexMipsPSO.Finalize(m_Device.Get());
     }
 
     void Graphics::PreparePresentHDR()
@@ -988,7 +963,7 @@ namespace MyDirectX
         context.TransitionResource(overlayBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         context.SetDynamicDescriptor(0, 0, overlayBuffer.GetSRV());
 
-        // ** Debug
+        // >>> Debug
         // 显示 Default字体纹理 （调试使用） -20-1-28
         // auto& textRenderer = Effect::s_TextRenderer;
         // context.SetDynamicDescriptor(0, 0, textRenderer.GetDefaultFontTexture());
@@ -1002,7 +977,7 @@ namespace MyDirectX
         //context.TransitionResource(bloomBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         //context.SetDynamicDescriptor(0, 0, bloomBuffer.GetSRV());
 
-        // ** Debug end
+        // <<< Debug end
 
         context.SetPipelineState(GfxStates::s_bEnableHDROutput ? m_BlendUIHDRPSO : m_BlendUIPSO);
         // context.SetConstants(1, 1.0f / GfxStates::s_NativeWidth, 1.0f / GfxStates::s_NativeHeight);

@@ -367,7 +367,7 @@ namespace SH
 		// scaled by 1 / K(0, l) -- the window coefficients include this scale factor
 
 		// taking the window to power N is equivalent to applying the filter N times
-		return std::pow(x, 4);
+		return std::pow(x, 4.0f);
 	}
 
 	void WindowSH(std::unique_ptr<float3[]>& sh, size_t numBands, float cutoff)

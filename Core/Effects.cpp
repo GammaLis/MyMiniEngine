@@ -32,6 +32,8 @@ namespace MyDirectX
 		uint32_t maxWidth, maxHeight;
 		GfxStates::GetWHFromResolution(Resolutions::k2160p, maxWidth, maxHeight);
 		s_ParticleEffectManager.Init(pDevice, maxWidth, maxHeight);
+
+		s_TemporalAA.SetTAAMethod(TemporalAA::ETAAMethod::INTELTAA);
 	}
 
 	void Effects::Shutdown()

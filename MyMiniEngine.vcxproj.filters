@@ -1051,6 +1051,9 @@
     <FxCompile Include="Core\Shaders\BicubicUpsampleCS.hlsl">
       <Filter>Core\Shaders\Present</Filter>
     </FxCompile>
+    <FxCompile Include="Core\Shaders\ResolveTAACS_Intel.hlsl">
+      <Filter>Core\Shaders\Temporal</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MyMiniEngine.rc">

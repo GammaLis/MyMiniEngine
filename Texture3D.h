@@ -29,7 +29,7 @@ namespace MyDirectX
 		const D3D12_CPU_DESCRIPTOR_HANDLE& GetUAV() const { return m_UAVHandle[0]; }
 		const D3D12_CPU_DESCRIPTOR_HANDLE* GetMipUAVs() const { return m_UAVHandle; }
 
-		void GenerateMipMaps(CommandContext& context, Graphics& gfxCore);
+		void GenerateMipMaps(CommandContext& context);
 
 		// PixelBuffer.h
 		static DXGI_FORMAT GetBaseFormat(DXGI_FORMAT format);

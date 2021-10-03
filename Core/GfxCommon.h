@@ -5,7 +5,9 @@
 #include "DepthBuffer.h"
 #include "ShadowBuffer.h"
 #include "SamplerManager.h"
+#include "RootSignature.h"
 #include "CommandSignature.h"
+#include "PipelineState.h"
 
 namespace MyDirectX
 {
@@ -100,7 +102,7 @@ namespace MyDirectX
 		ColorBuffer m_LinearDepth[2];		// normalized planar distance (0 at eye, 1 at far plane) computed from the SceneDepthBuffer
 
 		// temporal effects
-		ColorBuffer m_TemporalColor[2];		// 犹豫是将相关资源统一管理还是各个效果各自管理？？？ -20-2-19
+		ColorBuffer m_TemporalColor[2];		// 犹豫是将相关资源统一管理还是各个效果各自管理？？？ -20-2-19 --> 统一管理更好！ -21-10-3
 		ColorBuffer m_TemporalMinBound;
 		ColorBuffer m_TemporalMaxBound;
 
@@ -210,6 +212,18 @@ namespace MyDirectX
 		// indirect args - command signature
 		CommandSignature DispatchIndirectCommandSignature{ 1 };
 		CommandSignature DrawIndirectCommandSignature{ 1 };
+
+		// common RSs & PSOs
+		RootSignature CommonRS;
+		RootSignature GenerateMipsRS;
+		// ComputePSO GenerateMipsLinearPSO[4];
+		// ComputePSO GenerateMipsGammaPSO[4];
+		// 暂时默认 Power_Of_Two，Linear	-2020-5-2
+		ComputePSO GenerateMipsPSO;
+		// 3D texture, now only support Power_Of_Two size	-2020-9-7
+		RootSignature Generate3DTexMipsRS;
+		ComputePSO Generate3DTexMipsPSO;
+
 	};
 
 }

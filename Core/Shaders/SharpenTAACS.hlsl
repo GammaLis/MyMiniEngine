@@ -11,12 +11,12 @@
 
 cbuffer InlineConstants	: register(b0)
 {
-	float _WA, _WB;
+	float _WA, _WB, _IsPreMultipliedAlpha;	// IntelTAA not PreMultipliedAlpha
 };
 
 Texture2D<float4> _TemproalColor: register(t0);
 
-RWTexture2D<float3> outColor	: register(u0);
+RWTexture2D<float3> OutColor	: register(u0);
 
 SamplerState s_LinearSampler	: register(s0);
 SamplerState s_PointSampler		: register(s1);
@@ -29,6 +29,17 @@ groupshared float sh_W[TILE_PIXEL_COUNT];	// weight
 float3 LoadSample(uint ldsIndex)
 {
 	return float3(sh_R[ldsIndex], sh_G[ldsIndex], sh_B[ldsIndex]);
+}
+
+// Intel TAA
+float LuminanceRec709( float3 inRGB )
+{
+    return dot( inRGB, float3( 0.2126f, 0.7152f, 0.0722f ) );
+}
+
+float3 InverseReinhard( float3 inRGB )
+{
+    return inRGB / ( 1.f - LuminanceRec709( inRGB ) );
 }
 
 [RootSignature(Temporal_RootSig)]
@@ -44,7 +55,9 @@ void main(
 	{
 		int2 st = topleft + int2(i % TILE_SIZE_X, i / TILE_SIZE_X);
 		float4 temporalColor = _TemproalColor[st];
-		temporalColor.rgb = log2(1.0 + temporalColor.rgb / max(temporalColor.w, 1e-6));	// premultiplied color
+		const float3 colorNoAlpha = _IsPreMultipliedAlpha > 0 ? temporalColor.rgb / max(temporalColor.w, 1e-6) : // premultiplied color
+			InverseReinhard(temporalColor.rgb);
+		temporalColor.rgb = log2(1.0 + colorNoAlpha);
 		sh_R[i] = temporalColor.r;
 		sh_G[i] = temporalColor.g;
 		sh_B[i] = temporalColor.b;
@@ -70,5 +83,5 @@ void main(
 	float centerWeight = temporalWeight <= 0.5 ? 0.5 : _WA;
 	float lateralWeight = temporalWeight <= 0.5 ? 0.5 : _WB;
 
-	outColor[dispatchThreadId.xy] = exp2(max(0, _WA * center - _WB * neighbors)) - 1.0;
+	OutColor[dispatchThreadId.xy] = exp2(max(0, _WA * center - _WB * neighbors)) - 1.0;
 }

@@ -5,8 +5,8 @@
 #include "TextureManager.h"
 
 // compiled shade bytecode
-#include "CommonVS.h"
-#include "CommonPS.h"
+#include "glTFCommonVS.h"
+#include "glTFCommonPS.h"
 
 #include "CubemapSH.h"
 
@@ -137,8 +137,8 @@ void glTFViewer::InitAssets()
 		m_ModelViewerPSO.SetRootSignature(m_CommonRS);
 		m_ModelViewerPSO.SetInputLayout(_countof(inputElements), inputElements);
 		m_ModelViewerPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-		m_ModelViewerPSO.SetVertexShader(CommonVS, sizeof(CommonVS));
-		m_ModelViewerPSO.SetPixelShader(CommonPS, sizeof(CommonPS));
+		m_ModelViewerPSO.SetVertexShader(glTFCommonVS, sizeof(glTFCommonVS));
+		m_ModelViewerPSO.SetPixelShader(glTFCommonPS, sizeof(glTFCommonPS));
 		m_ModelViewerPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerDefault);
 			// RasterizerDefaultWireframe
 		m_ModelViewerPSO.SetBlendState(Graphics::s_CommonStates.BlendDisable);
@@ -197,7 +197,7 @@ void glTFViewer::InitAssets()
 		}
 
 		m_LightBuffer.Create(Graphics::s_Device, L"LightBuffer",
-			lights.size(), sizeof(TLight), lights.data());
+			(uint32_t)lights.size(), sizeof(TLight), lights.data());
 	}
 
 #pragma region SH

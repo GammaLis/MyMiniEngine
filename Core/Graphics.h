@@ -85,15 +85,6 @@ namespace MyDirectX
 		void CreateDeviceResources();
 		void CreateWindowSizeDependentResources();
 
-		RootSignature m_GenerateMipsRS;
-		//ComputePSO m_GenerateMipsLinearPSO[4];
-		//ComputePSO m_GenerateMipsGammaPSO[4];
-		// ÔÝÊ±Ä¬ÈÏ Power_Of_Two£¬Linear	-2020-5-2
-		ComputePSO m_GenerateMipsPSO;
-		// 3D texture, now only support Power_Of_Two size	-2020-9-7
-		RootSignature m_Generate3DTexMipsRS;
-		ComputePSO m_Generate3DTexMipsPSO;
-
 	private:
 		// CreateDeviceResources
 		void EnableDebugLayer();

@@ -89,7 +89,7 @@ int main(int argc, const char* argv[])
 #elif IMPLEMENTED == IMPLEMENTED_GLTFVIEWER
 	MyDirectX::glTFViewer gApp(hInst, "Models/buster_drone.gltf", L"glTFViewer", SceneWidth, SceneHeight);
 
-#elif IMPLEMENTED == IMPLEMENTED_SCENEVIWER
+#elif IMPLEMENTED == IMPLEMENTED_SCENEVIEWER
 	MyDirectX::SceneViewer gApp(hInst, L"SceneViewer", SceneWidth, SceneHeight);
 
 #elif IMPLEMENTED == IMPLEMENTED_OCEANVIEWER

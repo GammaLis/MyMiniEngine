@@ -392,15 +392,17 @@ void ShaderManager::CompileShadersFromFile()
 	}
 
 	{
-		//ComPtr<ID3DBlob> pScreenQuadVS, pVSError;
-		//ComPtr<ID3DBlob> pPresentHDRPS, pPSError;
-		//ASSERT_SUCCEEDED(D3DCompileFromFile(L"Shaders\\ScreenQuadVS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
-		//	"main", "vs_5_1", compileFlag, 0, &pScreenQuadVS, &pVSError));
-		//ASSERT_SUCCEEDED(D3DCompileFromFile(L"Shaders\\PresentHDRPS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
-		//	"main", "ps_5_1", compileFlag, 0, &pPresentHDRPS, &pPSError));
+		/**
+		ComPtr<ID3DBlob> pScreenQuadVS, pVSError;
+		ComPtr<ID3DBlob> pPresentHDRPS, pPSError;
+		ASSERT_SUCCEEDED(D3DCompileFromFile(L"Shaders\\ScreenQuadVS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
+			"main", "vs_5_1", compileFlag, 0, &pScreenQuadVS, &pVSError));
+		ASSERT_SUCCEEDED(D3DCompileFromFile(L"Shaders\\PresentHDRPS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
+			"main", "ps_5_1", compileFlag, 0, &pPresentHDRPS, &pPSError));
 
-		//m_ScreenQuadVS = CD3DX12_SHADER_BYTECODE(pScreenQuadVS.Get());
-		//m_PresentHDRPS = CD3DX12_SHADER_BYTECODE(pPresentHDRPS.Get());
+		m_ScreenQuadVS = CD3DX12_SHADER_BYTECODE(pScreenQuadVS.Get());
+		m_PresentHDRPS = CD3DX12_SHADER_BYTECODE(pPresentHDRPS.Get());
+		*/
 	}
 }
 
@@ -594,6 +596,44 @@ void CommonStates::InitCommonStates(ID3D12Device* pDevice)
 
 		DrawIndirectCommandSignature[0].Draw();
 		DrawIndirectCommandSignature.Finalize(pDevice);
+	}
+
+	// Common RSs & PSOs
+	{
+		/// RSs
+		CommonRS.Reset(4, 3);
+		CommonRS[0].InitAsConstants(0, 4);
+		CommonRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 10);
+		CommonRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 10);
+		CommonRS[3].InitAsConstantBuffer(1);
+		CommonRS.InitStaticSampler(0, SamplerLinearClampDesc);
+		CommonRS.InitStaticSampler(1, SamplerPointBorderDesc);
+		CommonRS.InitStaticSampler(2, SamplerLinearBorderDesc);
+
+		// generate Mipmaps RootSignature
+		GenerateMipsRS.Reset(3, 1);
+		GenerateMipsRS[0].InitAsConstants(0, 4);
+		GenerateMipsRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
+		GenerateMipsRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4);
+		GenerateMipsRS.InitStaticSampler(0, SamplerLinearClampDesc);
+		GenerateMipsRS.Finalize(pDevice, L"GenerateMipsRS");
+
+		Generate3DTexMipsRS.Reset(3, 1);
+		Generate3DTexMipsRS[0].InitAsConstants(0, 8);
+		Generate3DTexMipsRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
+		Generate3DTexMipsRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 3);
+		Generate3DTexMipsRS.InitStaticSampler(0, SamplerLinearClampDesc);
+		Generate3DTexMipsRS.Finalize(pDevice, L"Generate3DTexMipsRS");
+
+		/// PSOs
+		// GenerateMipsPSO
+		GenerateMipsPSO.SetRootSignature(GenerateMipsRS);
+		GenerateMipsPSO.SetComputeShader(Graphics::s_ShaderManager.m_GenerateMips);
+		GenerateMipsPSO.Finalize(pDevice);
+
+		Generate3DTexMipsPSO.SetRootSignature(Generate3DTexMipsRS);
+		Generate3DTexMipsPSO.SetComputeShader(Graphics::s_ShaderManager.m_Generete3DTexMips);
+		Generate3DTexMipsPSO.Finalize(pDevice);
 	}
 
 }
