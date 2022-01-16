@@ -47,6 +47,17 @@ namespace MyDirectX
 		kNumFilter
 	};
 
+	enum class RaytracingMode
+	{
+		Off,
+		Traversal,
+		SSR,
+		Shadows,
+		DiffuseWithShadowMaps,
+		DiffuseWithShadowRays,
+		Reflections,
+	};
+
 	class GfxStates
 	{
 	public:
@@ -72,6 +83,7 @@ namespace MyDirectX
 		static Resolutions s_NativeRes;
 		static DebugZoom s_DebugZoom;
 		static UpsampleFilter s_UpsampleFilter;
+		static RaytracingMode s_RaytracingMode;
 
 		static DXGI_FORMAT s_DefaultHdrColorFormat;
 		static DXGI_FORMAT s_DefaultDSVFormat;

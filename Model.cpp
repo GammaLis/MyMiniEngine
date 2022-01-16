@@ -174,6 +174,13 @@ namespace MyDirectX
 				// 采用stb_image加载图片（默认png格式） 
 				// LoadTexturesBySTB_IMAGE(pDevice);
 			}
+
+			// RayTracing
+			{
+				InitializeRayTraceSceneInfo();
+				m_HitShaderMeshInfoBuffer.Create(pDevice, L"RayTraceMeshInfo", (UINT)m_MeshInfoData.size(), sizeof(m_MeshInfoData[0]), m_MeshInfoData.data());
+				m_MeshInfoSRV = m_HitShaderMeshInfoBuffer.GetSRV();
+			}
 		}
 	}
 	
@@ -208,6 +215,12 @@ namespace MyDirectX
 		return true;
 	}
 
+	bool IsCutoutMaterial(const std::string &strTexDiffusePath)
+	{
+		return strTexDiffusePath.find("thorn") != std::string::npos ||
+			strTexDiffusePath.find("plant") != std::string::npos ||
+			strTexDiffusePath.find("chain") != std::string::npos;
+	}
 	void Model::PrepareDataFromScene(const aiScene* scene)
 	{
 		if (scene->HasTextures())
@@ -226,6 +239,7 @@ namespace MyDirectX
 		{
 			m_MaterialCount = scene->mNumMaterials;
 			m_pMaterial = new Material[m_MaterialCount];
+			m_MaterialIsCutout.resize(m_MaterialCount);
 			memset(m_pMaterial, 0, sizeof(Material) * m_MaterialCount);
 			for (size_t matIdx = 0; matIdx < m_MaterialCount; ++matIdx)
 			{
@@ -289,6 +303,9 @@ namespace MyDirectX
 				dstMat->texEmissivePath = ModifyFilePath(texEmissivePath.C_Str(), name);
 				dstMat->texLightmapPath = ModifyFilePath(texLightmapPath.C_Str(), name);
 				dstMat->texReflectionPath = ModifyFilePath(texReflectionPath.C_Str(), name);
+
+				// is cutout ?
+				m_MaterialIsCutout[matIdx] = IsCutoutMaterial(dstMat->texDiffusePath);
 
 				aiString matName;
 				srcMat->Get(AI_MATKEY_NAME, matName);
@@ -384,7 +401,7 @@ namespace MyDirectX
 				dstMesh->indexDataByteOffset = m_IndexDataByteSize;
 				dstMesh->indexCount = srcMesh->mNumFaces * 3;
 				m_IndexDataByteSize += sizeof(uint16_t) * dstMesh->indexCount;
-				
+
 			}
 		}
 
@@ -718,6 +735,25 @@ namespace MyDirectX
 			m_SRVs[materialIdx * 6 + 3] = matTextures[0]->GetSRV();
 			m_SRVs[materialIdx * 6 + 4] = matTextures[0]->GetSRV();
 			m_SRVs[materialIdx * 6 + 5] = matTextures[0]->GetSRV();
+		}
+	}
+
+	void Model::InitializeRayTraceSceneInfo()
+	{
+		m_MeshInfoData.resize(m_MeshCount);
+		for (unsigned int meshIndex = 0; meshIndex < m_MeshCount; ++meshIndex)
+		{
+			const Mesh &mesh = m_pMesh[meshIndex];
+
+			auto& meshInfoData = m_MeshInfoData[meshIndex];
+			meshInfoData.IndexOffsetBytes = mesh.indexDataByteOffset;
+			meshInfoData.UVAttributeOffsetBytes = mesh.vertexDataByteOffset + mesh.attrib[(unsigned)Attrib::attrib_texcoord0].offset;
+			meshInfoData.NormalAttributeOffsetBytes = mesh.vertexDataByteOffset + mesh.attrib[(unsigned)Attrib::attrib_normal].offset;
+			meshInfoData.PositionAttributeOffsetBytes = mesh.vertexDataByteOffset + mesh.attrib[(unsigned)Attrib::attrib_position].offset;
+			meshInfoData.TangentAttributeOffsetBytes = mesh.vertexDataByteOffset + mesh.attrib[(unsigned)Attrib::attrib_tangent].offset;
+			meshInfoData.BitangentAttributeOffsetBytes = mesh.vertexDataByteOffset + mesh.attrib[(unsigned)Attrib::attrib_bitangent].offset;
+			meshInfoData.AttributeStrideBytes = mesh.vertexDataByteOffset + mesh.vertexStride;
+			meshInfoData.MaterialInstanceId = mesh.vertexDataByteOffset + mesh.materialIndex;
 		}
 	}
 }

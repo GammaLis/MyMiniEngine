@@ -65,9 +65,6 @@
     <Filter Include="Scenes">
       <UniqueIdentifier>{85ce3536-9d60-4434-b3fa-ec467ab671ef}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Shaders\Prev">
-      <UniqueIdentifier>{c4d8c02b-5128-4690-9336-85baf6c97a4c}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Shaders\IndirectRendering">
       <UniqueIdentifier>{f3ce94c3-d5e1-42e7-9b89-cb0aa6953880}</UniqueIdentifier>
     </Filter>
@@ -94,6 +91,12 @@
     </Filter>
     <Filter Include="Shaders\Misc">
       <UniqueIdentifier>{4f390f97-b945-46aa-8185-072149613648}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core\RayTracing">
+      <UniqueIdentifier>{925e32d8-c17f-4109-ad14-ae3057b1deb2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\ModelViewer">
+      <UniqueIdentifier>{c4d8c02b-5128-4690-9336-85baf6c97a4c}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -389,6 +392,12 @@
     <ClInclude Include="Texture3D.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="Core\RayTracing\RayTracingHlslCompat.h">
+      <Filter>Core\RayTracing</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\HlslCompat.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -663,7 +672,7 @@
       <Filter>CommonCompute\Shaders</Filter>
     </None>
     <None Include="Shaders\ModelViewerRS.hlsli">
-      <Filter>Shaders\Prev</Filter>
+      <Filter>Shaders\ModelViewer</Filter>
     </None>
     <None Include="Shaders\CommonIndirectRS.hlsli">
       <Filter>Shaders\IndirectRendering</Filter>
@@ -872,16 +881,16 @@
       <Filter>CommonCompute\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\ModelViewerVS.hlsl">
-      <Filter>Shaders\Prev</Filter>
+      <Filter>Shaders\ModelViewer</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\ModelViewerPS.hlsl">
-      <Filter>Shaders\Prev</Filter>
+      <Filter>Shaders\ModelViewer</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\DepthViewerPS.hlsl">
-      <Filter>Shaders\Prev</Filter>
+      <Filter>Shaders\ModelViewer</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\DepthViewerVS.hlsl">
-      <Filter>Shaders\Prev</Filter>
+      <Filter>Shaders\ModelViewer</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\CommonIndirectPS.hlsl">
       <Filter>Shaders\IndirectRendering</Filter>

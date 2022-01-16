@@ -84,7 +84,7 @@ int main(int argc, const char* argv[])
 	MyDirectX::IGameApp gApp(hInst);
 
 #elif IMPLEMENTED == IMPLEMENTED_MODELVIEWER
-	MyDirectX::ModelViewer gApp(hInst, L"ModelViewer", SceneWidth, SceneHeight);
+	MyDirectX::ModelViewer gApp(hInst, "Models/sponza.obj", L"ModelViewer", SceneWidth, SceneHeight);
 
 #elif IMPLEMENTED == IMPLEMENTED_GLTFVIEWER
 	MyDirectX::glTFViewer gApp(hInst, "Models/buster_drone.gltf", L"glTFViewer", SceneWidth, SceneHeight);

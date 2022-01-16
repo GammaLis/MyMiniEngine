@@ -10,13 +10,28 @@ namespace MyDirectX
 {
 	class GraphicsContext;
 
+	enum class RSId
+	{
+		kMeshConstants = 0,
+		kMaterialConstants,
+		kMaterialSRVs,
+		kMaterialSamplers,
+		kCommonCBV,
+		kCommonSRVs,
+		kSkinMatrices,
+
+		kNum
+	};
+
 	class ModelViewer final : public IGameApp
 	{
 	public:
-		ModelViewer(HINSTANCE hInstance, const wchar_t* title = L"Hello, World!", UINT width = SCR_WIDTH, UINT height = SCR_HEIGHT);
+		ModelViewer(HINSTANCE hInstance, const char *modelName, const wchar_t* title = L"Hello, World!", UINT width = SCR_WIDTH, UINT height = SCR_HEIGHT);
 
 		virtual void Update(float deltaTime) override;
 		virtual void Render() override;
+
+		virtual void Raytrace();
 
 		struct CommonStates
 		{
@@ -30,20 +45,24 @@ namespace MyDirectX
 		};
 		CommonStates m_CommonStates;
 
+		static const UINT c_MaxRayRecursion = 2;
+
 	private:
 		virtual void InitPipelineStates() override;
 		virtual void InitGeometryBuffers() override;
 		virtual void InitCustom() override;
+		virtual void CleanCustom() override;
 
 		virtual void PostProcess() override;
 
-		virtual void CleanCustom() override;
-
 		void RenderLightShadows(GraphicsContext& gfxContext);
-
 		void RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4 viewProjMat, ObjectFilter filter = ObjectFilter::kAll);
-
 		void CreateParticleEffects();
+
+		void InitRaytracingStateObjects();
+		void RaytraceDiffuse(GraphicsContext& gfxContext);
+		void RaytraceShadows(GraphicsContext& gfxContext);
+		void RaytraceReflections(GraphicsContext& gfxContext);
 
 		Math::Camera m_Camera;
 		std::unique_ptr<CameraController> m_CameraController;
@@ -51,10 +70,12 @@ namespace MyDirectX
 
 		// root signature & PSOs
 		RootSignature m_RootSig;
-		GraphicsPSO m_DepthPSO;
-		GraphicsPSO m_CutoutDepthPSO;
-		GraphicsPSO m_ModelPSO;
-		GraphicsPSO m_ShadowPSO;
+		GraphicsPSO m_DepthPSO{ L"Depth PSO" };
+		GraphicsPSO m_CutoutDepthPSO{ L"Cutout Depth PSO" };
+		GraphicsPSO m_ModelPSO{ L"Color PSO" };
+		GraphicsPSO m_CutoutModelPSO{ L"Cutout Color PSO" };
+		GraphicsPSO m_ShadowPSO{ L"Shadow PSO" };
+		GraphicsPSO m_CutoutShadowPSO{ L"Cutout Shadow PSO" };
 
 		// 临时设置，后面需要移到别处 -20-2-21
 		RootSignature m_LinearDepthRS;
@@ -67,6 +88,8 @@ namespace MyDirectX
 		
 		// skybox
 		Skybox m_Skybox;
+
+		const char* m_ModelName = nullptr;
 	};
 
 }

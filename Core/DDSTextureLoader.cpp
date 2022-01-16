@@ -864,7 +864,7 @@ static HRESULT CreateD3DResources(_In_ ID3D12Device* d3dDevice,
             }
             else
             {
-                tex->SetName(L"DDSTextureLoader");
+                tex->SetName(L"DDS Texture (1D)");
                 tex->Release();
             }
         }
@@ -922,7 +922,7 @@ static HRESULT CreateD3DResources(_In_ ID3D12Device* d3dDevice,
             }
             else
             {
-                tex->SetName(L"DDSTextureLoader");
+                tex->SetName(L"DDS Texture (2D)");
                 tex->Release();
             }
         }
@@ -1344,6 +1344,9 @@ HRESULT CreateDDSTextureFromFile(
 
     if (alphaMode)
         *alphaMode = GetAlphaMode(header);
+
+    if (SUCCEEDED(hr))
+        (*texture)->SetName(fileName);
 
     return hr;
 }

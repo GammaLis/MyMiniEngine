@@ -5,6 +5,8 @@
 #include "Model.h"
 #include "Effects.h"
 
+#include <atlbase.h>
+
 // shaders
 #include "DepthViewerVS.h"
 #include "DepthViewerPS.h"
@@ -33,11 +35,14 @@ struct alignas(16) PSConstants
 	float _InvTileDim[4];
 	uint32_t _TileCount[4];	// x,y有效，后面字节对齐
 	uint32_t _FirstLightIndex[4];
+
+	uint32_t _FrameIndexMod2;
 };
 
-ModelViewer::ModelViewer(HINSTANCE hInstance, const wchar_t* title, UINT width, UINT height)
+ModelViewer::ModelViewer(HINSTANCE hInstance, const char *modelName, const wchar_t* title, UINT width, UINT height)
 	: IGameApp(hInstance, title, width, height)
 {
+	m_ModelName = modelName;
 }
 
 void ModelViewer::Update(float deltaTime)
@@ -97,6 +102,7 @@ void ModelViewer::Render()
 	auto frameIndex = m_Gfx->GetFrameCount();
 	auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 	auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
+	auto& normalBuffer = Graphics::s_BufferManager.m_SceneNormalBuffer;
 	auto& shadowBuffer = Graphics::s_BufferManager.m_ShadowBuffer;
 
 	PSConstants psConstants;
@@ -115,6 +121,7 @@ void ModelViewer::Render()
 	psConstants._TileCount[1] = Math::DivideByMultiple(colorBuffer.GetHeight(), forwardPlusLighting.m_LightGridDim);
 	psConstants._FirstLightIndex[0] = forwardPlusLighting.m_FirstConeLight;
 	psConstants._FirstLightIndex[1] = forwardPlusLighting.m_FirstConeShadowedLight;
+	psConstants._FrameIndexMod2 = frameIndex & 1;
 	// ...
 
 	GraphicsContext &gfxContext = GraphicsContext::Begin(L"Scene Render");
@@ -135,21 +142,24 @@ void ModelViewer::Render()
 	// z prepass
 	{
 		// opaque 
-		gfxContext.SetDynamicConstantBufferView(1, sizeof(psConstants), &psConstants);
+		{
+			gfxContext.SetDynamicConstantBufferView((uint32_t)RSId::kMaterialConstants, sizeof(psConstants), &psConstants);
 
-		gfxContext.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
-		gfxContext.ClearDepth(depthBuffer);
+			gfxContext.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
+			gfxContext.ClearDepth(depthBuffer);
 
-		gfxContext.SetDepthStencilTarget(depthBuffer.GetDSV());
-		gfxContext.SetViewportAndScissor(m_MainViewport, m_MainScissor);
+			gfxContext.SetDepthStencilTarget(depthBuffer.GetDSV());
+			gfxContext.SetViewportAndScissor(m_MainViewport, m_MainScissor);
 
-		gfxContext.SetPipelineState(m_DepthPSO);
-		RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kOpaque);
+			gfxContext.SetPipelineState(m_DepthPSO);
+			RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kOpaque);
+		}
 
-		// 暂时不用 -20-2-9
-		//// cutout
-		//gfxContext.SetPipelineState(m_CutoutDepthPSO);
-		//RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kCutout);
+		// cutout
+		{
+			gfxContext.SetPipelineState(m_CutoutDepthPSO);
+			RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kCutout);
+		}
 	}
 
 	// 
@@ -181,6 +191,7 @@ void ModelViewer::Render()
 	// main render
 	{
 		gfxContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+		gfxContext.TransitionResource(normalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 		gfxContext.ClearColor(colorBuffer);
 
 		pfnSetupGraphicsState();
@@ -196,9 +207,8 @@ void ModelViewer::Render()
 
 			gfxContext.SetPipelineState(m_ShadowPSO);
 			RenderObjects(gfxContext, m_SunShadow.GetViewProjMatrix(), ObjectFilter::kOpaque);
-
-			// cutout objects
-			// ...
+			gfxContext.SetPipelineState(m_CutoutShadowPSO);
+			RenderObjects(gfxContext, m_SunShadow.GetViewProjMatrix(), ObjectFilter::kCutout);
 
 			shadowBuffer.EndRendering(gfxContext);
 		}
@@ -207,19 +217,20 @@ void ModelViewer::Render()
 		{
 			gfxContext.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
 
-			gfxContext.SetRenderTarget(colorBuffer.GetRTV(), depthBuffer.GetDSV_DepthReadOnly());
+			D3D12_CPU_DESCRIPTOR_HANDLE rtvs[] = { colorBuffer.GetRTV(), normalBuffer.GetRTV() };
+			gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, depthBuffer.GetDSV_DepthReadOnly());
 			gfxContext.SetViewportAndScissor(m_MainViewport, m_MainScissor);
 
-			gfxContext.SetDynamicConstantBufferView(1, sizeof(psConstants), &psConstants);
-			// gfxContext.SetDynamicDescriptors(4, 0, _countof(m_ExtraTextures), m_ExtraTextures);
-			gfxContext.SetDynamicDescriptors(4, 1, 5, m_ExtraTextures + 1);	// m_ExtraTextures 1~5
+			gfxContext.SetDynamicConstantBufferView((uint32_t)RSId::kMaterialConstants, sizeof(psConstants), &psConstants);
+			gfxContext.SetDynamicDescriptors((uint32_t)RSId::kCommonSRVs, 0, _countof(m_ExtraTextures), m_ExtraTextures);
 
 			// ->opauqe
 			gfxContext.SetPipelineState(m_ModelPSO);
 			RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kOpaque);
 
 			// ->cutout
-			// ...
+			gfxContext.SetPipelineState(m_CutoutModelPSO);
+			RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kCutout);
 		}
 	}
 
@@ -262,34 +273,46 @@ void ModelViewer::Render()
 	gfxContext.Finish();
 }
 
+void ModelViewer::Raytrace()
+{
+
+}
+
 void ModelViewer::InitPipelineStates()
 {
 	SamplerDesc DefaultSamplerDesc;
 	DefaultSamplerDesc.MaxAnisotropy = 8;
 
+	SamplerDesc CubeMapSamplerDesc = DefaultSamplerDesc;
+	// CubeMapSamplerDesc.MaxLOD = 6.0f;
+
 	// root signature
-	m_RootSig.Reset(5, 2);
-	m_RootSig[0].InitAsConstantBuffer(0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-	m_RootSig[1].InitAsConstantBuffer(0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-	m_RootSig[2].InitAsConstants(1, 2, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-	m_RootSig[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 6, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-	m_RootSig[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 64, 6, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-	m_RootSig.InitStaticSampler(0, DefaultSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
-	m_RootSig.InitStaticSampler(1, Graphics::s_CommonStates.SamplerShadowDesc, D3D12_SHADER_VISIBILITY_PIXEL);
+	m_RootSig.Reset((uint32_t)RSId::kNum, 3);
+	m_RootSig[(uint32_t)RSId::kMeshConstants].InitAsConstantBuffer(0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+	m_RootSig[(uint32_t)RSId::kMaterialConstants].InitAsConstantBuffer(0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+	m_RootSig[(uint32_t)RSId::kMaterialSRVs].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 10, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+	m_RootSig[(uint32_t)RSId::kMaterialSamplers].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 0, 10, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+	m_RootSig[(uint32_t)RSId::kCommonCBV].InitAsConstants(1, 2);
+	m_RootSig[(uint32_t)RSId::kCommonSRVs].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 10, 10, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+	m_RootSig[(uint32_t)RSId::kSkinMatrices].InitAsBufferSRV(20, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+	m_RootSig.InitStaticSampler(10, DefaultSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
+	m_RootSig.InitStaticSampler(11, Graphics::s_CommonStates.SamplerShadowDesc, D3D12_SHADER_VISIBILITY_PIXEL);
+	m_RootSig.InitStaticSampler(12, CubeMapSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
 	m_RootSig.Finalize(Graphics::s_Device, L"ModelViewer", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	DXGI_FORMAT colorFormat = Graphics::s_BufferManager.m_SceneColorBuffer.GetFormat();
+	DXGI_FORMAT normalFormat = Graphics::s_BufferManager.m_SceneNormalBuffer.GetFormat();
 	DXGI_FORMAT depthFormat = Graphics::s_BufferManager.m_SceneDepthBuffer.GetFormat();
 	DXGI_FORMAT shadowFormat = Graphics::s_BufferManager.m_ShadowBuffer.GetFormat();
 
 	// input elements
 	D3D12_INPUT_ELEMENT_DESC inputElements[] =
 	{
-		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
-		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
-		{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
-		{"TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
-		{"BITANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
+		{ "POSITION",	0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD",	0, DXGI_FORMAT_R32G32_FLOAT,	0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "NORMAL",		0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TANGENT",	0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "BITANGENT",	0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 	};
 
 	// PSOs
@@ -298,7 +321,7 @@ void ModelViewer::InitPipelineStates()
 	m_DepthPSO.SetRootSignature(m_RootSig);
 	m_DepthPSO.SetInputLayout(_countof(inputElements), inputElements);
 	m_DepthPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-	m_DepthPSO.SetVertexShader(CD3DX12_SHADER_BYTECODE(DepthViewerVS, sizeof(DepthViewerVS)));
+	m_DepthPSO.SetVertexShader(DepthViewerVS, sizeof(DepthViewerVS));
 	m_DepthPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerDefault);	// RasterizerDefault RasterizerDefaultWireframe
 	m_DepthPSO.SetBlendState(Graphics::s_CommonStates.BlendNoColorWrite);
 	m_DepthPSO.SetDepthStencilState(Graphics::s_CommonStates.DepthStateReadWrite);
@@ -307,7 +330,7 @@ void ModelViewer::InitPipelineStates()
 
 	// depth-only shading but with alpha-testing
 	m_CutoutDepthPSO = m_DepthPSO;
-	m_CutoutDepthPSO.SetPixelShader(CD3DX12_SHADER_BYTECODE(DepthViewerPS, sizeof(DepthViewerPS)));
+	m_CutoutDepthPSO.SetPixelShader(DepthViewerPS, sizeof(DepthViewerPS));
 	m_CutoutDepthPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerTwoSided);
 	m_CutoutDepthPSO.Finalize(Graphics::s_Device);
 
@@ -317,14 +340,26 @@ void ModelViewer::InitPipelineStates()
 	m_ShadowPSO.SetRenderTargetFormats(0, nullptr, shadowFormat);
 	m_ShadowPSO.Finalize(Graphics::s_Device);
 
+	// shadows with alpha testing
+	m_CutoutShadowPSO = m_ShadowPSO;
+	m_CutoutShadowPSO.SetPixelShader(DepthViewerPS, sizeof(DepthViewerPS));
+	m_CutoutShadowPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerShadowTwoSided);
+	m_CutoutShadowPSO.Finalize(Graphics::s_Device);
+
+	DXGI_FORMAT modelViewerFormats[2] = { colorFormat, normalFormat };
+
 	// model viewer pso
 	m_ModelPSO = m_DepthPSO;
-	m_ModelPSO.SetVertexShader(CD3DX12_SHADER_BYTECODE(ModelViewerVS, sizeof(ModelViewerVS)));
-	m_ModelPSO.SetPixelShader(CD3DX12_SHADER_BYTECODE(ModelViewerPS, sizeof(ModelViewerPS)));
+	m_ModelPSO.SetVertexShader(ModelViewerVS, sizeof(ModelViewerVS));
+	m_ModelPSO.SetPixelShader(ModelViewerPS, sizeof(ModelViewerPS));
 	m_ModelPSO.SetBlendState(Graphics::s_CommonStates.BlendDisable);
 	m_ModelPSO.SetDepthStencilState(Graphics::s_CommonStates.DepthStateTestEqual);
-	m_ModelPSO.SetRenderTargetFormats(1, &colorFormat, depthFormat);
+	m_ModelPSO.SetRenderTargetFormats(_countof(modelViewerFormats), modelViewerFormats, depthFormat);
 	m_ModelPSO.Finalize(Graphics::s_Device);
+
+	m_CutoutModelPSO = m_ModelPSO;
+	m_CutoutModelPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerTwoSided);
+	m_CutoutModelPSO.Finalize(Graphics::s_Device);
 
 	// ****************************************
 	// 临时设置，后面需要放到别处 -20-2-21
@@ -343,8 +378,9 @@ void ModelViewer::InitPipelineStates()
 
 void ModelViewer::InitGeometryBuffers()
 {
+	ASSERT(m_ModelName != nullptr, "Model Name is null!");
 	Graphics::s_TextureManager.Init(L"Textures/");
-	m_Model->CreateFromAssimp(Graphics::s_Device, "Models/sponza.obj");
+	m_Model->CreateFromAssimp(Graphics::s_Device, m_ModelName); // "Models/sponza.obj"
 	ASSERT(m_Model->m_MeshCount > 0, "Model contains no meshes");
 }
 
@@ -360,7 +396,7 @@ void ModelViewer::InitCustom()
 
 	// effects
 	// ...
-	m_ExtraTextures[0] = CD3DX12_CPU_DESCRIPTOR_HANDLE();	// 暂时为空
+	m_ExtraTextures[0] = Graphics::s_TextureManager.GetWhiteTex2D().GetSRV();	// 暂时为空
 	m_ExtraTextures[1] = Graphics::s_BufferManager.m_ShadowBuffer.GetSRV();
 
 	// forward+ lighting
@@ -385,15 +421,15 @@ void ModelViewer::InitCustom()
 	Effects::s_PostEffects.m_CommonStates.EnableAdaption = true;
 }
 
-void ModelViewer::PostProcess()
-{
-	Effects::s_PostEffects.Render();
-}
-
 void ModelViewer::CleanCustom()
 {
 	m_Model->Cleanup();
 	m_Skybox.Shutdown();
+}
+
+void ModelViewer::PostProcess()
+{
+	Effects::s_PostEffects.Render();
 }
 
 // render light shadows
@@ -409,7 +445,9 @@ void ModelViewer::RenderLightShadows(GraphicsContext& gfxContext)
 	forwardPlusLighting.m_LightShadowTempBuffer.BeginRendering(gfxContext);
 	{
 		gfxContext.SetPipelineState(m_ShadowPSO);
-		RenderObjects(gfxContext, forwardPlusLighting.m_LightShadowMatrix[LightIndex]);
+		RenderObjects(gfxContext, forwardPlusLighting.m_LightShadowMatrix[LightIndex], ObjectFilter::kOpaque);
+		gfxContext.SetPipelineState(m_CutoutShadowPSO);
+		RenderObjects(gfxContext, forwardPlusLighting.m_LightShadowMatrix[LightIndex], ObjectFilter::kCutout);
 	}
 	forwardPlusLighting.m_LightShadowTempBuffer.EndRendering(gfxContext);
 
@@ -431,7 +469,7 @@ void ModelViewer::RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4
 	vsConstants._ModelToShadow = Math::Transpose(m_SunShadow.GetShadowMatrix());
 	XMStoreFloat3(&vsConstants._CamPos, m_Camera.GetPosition());
 
-	gfxContext.SetDynamicConstantBufferView(0, sizeof(vsConstants), &vsConstants);
+	gfxContext.SetDynamicConstantBufferView((uint32_t)RSId::kMeshConstants, sizeof(vsConstants), &vsConstants);
 
 	uint32_t curMatIdx = 0xFFFFFFFFul;
 
@@ -448,14 +486,16 @@ void ModelViewer::RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4
 		if (mesh.materialIndex != curMatIdx)
 		{
 			// filter objects
-			// ...
+			bool bCutoutMat = m_Model->m_MaterialIsCutout[mesh.materialIndex];
+			if ( bCutoutMat && !((uint32_t)filter & (uint32_t)ObjectFilter::kCutout) ||
+				!bCutoutMat && !((uint32_t)filter & (uint32_t)ObjectFilter::kOpaque))
+				continue;
 
 			curMatIdx = mesh.materialIndex;
-			// 暂时不用纹理
-			gfxContext.SetDynamicDescriptors(3, 0, 6, m_Model->GetSRVs(curMatIdx));
+			gfxContext.SetDynamicDescriptors((uint32_t)RSId::kMaterialSRVs, 0, 6, m_Model->GetSRVs(curMatIdx));
+			
+			gfxContext.SetConstants((uint32_t)RSId::kCommonCBV, vertexOffset, curMatIdx);
 		}
-
-		gfxContext.SetConstants(2, vertexOffset, curMatIdx);
 
 		gfxContext.DrawIndexed(indexCount, indexOffset, vertexOffset);
 	}
@@ -504,6 +544,101 @@ void ModelViewer::CreateParticleEffects()
 	smoke.Spread.z = 20.0f;
 	particleEffectManager.InstantiateEffect(smoke);
 }
+
+struct RaytracingDispatchRayInputs
+{
+	RaytracingDispatchRayInputs() {  }
+	RaytracingDispatchRayInputs(
+		ID3D12Device *pDevice,
+		ID3D12StateObject* pPSO,
+		void* pHitGroupShaderTable,
+		UINT HitGroupStride,
+		UINT HitGroupTableSize,
+		LPCWSTR rayGenExportName,
+		LPCWSTR missExportName)
+		: m_pPSO{ pPSO }
+	{
+		const UINT shaderTableSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+		ID3D12StateObjectProperties* stateObjectProperties = nullptr;
+		void* pRayGenShaderData = stateObjectProperties->GetShaderIdentifier(rayGenExportName);
+		void* pMissShaderData = stateObjectProperties->GetShaderIdentifier(missExportName);
+
+		m_HitGroupStride = HitGroupStride;
+
+		// MiniEngine requires that all initial data be aligned to 16 bytes
+		UINT alignment = 16;
+		std::vector<BYTE> alignedShaderTableData(shaderTableSize + alignment - 1);
+		UINT64 rem = (UINT64)alignedShaderTableData.data() % alignment;
+		BYTE* pAlignedShaderTableData = alignedShaderTableData.data() + (rem == 0 ? 0 : alignment - rem);
+		memcpy(pAlignedShaderTableData, pRayGenShaderData, shaderTableSize);
+
+		m_RayGenShaderTable.Create(pDevice, L"Ray Gen Shader Table", 1, shaderTableSize, pAlignedShaderTableData);
+		// ??? alignedShaderTableData.data() -> 
+
+		memcpy(pAlignedShaderTableData, pMissShaderData, shaderTableSize);
+		m_MissShaderTable.Create(pDevice, L"Miss Shader Table", 1, shaderTableSize, pAlignedShaderTableData);
+
+		m_HitShaderTable.Create(pDevice, L"Hit Shader Table", 1, HitGroupTableSize, pHitGroupShaderTable);
+	}
+
+	D3D12_DISPATCH_RAYS_DESC GetDispatchRayDesc(UINT DispatchWidth, UINT DispatchHeight)
+	{
+		D3D12_DISPATCH_RAYS_DESC dispatchRaysDesc = {};
+		dispatchRaysDesc.RayGenerationShaderRecord.StartAddress = m_RayGenShaderTable.GetGpuVirtualAddress();
+		dispatchRaysDesc.RayGenerationShaderRecord.SizeInBytes = m_RayGenShaderTable.GetBufferSize();
+		dispatchRaysDesc.RayGenerationShaderRecord.SizeInBytes = 0;
+		dispatchRaysDesc.HitGroupTable.StartAddress = m_HitShaderTable.GetGpuVirtualAddress();
+		dispatchRaysDesc.HitGroupTable.SizeInBytes = m_HitShaderTable.GetBufferSize();
+		dispatchRaysDesc.HitGroupTable.StrideInBytes = m_HitGroupStride;
+		dispatchRaysDesc.MissShaderTable.StartAddress = m_MissShaderTable.GetGpuVirtualAddress();
+		dispatchRaysDesc.MissShaderTable.SizeInBytes = m_MissShaderTable.GetBufferSize();
+		dispatchRaysDesc.MissShaderTable.StrideInBytes = dispatchRaysDesc.MissShaderTable.SizeInBytes; // Only one entry
+		dispatchRaysDesc.Width = DispatchWidth;
+		dispatchRaysDesc.Height = DispatchHeight;
+		dispatchRaysDesc.Depth = 1;
+
+		return dispatchRaysDesc;
+	}
+
+	UINT m_HitGroupStride;
+	CComPtr<ID3D12StateObject> m_pPSO;
+	ByteAddressBuffer m_RayGenShaderTable;
+	ByteAddressBuffer m_MissShaderTable;
+	ByteAddressBuffer m_HitShaderTable;
+
+};
+
+D3D12_STATE_SUBOBJECT CreateDxilLibrary(LPCWSTR entryPoint, const void* pShaderByteCode, SIZE_T bytecodeLength, D3D12_DXIL_LIBRARY_DESC& dxilLibDesc, D3D12_EXPORT_DESC& exportDesc)
+{
+	exportDesc = { entryPoint, nullptr, D3D12_EXPORT_FLAG_NONE };
+	D3D12_STATE_SUBOBJECT dxilLibSubObject = {};
+	dxilLibDesc.DXILLibrary.pShaderBytecode = pShaderByteCode;
+	dxilLibDesc.DXILLibrary.BytecodeLength = bytecodeLength;
+	dxilLibDesc.NumExports = 1;
+	dxilLibDesc.pExports = &exportDesc;
+	dxilLibSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
+	dxilLibSubObject.pDesc = &dxilLibDesc;
+
+	return dxilLibSubObject;
+}
+
+void SetPipelineStateStackSize(LPCWSTR raygen, LPCWSTR closestHit, LPCWSTR miss, UINT maxRecursion, ID3D12StateObject* pStateObject)
+{
+	ID3D12StateObjectProperties* stateObjectProperties = nullptr;
+	ThrowIfFailed(pStateObject->QueryInterface(IID_PPV_ARGS(&stateObjectProperties)));
+	UINT64 closestHitStackSize = stateObjectProperties->GetShaderStackSize(closestHit);
+	UINT64 missStackSize = stateObjectProperties->GetShaderStackSize(miss);
+	UINT64 raygenStackSize = stateObjectProperties->GetShaderStackSize(raygen);
+
+	UINT64 totalStackSize = raygenStackSize + std::max(missStackSize, closestHitStackSize) * maxRecursion;
+	stateObjectProperties->SetPipelineStackSize(totalStackSize);
+}
+
+void ModelViewer::InitRaytracingStateObjects()
+{
+	
+}
+
 
 /**
 	当前渲染管线 (Forward+ / TiledBasedForward)

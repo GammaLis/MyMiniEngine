@@ -2,6 +2,8 @@
 #include "pch.h"
 #include "GpuBuffer.h"
 
+#include "Core/RayTracing/RayTracingHlslCompat.h"
+
 struct aiScene;
 
 namespace MyDirectX
@@ -130,6 +132,7 @@ namespace MyDirectX
 			std::string name;
 		};
 		Material* m_pMaterial;
+		std::vector<bool> m_MaterialIsCutout;
 
 		unsigned char* m_pVertexData = nullptr;
 		unsigned char* m_pIndexData = nullptr;
@@ -159,6 +162,13 @@ namespace MyDirectX
 		{
 			return m_DefaultSRV;
 		}
+
+		// Raytracing
+		void InitializeRayTraceSceneInfo();
+		std::vector<RayTraceMeshInfo> m_MeshInfoData;
+		StructuredBuffer m_HitShaderMeshInfoBuffer;
+
+		D3D12_CPU_DESCRIPTOR_HANDLE m_MeshInfoSRV;
 
 	protected:
 

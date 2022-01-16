@@ -7,8 +7,6 @@ cbuffer PSConstants	: register(b0)
 
 Texture2D<float4> _TexDiffuse	: register(t0);
 
-SamplerState s_DefaultSampler	: register(s0);
-
 struct VSOutput
 {
 	float4 pos	: SV_POSITION;

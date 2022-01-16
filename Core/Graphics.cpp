@@ -8,6 +8,8 @@
 namespace MyDirectX
 {    
     using Microsoft::WRL::ComPtr;
+
+    bool Graphics::s_SupportRaytracing = true;
     
     // managers
     ID3D12Device* Graphics::s_Device = nullptr;
@@ -106,6 +108,21 @@ namespace MyDirectX
     bool Graphics::IsDeviceIntel(ID3D12Device* pDevice)
     {
         return GetVendorIdFromDevice(pDevice) == s_VendorID_Intel;
+    }
+
+    bool Graphics::IsRaytracingSupported(IDXGIAdapter1* pAdapter)
+    {
+        ComPtr<ID3D12Device> pDevice;
+        D3D12_FEATURE_DATA_D3D12_OPTIONS5 featureSupportData = {};
+
+        bool bSupported = true;
+        if (SUCCEEDED(D3D12CreateDevice(pAdapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&pDevice))))
+        {
+            bSupported = SUCCEEDED(pDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &featureSupportData, sizeof(featureSupportData)));
+            bSupported = bSupported && featureSupportData.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
+        }
+
+        return bSupported;
     }
 #pragma endregion
 
@@ -446,12 +463,21 @@ namespace MyDirectX
                 continue;
             }
 
+            ComPtr<ID3D12Device> pDevice;
             // check to see if the adpater supports Direct3D 12, but don't create the actual device yet.
-            if (SUCCEEDED(D3D12CreateDevice(dxgiAdapter1.Get(), m_D3DMinFeatureLevel, __uuidof(ID3D12Device), nullptr)))
+            if (SUCCEEDED(D3D12CreateDevice(dxgiAdapter1.Get(), m_D3DMinFeatureLevel, __uuidof(ID3D12Device), &pDevice)))
             {
+                // check raytracing support
+                D3D12_FEATURE_DATA_D3D12_OPTIONS5 featureSupportData = {};
+                bool bSupportRaytracing = SUCCEEDED(pDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &featureSupportData, sizeof(featureSupportData)));
+                bSupportRaytracing = bSupportRaytracing && featureSupportData.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
+
+                s_SupportRaytracing = bSupportRaytracing;
+
 #if defined(_DEBUG)
-                Utility::Printf(L"Direct3D Adapter *(%u): VID:%04x, PID:%04x - %ls\n", adapterIndex,
-                    desc.VendorId, desc.DeviceId, desc.Description);
+                Utility::Printf(L"Direct3D Adapter *(%u): VID:%04x, PID:%04x - %ls\n\tRaytracing Support: %u\n", adapterIndex,
+                    desc.VendorId, desc.DeviceId, desc.Description,
+                    s_SupportRaytracing ? 1 : 0);
 #endif
                 break;
             }

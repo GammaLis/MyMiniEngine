@@ -80,6 +80,7 @@ float GfxStates::s_SharpeningStrength = 0.1f;			// 0.0 - 1.0
 Resolutions GfxStates::s_NativeRes = (Resolutions)-1;
 DebugZoom GfxStates::s_DebugZoom = DebugZoom::Off;
 UpsampleFilter GfxStates::s_UpsampleFilter = UpsampleFilter::kBilinear;
+RaytracingMode GfxStates::s_RaytracingMode = RaytracingMode::DiffuseWithShadowMaps;
 
 DXGI_FORMAT GfxStates::s_DefaultHdrColorFormat = DXGI_FORMAT_R11G11B10_FLOAT;
 DXGI_FORMAT GfxStates::s_DefaultDSVFormat = DXGI_FORMAT_D32_FLOAT;

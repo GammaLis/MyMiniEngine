@@ -28,6 +28,9 @@ namespace MyDirectX
 		static bool IsDeviceNvidia(ID3D12Device *pDevice);
 		static bool IsDeviceAMD(ID3D12Device *pDevice);
 		static bool IsDeviceIntel(ID3D12Device *pDevice);
+		
+		static bool s_SupportRaytracing;
+		static bool IsRaytracingSupported(IDXGIAdapter1* pAdapter);
 
 		Graphics(
 			DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R10G10B10A2_UNORM,
