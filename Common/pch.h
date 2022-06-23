@@ -111,5 +111,24 @@ namespace MyDirectX
 		}
 	}
 
+	inline void ThrowIfFailed(HRESULT hr, const wchar_t* msg)
+	{
+		if (FAILED(hr))
+		{
+			OutputDebugString(msg);
+			throw com_exception(hr);
+		}
+	}
+
+	inline void ThrowIfFalse(bool value)
+	{
+		ThrowIfFailed(value ? S_OK : E_FAIL);
+	}
+
+	inline void ThrowIfFalse(bool value, const wchar_t* msg)
+	{
+		ThrowIfFailed(value ? S_OK : E_FAIL, msg);
+	}
+
 	const unsigned SCR_WIDTH = 640, SCR_HEIGHT = 480;
 }

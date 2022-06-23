@@ -75,7 +75,9 @@ namespace MyDirectX
 		D3D12_GPU_DESCRIPTOR_HANDLE GetGpuHandle() const { return m_GpuHandle; }
 
 		size_t GetCpuPtr() const { return m_CpuHandle.ptr; }
+		const size_t &GetCpuPtrRef() const { return m_CpuHandle.ptr; }
 		uint64_t GetGpuPtr() const { return m_GpuHandle.ptr; }
+		const uint64_t &GetGpuPtrRef() const { return m_GpuHandle.ptr; }
 
 		bool IsNull() const { return m_CpuHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN; }
 		bool IsShaderVisible() const { return m_GpuHandle.ptr != D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN; }
@@ -105,12 +107,20 @@ namespace MyDirectX
 		bool HasAvailableSpace(uint32_t count) const { return count <= m_NumFreeDescriptors; }
 		DescriptorHandle Alloc(uint32_t count = 1);
 
-		DescriptorHandle operator[] (uint32_t arrayIdx) const { return m_FirstHandle + arrayIdx * m_DescriptorSize; }
+		const DescriptorHandle &operator[] (uint32_t arrayIdx) const { return m_FirstHandle + arrayIdx * m_DescriptorSize; }
+		DescriptorHandle &operator[] (uint32_t arrayIdx) { return m_FirstHandle + arrayIdx * m_DescriptorSize; }
+
 		DescriptorHandle GetHandleAtOffset(uint32_t offset) const { return m_FirstHandle + offset * m_DescriptorSize; }
 
 		uint32_t GetOffsetOfHandle(const DescriptorHandle& handle) 
 		{
 			return (uint32_t)(handle.GetCpuPtr() - m_FirstHandle.GetCpuPtr()) / m_DescriptorSize;
+		}
+
+		uint32_t GetAllocedCount() 
+		{ 
+			// (uint32_t)(m_NextFreeHandle.GetCpuPtr() - m_FirstHandle.GetCpuPtr()) / m_DescriptorSize;
+			return m_HeapDesc.NumDescriptors - m_NumFreeDescriptors;
 		}
 
 		bool ValidateHandle(const DescriptorHandle& descHandle) const;

@@ -281,6 +281,11 @@ namespace MyDirectX
 		Graphics::s_TextureManager.ReleaseTextures(1, &m_MapKey);
 	}
 
+	void ManagedTexture::SetDefault(EDefaultTexture detaultTex)
+	{
+		m_hCpuDescriptorHandle = TextureManager::GetDefaultTexture(detaultTex);
+	}
+
 	// 默认 不可用纹理
 	void ManagedTexture::SetToInvalidTexture()
 	{
@@ -342,6 +347,52 @@ namespace MyDirectX
 
 		// this was the first time it was request, so indicate that the caller must read the file
 		return std::make_pair(newTexture, true);
+	}
+
+	// fileName需含扩展名
+	ManagedTexture* TextureManager::FindOrLoadTextureWithFallback(const std::wstring& fileName, EDefaultTexture fallback, bool forceSRGB)
+	{
+		ManagedTexture* tex = nullptr;
+
+		{
+			std::lock_guard<std::mutex> Guard(m_TexMutex);
+
+			std::wstring key = fileName;
+			if (forceSRGB)
+				key += L"_SRGB";
+
+			// Search for an existing managed texture
+			auto& iter = m_TextureCache.find(key);
+			if (iter != m_TextureCache.end())
+			{
+				// If a texture was already created make sure it has finished loading before
+				// returning a point to it
+				tex = iter->second.get();
+				tex->WaitForLoad();
+				return tex;
+			}
+			else
+			{
+				// If it's not found, create a new managed texture and start loading it
+				tex = new ManagedTexture(key);
+				m_TextureCache[key].reset(tex);
+			}
+		}
+
+		Utility::ByteArray ba = Utility::ReadFileSync(m_RootPath + fileName);
+		if (ba->size() > 0)
+		{
+			tex->CreateTexBySTB_IMAGE(Graphics::s_Device, ba->data(), ba->size(), forceSRGB);
+			tex->GetResource()->SetName(fileName.c_str());
+			tex->m_IsValid = true;
+		}
+		else
+		{
+			tex->SetDefault(fallback);
+		}
+		tex->m_IsLoading = false;
+
+		return nullptr;
 	}
 
 	const ManagedTexture* TextureManager::LoadFromFile(ID3D12Device* pDevice, const std::wstring& fileName, bool sRGB)

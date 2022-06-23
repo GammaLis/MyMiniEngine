@@ -98,6 +98,9 @@
     <Filter Include="Shaders\ModelViewer">
       <UniqueIdentifier>{c4d8c02b-5128-4690-9336-85baf6c97a4c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\ModelViewer\Raytracing">
+      <UniqueIdentifier>{f6fe4c37-b77e-453d-9888-920b18558b91}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\GpuResource.h">
@@ -304,13 +307,13 @@
     <ClInclude Include="Effects\ParticleEffectManager.h">
       <Filter>Effects\ParticleEffects</Filter>
     </ClInclude>
-    <ClInclude Include="glTFCommon.h">
+    <ClInclude Include="Game\glTFCommon.h">
       <Filter>Game</Filter>
     </ClInclude>
-    <ClInclude Include="glTFImporter.h">
+    <ClInclude Include="Game\glTFImporter.h">
       <Filter>Game</Filter>
     </ClInclude>
-    <ClInclude Include="glTFViewer.h">
+    <ClInclude Include="Game\glTFViewer.h">
       <Filter>Game</Filter>
     </ClInclude>
     <ClInclude Include="Core\Skybox.h">
@@ -328,7 +331,7 @@
     <ClInclude Include="CommonCompute\SHBasics.h">
       <Filter>CommonCompute</Filter>
     </ClInclude>
-    <ClInclude Include="CubemapIBLApp.h">
+    <ClInclude Include="Game\CubemapIBLApp.h">
       <Filter>CommonCompute</Filter>
     </ClInclude>
     <ClInclude Include="Core\ReadbackBuffer.h">
@@ -358,7 +361,7 @@
     <ClInclude Include="Scenes\LightDefines.h">
       <Filter>Scenes</Filter>
     </ClInclude>
-    <ClInclude Include="SceneViewer.h">
+    <ClInclude Include="Game\SceneViewer.h">
       <Filter>Game</Filter>
     </ClInclude>
     <ClInclude Include="Shaders\MathConstants.h">
@@ -367,29 +370,28 @@
     <ClInclude Include="Shaders\HlslDefines.h">
       <Filter>Shaders\Defines</Filter>
     </ClInclude>
-    <ClInclude Include="BindlessDeferred.h">
+    <ClInclude Include="Game\BindlessDeferred.h">
       <Filter>Scenes</Filter>
     </ClInclude>
-    <ClInclude Include="ClusteredLighting.h">
+    <ClInclude Include="Game\ClusteredLighting.h">
       <Filter>Scenes</Filter>
     </ClInclude>
     <ClInclude Include="ShadowUtility.h">
       <Filter>Scenes</Filter>
     </ClInclude>
-    <ClInclude Include="Voxelization.h" />
     <ClInclude Include="Scenes\DebugPass.h">
       <Filter>Scenes</Filter>
     </ClInclude>
-    <ClInclude Include="OceanViewer.h">
+    <ClInclude Include="Game\OceanViewer.h">
       <Filter>Game</Filter>
     </ClInclude>
-    <ClInclude Include="VoronoiTextureGenerator.h">
+    <ClInclude Include="Game\VoronoiTextureGenerator.h">
       <Filter>Game</Filter>
     </ClInclude>
     <ClInclude Include="Core\UploadBuffer.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="Texture3D.h">
+    <ClInclude Include="Game\Texture3D.h">
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\RayTracing\RayTracingHlslCompat.h">
@@ -397,6 +399,15 @@
     </ClInclude>
     <ClInclude Include="Core\HlslCompat.h">
       <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="ModelViewerRaytracing.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\Voxelization.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\BVHApp.h">
+      <Filter>Game</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -553,13 +564,13 @@
     <ClCompile Include="Effects\ParticleEffectManager.cpp">
       <Filter>Effects\ParticleEffects</Filter>
     </ClCompile>
-    <ClCompile Include="glTFCommon.cpp">
+    <ClCompile Include="Game\glTFCommon.cpp">
       <Filter>Game</Filter>
     </ClCompile>
-    <ClCompile Include="glTFImporter.cpp">
+    <ClCompile Include="Game\glTFImporter.cpp">
       <Filter>Game</Filter>
     </ClCompile>
-    <ClCompile Include="glTFViewer.cpp">
+    <ClCompile Include="Game\glTFViewer.cpp">
       <Filter>Game</Filter>
     </ClCompile>
     <ClCompile Include="Core\Skybox.cpp">
@@ -571,7 +582,7 @@
     <ClCompile Include="CommonCompute\SHBasics.cpp">
       <Filter>CommonCompute</Filter>
     </ClCompile>
-    <ClCompile Include="CubemapIBLApp.cpp">
+    <ClCompile Include="Game\CubemapIBLApp.cpp">
       <Filter>CommonCompute</Filter>
     </ClCompile>
     <ClCompile Include="Core\ReadbackBuffer.cpp">
@@ -586,23 +597,22 @@
     <ClCompile Include="Scenes\AssimpImporter.cpp">
       <Filter>Scenes</Filter>
     </ClCompile>
-    <ClCompile Include="SceneViewer.cpp">
+    <ClCompile Include="Game\SceneViewer.cpp">
       <Filter>Game</Filter>
     </ClCompile>
-    <ClCompile Include="BindlessDeferred.cpp">
+    <ClCompile Include="Game\BindlessDeferred.cpp">
       <Filter>Scenes</Filter>
     </ClCompile>
-    <ClCompile Include="ClusteredLighting.cpp">
+    <ClCompile Include="Game\ClusteredLighting.cpp">
       <Filter>Scenes</Filter>
     </ClCompile>
     <ClCompile Include="ShadowUtility.cpp">
       <Filter>Scenes</Filter>
     </ClCompile>
-    <ClCompile Include="Voxelization.cpp" />
-    <ClCompile Include="OceanViewer.cpp">
+    <ClCompile Include="Game\OceanViewer.cpp">
       <Filter>Game</Filter>
     </ClCompile>
-    <ClCompile Include="VoronoiTextureGenerator.cpp">
+    <ClCompile Include="Game\VoronoiTextureGenerator.cpp">
       <Filter>Game</Filter>
     </ClCompile>
     <ClCompile Include="Scenes\DebugPass.cpp">
@@ -611,8 +621,14 @@
     <ClCompile Include="Core\UploadBuffer.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="Texture3D.cpp">
+    <ClCompile Include="Game\Texture3D.cpp">
       <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Game\Voxelization.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Game\BVHApp.cpp">
+      <Filter>Game</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1062,6 +1078,27 @@
     </FxCompile>
     <FxCompile Include="Core\Shaders\ResolveTAACS_Intel.hlsl">
       <Filter>Core\Shaders\Temporal</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\RayGenShaderLib.hlsl">
+      <Filter>Shaders\ModelViewer\Raytracing</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\RayGenShaderSSRLib.hlsl">
+      <Filter>Shaders\ModelViewer\Raytracing</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\RayGenShaderShadowsLib.hlsl">
+      <Filter>Shaders\ModelViewer\Raytracing</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\MissShaderLib.hlsl">
+      <Filter>Shaders\ModelViewer\Raytracing</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\MissShadowsLib.hlsl">
+      <Filter>Shaders\ModelViewer\Raytracing</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\HitShaderLib.hlsl">
+      <Filter>Shaders\ModelViewer\Raytracing</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DiffuseHitShaderLib.hlsl">
+      <Filter>Shaders\ModelViewer\Raytracing</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

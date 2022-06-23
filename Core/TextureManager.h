@@ -5,6 +5,19 @@
 
 namespace MyDirectX
 {
+	enum class EDefaultTexture
+	{
+		kMagenta2D,
+		kBlackOpaque2D,
+		kBlackTransparent2D,
+		kWhiteOpaque2D,
+		kWhiteTransparent2D,
+		kDefaultNormalMap,
+		kBlackCubeMap,
+
+		kNumDefaultTextures
+	};
+
 	class Texture : public GpuResource
 	{
 	public:
@@ -57,6 +70,7 @@ namespace MyDirectX
 		void WaitForLoad() const;
 		void Unload();
 
+		void SetDefault(EDefaultTexture detaultTex = EDefaultTexture::kMagenta2D);
 		void SetToInvalidTexture();
 		bool IsValid() const { return m_IsValid; }
 
@@ -97,18 +111,6 @@ namespace MyDirectX
 		ManagedTexture *m_ref = nullptr;
 	};
 
-	enum class EDefaultTexture
-	{
-		kMagenta2D,
-		kBlackOpaque2D,
-		kBlackTransparent2D,
-		kWhiteOpaque2D,
-		kWhiteTransparent2D,
-		kDefaultNormalMap,
-		kBlackCubeMap,
-
-		kNumDefaultTextures
-	};
 	/**
 	*	Texture file loading system
 	*	references to textures are passed around so that a texture may be shared. 
@@ -122,6 +124,7 @@ namespace MyDirectX
 		void Shutdown();
 
 		std::pair<ManagedTexture*, bool> FindOrLoadTexture(const std::wstring& fileName, bool forceSRGB = false);
+		ManagedTexture* FindOrLoadTextureWithFallback(const std::wstring& fileName, EDefaultTexture fallback = EDefaultTexture::kMagenta2D, bool forceSRGB = false);
 
 		const ManagedTexture* LoadFromFile(ID3D12Device *pDevice, const std::wstring& fileName, bool sRGB = false);
 		const ManagedTexture* LoadDDSFromFile(ID3D12Device* pDevice, const std::wstring& fileName, bool sRGB = false);

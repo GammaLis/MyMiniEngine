@@ -19,12 +19,14 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="BindlessDeferred.h" />
-    <ClInclude Include="ClusteredLighting.h" />
+    <ClInclude Include="Game\BindlessDeferred.h" />
+    <ClInclude Include="Game\BVHApp.h" />
+    <ClInclude Include="Game\ClusteredLighting.h" />
     <ClInclude Include="Core\HlslCompat.h" />
     <ClInclude Include="Core\RayTracing\RayTracingHlslCompat.h" />
     <ClInclude Include="Core\UploadBuffer.h" />
-    <ClInclude Include="OceanViewer.h" />
+    <ClInclude Include="ModelViewerRaytracing.h" />
+    <ClInclude Include="Game\OceanViewer.h" />
     <ClInclude Include="Scenes\AssimpImporter.h" />
     <ClInclude Include="CameraController.h" />
     <ClInclude Include="CommonCompute.h" />
@@ -84,14 +86,14 @@
     <ClInclude Include="Core\DepthBuffer.h" />
     <ClInclude Include="Core\DynamicDescriptorHeap.h" />
     <ClInclude Include="Core\GfxCommon.h" />
-    <ClInclude Include="CubemapIBLApp.h" />
+    <ClInclude Include="Game\CubemapIBLApp.h" />
     <ClInclude Include="Effects\ParticleShaderStructs.h" />
     <ClInclude Include="FileUtility.h" />
     <ClInclude Include="Effects\ForwardPlusLighting.h" />
     <ClInclude Include="GameInput.h" />
-    <ClInclude Include="glTFCommon.h" />
-    <ClInclude Include="glTFImporter.h" />
-    <ClInclude Include="glTFViewer.h" />
+    <ClInclude Include="Game\glTFCommon.h" />
+    <ClInclude Include="Game\glTFImporter.h" />
+    <ClInclude Include="Game\glTFViewer.h" />
     <ClInclude Include="IGameApp.h" />
     <ClInclude Include="Scenes\Material.h" />
     <ClInclude Include="Model.h" />
@@ -112,19 +114,20 @@
     <ClInclude Include="Scenes\MaterialDefines.h" />
     <ClInclude Include="Scenes\SceneDefines.h" />
     <ClInclude Include="Scenes\VertexLayout.h" />
-    <ClInclude Include="SceneViewer.h" />
+    <ClInclude Include="Game\SceneViewer.h" />
     <ClInclude Include="Shaders\HlslDefines.h" />
     <ClInclude Include="Shaders\MathConstants.h" />
     <ClInclude Include="ShadowUtility.h" />
-    <ClInclude Include="Texture3D.h" />
-    <ClInclude Include="VoronoiTextureGenerator.h" />
-    <ClInclude Include="Voxelization.h" />
+    <ClInclude Include="Game\Texture3D.h" />
+    <ClInclude Include="Game\VoronoiTextureGenerator.h" />
+    <ClInclude Include="Game\Voxelization.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="BindlessDeferred.cpp" />
-    <ClCompile Include="ClusteredLighting.cpp" />
+    <ClCompile Include="Game\BindlessDeferred.cpp" />
+    <ClCompile Include="Game\BVHApp.cpp" />
+    <ClCompile Include="Game\ClusteredLighting.cpp" />
     <ClCompile Include="Core\UploadBuffer.cpp" />
-    <ClCompile Include="OceanViewer.cpp" />
+    <ClCompile Include="Game\OceanViewer.cpp" />
     <ClCompile Include="Scenes\AssimpImporter.cpp" />
     <ClCompile Include="CameraController.cpp" />
     <ClCompile Include="CommonCompute.cpp" />
@@ -163,14 +166,14 @@
     <ClCompile Include="Core\DepthBuffer.cpp" />
     <ClCompile Include="Core\DynamicDescriptorHeap.cpp" />
     <ClCompile Include="Core\GfxCommon.cpp" />
-    <ClCompile Include="CubemapIBLApp.cpp" />
+    <ClCompile Include="Game\CubemapIBLApp.cpp" />
     <ClCompile Include="Effects\ParticleShaderStructs.cpp" />
     <ClCompile Include="FileUtility.cpp" />
     <ClCompile Include="Effects\ForwardPlusLighting.cpp" />
     <ClCompile Include="GameInput.cpp" />
-    <ClCompile Include="glTFCommon.cpp" />
-    <ClCompile Include="glTFImporter.cpp" />
-    <ClCompile Include="glTFViewer.cpp" />
+    <ClCompile Include="Game\glTFCommon.cpp" />
+    <ClCompile Include="Game\glTFImporter.cpp" />
+    <ClCompile Include="Game\glTFViewer.cpp" />
     <ClCompile Include="IGameApp.cpp" />
     <ClCompile Include="Scenes\Material.cpp" />
     <ClCompile Include="Model.cpp" />
@@ -187,11 +190,11 @@
     <ClCompile Include="Effects\ParticleEffectManager.cpp" />
     <ClCompile Include="Core\Skybox.cpp" />
     <ClCompile Include="Core\ReadbackBuffer.cpp" />
-    <ClCompile Include="SceneViewer.cpp" />
+    <ClCompile Include="Game\SceneViewer.cpp" />
     <ClCompile Include="ShadowUtility.cpp" />
-    <ClCompile Include="Texture3D.cpp" />
-    <ClCompile Include="VoronoiTextureGenerator.cpp" />
-    <ClCompile Include="Voxelization.cpp" />
+    <ClCompile Include="Game\Texture3D.cpp" />
+    <ClCompile Include="Game\VoronoiTextureGenerator.cpp" />
+    <ClCompile Include="Game\Voxelization.cpp" />
     <ClCompile Include="WinMain.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -752,6 +755,17 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
     </FxCompile>
+    <FxCompile Include="Shaders\DiffuseHitShaderLib.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </FxCompile>
     <FxCompile Include="Shaders\FillLightClusterCS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
     </FxCompile>
@@ -821,6 +835,16 @@
     <FxCompile Include="Shaders\glTFCommonVS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
     </FxCompile>
+    <FxCompile Include="Shaders\HitShaderLib.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
+    </FxCompile>
     <FxCompile Include="Shaders\IndirectDepthCutoutPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
@@ -885,6 +909,56 @@
     </FxCompile>
     <FxCompile Include="Shaders\Misc\VoronoiVS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\MissShaderLib.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Shaders\MissShadowsLib.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Shaders\RayGenShaderLib.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Shaders\RayGenShaderShadowsLib.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Shaders\RayGenShaderSSRLib.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
     </FxCompile>
     <FxCompile Include="Shaders\WaterWave\CombineIFFTOutputsCS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
@@ -1087,7 +1161,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(SolutionDir);$(SolutionDir)Core;$(SolutionDir)Common;$(SolutionDir)Effects;$(SolutionDir)CommonCompute;$(SolutionDir)Libraries\Include;$(OutDir)CompiledShaders;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir);$(SolutionDir)Core;$(SolutionDir)Common;$(SolutionDir)Effects;$(SolutionDir)Game;$(SolutionDir)CommonCompute;$(SolutionDir)Libraries\Include;$(OutDir)CompiledShaders;$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)Libraries\Lib\$(Platform)\$(Configuration);$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(Platform)\$(Configuration)\</IntDir>

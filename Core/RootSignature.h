@@ -142,6 +142,7 @@ namespace MyDirectX
 		void Finalize(ID3D12Device* pDevice, const std::wstring& name, D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE);
 
 		ID3D12RootSignature* GetSignature() const { return m_Signature; }
+		auto& GetSignatureRef() const { return m_Signature; }
 
 	private:
 		BOOL m_Finalized;

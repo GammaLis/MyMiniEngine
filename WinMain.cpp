@@ -7,7 +7,9 @@
 #define IMPLEMENTED_OCEANVIEWER 4
 #define IMPLEMENTED_VORONOITEXTURE	5
 
-#define IMPLEMENTED IMPLEMENTED_MODELVIEWER
+#define IMPLEMENTED_BVH 6
+
+#define IMPLEMENTED IMPLEMENTED_BVH
 
 #include "MyBaseApp.h"
 #include "Utility.h"
@@ -17,6 +19,8 @@
 #include "SceneViewer.h"
 #include "OceanViewer.h"
 #include "VoronoiTextureGenerator.h"
+
+#include "BVHApp.h"
 
 #include "CubemapIBLApp.h"
 
@@ -79,11 +83,7 @@ int main(int argc, const char* argv[])
 #if defined(MINI_ENGINE)
 	constexpr int SceneWidth = 1280, SceneHeight = 720;
 
-#if IMPLEMENTED == IMPLEMENTED_IGAMEAPP
-	// 0. IGameApp
-	MyDirectX::IGameApp gApp(hInst);
-
-#elif IMPLEMENTED == IMPLEMENTED_MODELVIEWER
+#if IMPLEMENTED == IMPLEMENTED_MODELVIEWER
 	MyDirectX::ModelViewer gApp(hInst, "Models/sponza.obj", L"ModelViewer", SceneWidth, SceneHeight);
 
 #elif IMPLEMENTED == IMPLEMENTED_GLTFVIEWER
@@ -95,9 +95,13 @@ int main(int argc, const char* argv[])
 #elif IMPLEMENTED == IMPLEMENTED_OCEANVIEWER
 	MyDirectX::OceanViewer gApp(hInst, L"OceanViewer", SceneWidth, SceneHeight);
 
-#else
+#elif IMPLEMENTED == IMPLEMENTED_VORONOITEXTURE
 	MyDirectX::VoronoiTextureGenerator gApp(hInst, L"VoronoiTextureGenerator", SceneWidth, SceneHeight);
-
+#elif IMPLEMENTED == IMPLEMENTED_BVH
+	MyDirectX::BVHApp gApp(hInst, L"BVH App", MyDirectX::SCR_WIDTH, MyDirectX::SCR_HEIGHT);
+#else
+	// 0. IGameApp
+	MyDirectX::IGameApp gApp(hInst);
 #endif	// IMPLEMENTED
 
 	int ret = 0;

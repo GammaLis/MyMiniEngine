@@ -1057,7 +1057,7 @@ namespace MFalcor
 			{
 				pDevice->CopyDescriptorsSimple(1, dstHandle.GetCpuHandle(), srcTexHandles[texIdx], D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 				dstHandle += srvDescriptorStepSize;
-			}			
+			}
 		}
 		m_MaterialsBuffer.Create(pDevice, L"MaterialsBuffer", numMaterials, sizeof(MaterialData), materialData.data());
 
