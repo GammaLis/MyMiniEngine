@@ -4,6 +4,9 @@
 #include "Math/Random.h"
 #include "Core/Utility.h"
 
+#include <ppl.h>
+#define PARALLEL_IMPL 1
+
 // #define STB_IMAGE_IMPLEMENTATION
 #define STBI_NO_PSD
 #define STBI_NO_PIC
@@ -13,33 +16,33 @@
 using namespace MyDirectX;
 using namespace glm;
 
-glm::vec3 Cast(Math::Vector3 v)
+glm::vec3 Cast(const Math::Vector3 &v)
 {
 	return glm::vec3{ v.GetX(), v.GetY(), v.GetZ() };
 }
 
-glm::vec4 Cast(Math::Vector4 v)
+glm::vec4 Cast(const Math::Vector4 &v)
 {
 	return glm::vec4{ v.GetX(), v.GetY(), v.GetZ(), v.GetW() };
 }
 
-uint Color(glm::vec3 c)
+uint Color(const glm::vec3 &c)
 {
 	uint ic = 0;
-	ic += (uint(c.x * 255.9f) & 0xFF);
-	ic += (uint(c.y * 255.9f) & 0xFF) << 8;
-	ic += (uint(c.z * 255.9f) & 0xFF) << 16;
+	ic |= (uint(c.x * 255.9f) & 0xFF);
+	ic |= (uint(c.y * 255.9f) & 0xFF) << 8;
+	ic |= (uint(c.z * 255.9f) & 0xFF) << 16;
 
 	return ic;
 }
 
-uint Color(glm::vec4 c)
+uint Color(const glm::vec4 &c)
 {
 	uint ic = 0;
-	ic += (uint(c.x * 255.9f) & 0xFF);
-	ic += (uint(c.y * 255.9f) & 0xFF) << 8;
-	ic += (uint(c.z * 255.9f) & 0xFF) << 16;
-	ic += (uint(c.w * 255.9f) & 0xFF) << 24;
+	ic |= (uint(c.x * 255.9f) & 0xFF);
+	ic |= (uint(c.y * 255.9f) & 0xFF) << 8;
+	ic |= (uint(c.z * 255.9f) & 0xFF) << 16;
+	ic |= (uint(c.w * 255.9f) & 0xFF) << 24;
 
 	return ic;
 }
@@ -72,7 +75,7 @@ bool IntersectTriangle(Ray& ray, const Triangle& tri)
 }
 
 // dot( o + t * dir - C, o + t * dir - C ) = R^2 
-float IntersectSphere(const Ray &ray, const vec3& center, float radius)
+bool IntersectSphere(Ray &ray, const vec3& center, float radius)
 {
 	vec3 oc = ray.ro - center;
 	float a = glm::dot(ray.rd, ray.rd);
@@ -80,14 +83,21 @@ float IntersectSphere(const Ray &ray, const vec3& center, float radius)
 	float c = glm::dot(oc, oc) - radius * radius;
 	float discriminant = b * b - 4.0f * a * c;
 
-	if (discriminant < 0.0f)
-		return -1.0f;
-	else
-		return (-b - glm::sqrt(discriminant)) / (2.0f * a);
+	bool bIntersect = false;
+	if (discriminant >= 0)
+	{
+		float t = (-b - std::sqrt(discriminant)) / (2.0f * a);
+		ray.tmax = std::min(ray.tmax, t);
+		bIntersect = ray.tmax == t;
+	}
+
+	return bIntersect;
 }
 
-bool IntersectAABB(const Ray &ray, const Bounds &bounds)
+// Divisions are expensive for processors
+float IntersectAABB(const Ray &ray, const Bounds &bounds)
 {
+#if 0
 	float tx1 = (bounds.bmin.x - ray.ro.x) / ray.rd.x, tx2 = (bounds.bmax.x - ray.ro.x) / ray.rd.x;
 	float tmin = std::min(tx1, tx2), tmax = std::max(tx1, tx2);
 
@@ -98,8 +108,22 @@ bool IntersectAABB(const Ray &ray, const Bounds &bounds)
 	float tz1 = (bounds.bmin.z - ray.ro.z) / ray.rd.z, tz2 = (bounds.bmax.z - ray.ro.z) / ray.rd.z;
 	tmin = std::max(tmin, std::min(tz1, tz2));
 	tmax = std::min(tmax, std::max(tz1, tz2));
+#else
+	// But this optimization has a limited effect on my machine
+	float tx1 = (bounds.bmin.x - ray.ro.x) * ray.rcpD.x, tx2 = (bounds.bmax.x - ray.ro.x) * ray.rcpD.x;
+	float tmin = std::min(tx1, tx2), tmax = std::max(tx1, tx2);
 
-	return tmin <= tmax && tmin < ray.tmax && tmax > 0;
+	float ty1 = (bounds.bmin.y - ray.ro.y) * ray.rcpD.y, ty2 = (bounds.bmax.y - ray.ro.y) * ray.rcpD.y;
+	tmin = std::max(tmin, std::min(ty1, ty2));
+	tmax = std::min(tmax, std::max(ty1, ty2));
+
+	float tz1 = (bounds.bmin.z - ray.ro.z) * ray.rcpD.z, tz2 = (bounds.bmax.z - ray.ro.z) * ray.rcpD.z;
+	tmin = std::max(tmin, std::min(tz1, tz2));
+	tmax = std::min(tmax, std::max(tz1, tz2));
+#endif
+
+	bool bIntersect = tmin <= tmax && tmin < ray.tmax && tmax > 0;
+	return bIntersect ? tmin : Ray::TMAX;
 }
 
 
@@ -119,7 +143,7 @@ void Bounds::Union(const Triangle& tri)
 /// Surface
 char MyDirectX::g_Font[51][5][6];
 bool MyDirectX::g_bFontInited = false;
-int MyDirectX::g_Translation[256];
+int  MyDirectX::g_Translation[256];
 
 Surface::Surface(int w, int h, uint* buffer) : pixels(buffer), width(w), height(h)
 {
@@ -341,7 +365,7 @@ void Surface::InitCharset()
 BVHApp::BVHApp(HINSTANCE hInstance, const wchar_t* title, UINT width, UINT height)
 	: IGameApp(hInstance, title, width, height)
 {
-	m_Surface = std::make_unique<Surface>(width / 2, height / 2);
+	m_Surface = std::make_unique<Surface>(width, height); // / 2
 	m_Surface->flipY = true;
 }
 
@@ -365,6 +389,25 @@ void BVHApp::InitCustom()
 	}
 	// GameObjects
 	{
+#if USE_MODELS
+		const char* fileName = "Models/BVHAssets/unity.tri";
+		FILE* file;
+		const auto &error = fopen_s(&file, fileName, "r");
+		if (error != 0)
+		{
+			Utility::Printf("Load model at %s failed!", fileName);
+			while (1) exit(-1);
+		}
+		for (int i = 0; i < s_Num; ++i)
+		{
+			auto& tri = m_Tris[i];
+			fscanf_s(file, "%f %f %f %f %f %f %f %f %f\n",
+				&tri.v0.x, &tri.v0.y, &tri.v0.z,
+				&tri.v1.x, &tri.v1.y, &tri.v1.z,
+				&tri.v2.x, &tri.v2.y, &tri.v2.z);
+		}
+		fclose(file);
+#else
 		Math::RandomNumberGenerator rng;
 		rng.SetSeed(GetCurrentTime());
 		for (int i = 0; i < s_Num; ++i)
@@ -378,7 +421,9 @@ void BVHApp::InitCustom()
 			tri.v1 = tri.v0 + v1;
 			tri.v2 = tri.v0 + v2;
 		}
+#endif
 
+		m_BVHNode = (BVHNode*)_aligned_malloc(sizeof(BVHNode) * s_Num * 2, 64);
 		BuildBVH();
 
 		{
@@ -391,6 +436,9 @@ void BVHApp::InitCustom()
 
 void BVHApp::CleanCustom()
 {
+	_aligned_free(m_BVHNode);
+	m_BVHNode = nullptr;
+
 	m_TraceResult.Destroy();
 	m_DebugPass.Cleanup();
 }
@@ -427,31 +475,78 @@ void BVHApp::Update(float deltaTime)
 		float radius = 1.0f;
 
 		const int W = m_Surface->width, H = m_Surface->height;
-		for (int y = 0; y < H; ++y)
-		{
-			float v = (y + 0.5f) / H;
-			for (int x = 0; x < W; ++x)
+		const float invW = 1.0f / W, invH = 1.0f / H;
+#if PARALLEL_IMPL
+		const int tileSize = 16;
+		const int nXTiles = (W + tileSize - 1) / tileSize;
+		const int nYTiles = (H + tileSize - 1) / tileSize;
+		const int nTiles = nXTiles * nYTiles;
+		concurrency::parallel_for(0, nTiles, [&](int tileIndex)
 			{
-				float u = (x + 0.5f) / W;
+				int tidy = tileIndex / nXTiles;
+				int tidx = tileIndex % nXTiles;
 
-				Ray ray{ ro, rd, Ray::TMIN, Ray::TMAX };
-				ray.rd = glm::normalize(lowerLeftCorner + u * horizontal + v * vertical);
-
-				bool bIntersect = false;
-#if 0
-				for (int i = 0; i < s_Num; ++i)
+				int x0 = tidx * tileSize;
+				int y0 = tidy * tileSize;
+				int x1 = std::min(x0 + tileSize, W);
+				int y1 = std::min(y0 + tileSize, H);
+				for (int y = y0; y < y1; ++y)
 				{
-					if (bIntersect = IntersectTriangle(ray, m_Tris[i]))
-						break;
+					float v = (y + 0.5f) / H;
+					for (int x = x0; x < x1; ++x)
+					{
+						float u = (x + 0.5f) / W;
+
+						Ray ray{ro, rd};
+						ray.rd = glm::normalize(lowerLeftCorner + u * horizontal + v * vertical);
+						ray.rcpD = 1.0f / ray.rd;
+
+						bool bIntersect = IntersectBVH(ray, m_RootNodeIdx);
+						if (bIntersect)
+							m_Surface->Plot(x, y, 0xFFFFFFFF);
+					}
 				}
+			});
 #else
-				bIntersect = IntersectBVH(ray, m_RootNodeIdx);
+		/**
+		 * Improving data locality: To make better use of the caches, we should ensure that data we use is
+		 * similar to we have recently seen. This is known as `temporal data locality`. In a ray tracer
+		 * this can be achieved by rendering the image in tiles. The pixels in a tile of e.g. 4x4 pixels often
+		 * find the same triangles, typically after traversing the same BVH nodes.
+		 */
+		for (int y = 0; y < H; y += 4)
+		{
+			for (int x = 0; x < W; x += 4)
+			{
+				for (int t = 0; t < 4; ++t)
+				{
+					for (int s = 0; s < 4; ++s)
+					{
+						float v = (y + t + 0.5f) / H;
+						float u = (x + s + 0.5f) / W;
+
+						Ray ray{ ro, rd };
+						ray.rd = glm::normalize(lowerLeftCorner + u * horizontal + v * vertical);
+						ray.rcpD = 1.0f / ray.rd;
+
+						bool bIntersect = false;
+#if 0
+						for (int i = 0; i < s_Num; ++i)
+						{
+							if (bIntersect = IntersectTriangle(ray, m_Tris[i]))
+								break;
+						}
+#else
+						bIntersect = IntersectBVH(ray, m_RootNodeIdx);
 #endif
 
-				if (bIntersect)
-					m_Surface->Plot(x, y, 0xFFFFFFFF);
+						if (bIntersect)
+							m_Surface->Plot(x + s, y + t, 0xFFFFFFFF);
+					}
+				}				
 			}
 		}
+#endif
 	}
 }
 
@@ -510,6 +605,7 @@ void BVHApp::BuildBVH()
 void BVHApp::UpdateNodeBounds(uint nodeIdx)
 {
 	BVHNode& node = m_BVHNode[nodeIdx];
+	node.bounds.Reset(); // malloc, not initialized
 	for (int i = node.leftFirst, imax = node.leftFirst+node.triCount; i < imax; ++i)
 	{
 		uint leafTriIdx = m_TriIndices[i];
@@ -521,6 +617,8 @@ void BVHApp::UpdateNodeBounds(uint nodeIdx)
 void BVHApp::Subdivide(uint nodeIdx)
 {
 	BVHNode& node = m_BVHNode[nodeIdx];
+
+#if 0
 	// 2 triangles quite often form a quad in real-world scenes. If this quad is axis-aligned, there is
 	// no way we can split it (with an axis-aligned plane) in 2 non-empty halves.
 	if (node.triCount < 2)
@@ -533,6 +631,19 @@ void BVHApp::Subdivide(uint nodeIdx)
 	if (extent.z > extent[axis]) axis = 2;
 
 	float splitPos = node.bounds.bmin[axis] + extent[axis] * 0.5f;
+
+#else
+	// Determine split axis using SAH
+	int axis = 0;
+	float splitPos;
+	float splitCost = FindBestSplitPlane(node, axis, splitPos);
+	float noSplitCost = node.CalculateNodeCost();
+	// Checks if the best split cost is actually an improvement over not splitting.
+	if (splitCost >= noSplitCost)
+		return;
+
+#endif
+
 	// in-place partition
 	int i = node.leftFirst;
 	int j = i + node.triCount - 1;
@@ -577,6 +688,7 @@ void BVHApp::Subdivide(uint nodeIdx)
 // 3. Otherwise, recurse into the left and right child
 bool BVHApp::IntersectBVH(Ray& ray, uint nodeIdx)
 {
+#if 0
 	const auto& node = m_BVHNode[nodeIdx];
 	bool bIntersect = IntersectAABB(ray, node.bounds);
 	if (bIntersect)
@@ -593,6 +705,172 @@ bool BVHApp::IntersectBVH(Ray& ray, uint nodeIdx)
 			bIntersect = IntersectBVH(ray, node.leftFirst) || IntersectBVH(ray, node.leftFirst+1);
 		}
 	}
+#else
+	BVHNode* node = &m_BVHNode[m_RootNodeIdx], * stack[128];
+	uint stackCount = 0;
+	bool bIntersect = false;
+	while (true)
+	{
+		if (node->isLeaf())
+		{
+			for (uint i = node->leftFirst, imax = node->leftFirst + node->triCount; i < imax; ++i)
+			{
+				bIntersect = IntersectTriangle(ray, m_Tris[m_TriIndices[i]]);
+			}
+			if (stackCount == 0)
+				break;
+			else
+				node = stack[--stackCount];
+		}
+		else
+		{
+			BVHNode* pChild0 = &m_BVHNode[node->leftFirst];
+			BVHNode* pChild1 = &m_BVHNode[node->leftFirst + 1];
+			float d0 = IntersectAABB(ray, pChild0->bounds);
+			float d1 = IntersectAABB(ray, pChild1->bounds);
+			if (d0 > d1)
+			{
+				std::swap(d0, d1);
+				std::swap(pChild0, pChild1);
+			}
+			if (d0 == Ray::TMAX)
+			{
+				if (stackCount == 0)
+					break;
+				else 
+					node = stack[--stackCount];
+			}
+			else
+			{
+				node = pChild0;
+				if (d1 != Ray::TMAX)
+					stack[stackCount++] = pChild1;
+			}				
+		}
+	}
+#endif
 
 	return bIntersect;
 }
+
+struct Bin
+{
+	Bounds bounds;
+	int triCount = 0;
+};
+static constexpr int s_Bins = 8;
+
+float BVHApp::FindBestSplitPlane(BVHNode& node, int& axis, float& splitPos)
+{
+	float bestCost = 1e5f;
+	for (int a = 0; a < 3; ++a)
+	{
+		// Centroid bounds
+		// The first split plane candidate is on the first centroid, the last one on the last centriod.
+		float cmin = 1e5f, cmax = -1e5f;
+		for (int i = node.leftFirst, imax = node.leftFirst +node.triCount; i < imax; ++i)
+		{
+			Triangle& tri = m_Tris[m_TriIndices[i]];
+			cmin = std::min(cmin, tri.c[a]);
+			cmax = std::max(cmax, tri.c[a]);
+		}
+		if (cmin == cmax)
+			continue;
+
+		// Populate the bins
+		Bin bins[s_Bins];
+		float scale = s_Bins / (cmax - cmin);
+		for (int i = node.leftFirst, imax = node.leftFirst + node.triCount; i < imax; ++i)
+		{
+			Triangle& tri = m_Tris[m_TriIndices[i]];
+			int binIdx = std::min( (int)((tri.c[a] - cmin)* scale), s_Bins-1);
+			Bin& bin = bins[binIdx];
+			++bin.triCount;
+			bin.bounds.Union(tri.v0); bin.bounds.Union(tri.v1); bin.bounds.Union(tri.v2);
+		}
+
+#if 1
+		float areas0[s_Bins - 1], areas1[s_Bins - 1];
+		float triCount0[s_Bins - 1], triCount1[s_Bins - 1];
+		float n0 = 0, n1 = 0;
+		Bounds b0, b1;
+		for (int i = 0; i < s_Bins - 1; ++i)
+		{
+			const auto& bin0 = bins[i];
+			b0.Union(bin0.bounds);
+			n0 += bin0.triCount;
+			areas0[i] = b0.Area(); triCount0[i] = n0;
+
+			const auto& bin1 = bins[s_Bins - 1 - i];
+			b1.Union(bin1.bounds);
+			n1 += bin1.triCount;
+			areas1[s_Bins - 2 - i] = b1.Area(); triCount1[s_Bins - 2 - i] = n1;
+		}
+
+		scale = 1.0f / scale;
+		for (int i = 1; i < s_Bins - 1; ++i)
+		{
+			float cost = areas0[i] * triCount0[i] + areas1[i] * triCount1[i];
+			if (cost < bestCost)
+			{
+				axis = a;
+				splitPos = cmin + scale * (i + 1);
+				bestCost = cost;
+			}
+		}		
+
+#else
+		float cost[s_Bins];
+		for (int i = 0; i < s_Bins-1; ++i)
+		{
+			Bounds b0, b1;
+			int count0 = 0, count1 = 0;
+			for (int j = 0; j <= i; ++j)
+			{
+				b0.Union(bins[j].bounds);
+				count0 += bins[j].triCount;
+			}
+			for (int j = i+1; j < s_Bins; ++j)
+			{
+				b1.Union(bins[j].bounds);
+				count1 += bins[j].triCount;
+			}
+			// cost[i] = 1 + (count0 * b0.Area() + count1 * b1.Area()) / node.bounds.Area();
+			cost[i] = (count0 * b0.Area() + count1 * b1.Area());
+		}
+		float minCost = cost[0];
+		int minCostSplitBin = 0;
+
+		for (int i = 1; i < s_Bins-1; ++i)
+		{
+			if (cost[i] < minCost)
+			{
+				minCost = cost[i];
+				minCostSplitBin = i;
+			}
+		}
+		if (minCost < bestCost)
+		{
+			scale = 1.0f / scale;
+			bestCost = minCost;
+			axis = a;
+			splitPos = cmin + scale * (minCostSplitBin + 1);
+		}
+#endif
+
+	}
+
+	return bestCost;
+}
+
+/**
+ * An optimal BVH minimizes the total number of intersections. Applied to the local problem of picking a good split plane:
+ * since the number of bounding boxes after the split is constant, the optimal split plane is the one that minimizes
+ * the number of intersections between a ray and the primitives in both child nodes.
+ * ...
+ * The chance that a random ray hits a random box is proportional to the surface area of the box.
+ * Surface Area Heuristic: C_SAH = N_left * A_left + N_right * A_right
+ * In words: the `cost` of a split is proportional to the summed cost of intersecting the 2 resulting boxes, including
+ * the triangles they store. The cost of a box with triangles is proportional to the number of triangles, times
+ * the surface area of the box.
+ */

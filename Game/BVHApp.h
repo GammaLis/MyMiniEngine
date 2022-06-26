@@ -6,6 +6,8 @@
 #include "Math/GLMath.h"
 #include "Scenes/DebugPass.h"
 
+#define USE_MODELS 0
+
 namespace MyDirectX
 {
 	// Aligned memory allocations
@@ -29,7 +31,10 @@ namespace MyDirectX
 	{
 		static constexpr float TMAX = 1e5f;
 		static constexpr float TMIN = 1e-3f;
-		glm::vec3 ro, rd;
+
+		Ray(glm::vec3 o, glm::vec3 d) : ro(o), rd(d), rcpD(1.0f/d) {  }
+
+		glm::vec3 ro, rd, rcpD;
 		float tmin = TMIN, tmax = TMAX;
 	};
 
@@ -47,6 +52,12 @@ namespace MyDirectX
 			if (c0.z > c1.z) std::swap(c0.z, c1.z);
 
 			bmin = c0; bmax = c1;
+		}
+
+		float Area() const
+		{
+			const glm::vec3 extent = glm::max(bmax - bmin, glm::vec3(0.0f));
+			return (extent.x * extent.y + extent.y * extent.z + extent.x * extent.z) * 2.0f;
 		}
 
 		void Union(const Bounds& other)
@@ -68,9 +79,13 @@ namespace MyDirectX
 		glm::vec3 Center() const { return (bmin + bmax) * 0.5f; }
 		glm::vec3 Extent() const
 		{
-			if (!Valid())
-				return glm::vec3(-1.0f);
-			return (bmax - bmin);
+			return glm::max(bmax - bmin, glm::vec3(0.0f));
+		}
+
+		void Reset()
+		{
+			bmin = glm::vec3(1e5f);
+			bmax = glm::vec3(-1e5f);
 		}
 
 		static Bounds Union(const Bounds& a, const Bounds& b)
@@ -98,7 +113,9 @@ namespace MyDirectX
 	{
 		uint leftFirst, triCount;
 		Bounds bounds;
+
 		bool isLeaf() const { return triCount > 0; }
+		float CalculateNodeCost() const { return bounds.Area() * triCount; }
 	};
 
 	extern char g_Font[51][5][6];
@@ -137,7 +154,11 @@ namespace MyDirectX
 	{
 	public:
 		using Super = IGameApp;
-		static constexpr int s_Num = 32;
+#if USE_MODELS
+		static constexpr int s_Num = 12582; // Hardcoded for the Unity vehicle mesh
+#else
+		static constexpr int s_Num = 64;
+#endif
 
 		BVHApp(HINSTANCE hInstance, const wchar_t* title = L"BVH App", UINT width = SCR_WIDTH, UINT height = SCR_HEIGHT);
 
@@ -152,6 +173,7 @@ namespace MyDirectX
 		void UpdateNodeBounds(uint nodeIdx);
 		void Subdivide(uint nodeIdx);
 		bool IntersectBVH(Ray& ray, uint nodeIdx);
+		float FindBestSplitPlane(BVHNode& node, int& axis, float& splitPos);
 
 		/// Pipeline
 		DebugPass m_DebugPass;
@@ -174,7 +196,8 @@ namespace MyDirectX
 		Triangle m_TestTriangle;
 		Triangle m_Tris[s_Num];
 		uint m_TriIndices[s_Num];
-		BVHNode m_BVHNode[2 * s_Num];
+		BVHNode *m_BVHNode = nullptr;
+		// BVHNode m_BVHNode[s_Num * 2]; // s_Num = 10000+, Stack overflow
 		uint m_RootNodeIdx = 0, m_NodesUsed = 1;
 	};
 }
