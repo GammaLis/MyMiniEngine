@@ -1,4 +1,4 @@
-#include "BVHApp.h"
+﻿#include "BVHApp.h"
 #include "CommandContext.h"
 #include "Graphics.h"
 #include "Math/Random.h"
@@ -53,7 +53,7 @@ bool IntersectTriangle(Ray& ray, const Triangle& tri)
 	const vec3 edge2 = tri.v2 - tri.v0;
 	const vec3 h = glm::cross(ray.rd, edge2);
 	const float a = glm::dot(edge1, h);
-	if (a > -0.0001f && a < 0.0001f) // ray parallel to 
+	if (a > -0.0001f && a < 0.0001f) // ray parallel to the triangle
 		return false;
 
 	const float f = 1.f / a;
@@ -137,6 +137,447 @@ void Bounds::Union(const Triangle& tri)
 	bmax = glm::max(bmax, tri.v0);
 	bmax = glm::max(bmax, tri.v1);
 	bmax = glm::max(bmax, tri.v2);
+}
+
+struct Bin
+{
+	Bounds bounds;
+	int triCount = 0;
+};
+static constexpr int s_Bins = 8;
+
+
+/// BVH
+BVH::BVH(const char* fileName, int N)
+{
+	FILE* file;
+	const auto& error = fopen_s(&file, fileName, "r");
+	if (error != 0)
+	{
+		Utility::Printf("Load model at %s failed!", fileName);
+		while (1) exit(-1);
+	}
+
+	m_TriCount = N;
+	m_Tris = new Triangle[N];
+	m_TriIndices = new uint[N];
+	for (int i = 0; i < N; ++i)
+	{
+		auto& tri = m_Tris[i];
+		fscanf_s(file, "%f %f %f %f %f %f %f %f %f\n",
+			&tri.v0.x, &tri.v0.y, &tri.v0.z,
+			&tri.v1.x, &tri.v1.y, &tri.v1.z,
+			&tri.v2.x, &tri.v2.y, &tri.v2.z);
+	}
+	fclose(file);
+
+	m_BVHNode = (BVHNode*)_aligned_malloc(sizeof(BVHNode) * N * 2, 64);
+	Build();
+}
+
+BVH::~BVH()
+{
+	delete[] m_Tris;
+	delete[] m_TriIndices;
+
+	_aligned_free(m_BVHNode);
+}
+
+void BVH::Build()
+{
+	// Reset node pool
+	m_NodesUsed = 2;
+	// Populate triangle index array
+	for (uint i = 0; i < m_TriCount; ++i)
+		m_TriIndices[i] = i;
+	// Calculate triangle centroids for partitioning
+	for (uint i = 0; i < m_TriCount; ++i)
+	{
+		auto& tri = m_Tris[i];
+		tri.c = (tri.v0 + tri.v1 + tri.v2) / 3.0f;
+	}
+	// Assign all triangles to root node
+	BVHNode& root = m_BVHNode[m_RootNodeIdx];
+	root.leftFirst = 0, root.triCount = m_TriCount;
+	UpdateNodeBounds(m_RootNodeIdx);
+	// Subdivide recursively
+	Subdivide(m_RootNodeIdx);
+}
+
+void BVH::Refit()
+{
+	for (int i = m_NodesUsed - 1; i >= 0; --i)
+	{
+		auto& node = m_BVHNode[i];
+		if (!node.isValid())
+			continue;
+
+		if (node.isLeaf())
+		{
+			// Leaf node - adjust bounds to contained triangles
+			UpdateNodeBounds(i);
+		}
+		else
+		{
+			// Interior node - adjust bounds to child node bounds
+			auto& node0 = m_BVHNode[node.leftFirst];
+			auto& node1 = m_BVHNode[node.leftFirst + 1];
+			auto& bounds = node.bounds;
+			bounds.Reset();
+			bounds.Union(node0.bounds);
+			bounds.Union(node1.bounds);
+		}
+	}
+}
+
+bool BVH::Intersect(Ray& ray)
+{
+	BVHNode* node = &m_BVHNode[m_RootNodeIdx], * stack[128];
+	uint stackCount = 0;
+	bool bIntersect = false;
+	while (true)
+	{
+		if (node->isLeaf())
+		{
+			for (uint i = node->leftFirst, imax = node->leftFirst + node->triCount; i < imax; ++i)
+			{
+				bIntersect = IntersectTriangle(ray, m_Tris[m_TriIndices[i]]);
+			}
+			if (stackCount == 0)
+				break;
+			else
+				node = stack[--stackCount];
+		}
+		else
+		{
+			BVHNode* pChild0 = &m_BVHNode[node->leftFirst];
+			BVHNode* pChild1 = &m_BVHNode[node->leftFirst + 1];
+			float d0 = IntersectAABB(ray, pChild0->bounds);
+			float d1 = IntersectAABB(ray, pChild1->bounds);
+			if (d0 > d1)
+			{
+				std::swap(d0, d1);
+				std::swap(pChild0, pChild1);
+			}
+			if (d0 == Ray::TMAX)
+			{
+				if (stackCount == 0)
+					break;
+				else
+					node = stack[--stackCount];
+			}
+			else
+			{
+				node = pChild0;
+				if (d1 != Ray::TMAX)
+					stack[stackCount++] = pChild1;
+			}
+		}
+	}
+
+	return bIntersect;
+}
+
+void BVH::Subdivide(uint nodeIdx)
+{
+	BVHNode& node = m_BVHNode[nodeIdx];
+
+	// Determine split axis using SAH
+	int axis = 0;
+	float splitPos;
+	float splitCost = FindBestSplitPlane(node, axis, splitPos);
+	float noSplitCost = node.CalculateNodeCost();
+	// Checks if the best split cost is actually an improvement over not splitting.
+	if (splitCost >= noSplitCost)
+		return;
+
+	// in-place partition
+	int i = node.leftFirst;
+	int j = i + node.triCount - 1;
+	while (i <= j)
+	{
+		if (m_Tris[m_TriIndices[i]].c[axis] < splitPos)
+			++i;
+		else
+			std::swap(m_TriIndices[i], m_TriIndices[j--]);
+	}
+	// Abort split if one of the sides is empty
+	// Theoretically, the split in the middle can yield an empty box on the left or the right size.
+	// Not easy to come up with such a situation though.
+	int leftCount = i - node.leftFirst;
+	if (leftCount == 0 || leftCount == node.triCount)
+		return;
+
+	// Create child nodes
+	int leftChildIdx = m_NodesUsed++;
+	int rightChildIdx = m_NodesUsed++;
+
+	auto& leftChildNode = m_BVHNode[leftChildIdx];
+	leftChildNode.leftFirst = node.leftFirst;
+	leftChildNode.triCount = leftCount;
+	UpdateNodeBounds(leftChildIdx);
+
+	auto& rightChildNode = m_BVHNode[rightChildIdx];
+	rightChildNode.leftFirst = i;
+	rightChildNode.triCount = node.triCount - leftCount;
+	UpdateNodeBounds(rightChildIdx);
+
+	// Set the primitive count of the parent node to 0.
+	node.leftFirst = leftChildIdx;
+	node.triCount = 0;
+
+	Subdivide(leftChildIdx);
+	Subdivide(rightChildIdx);
+}
+
+void BVH::UpdateNodeBounds(uint nodeIdx)
+{
+	BVHNode& node = m_BVHNode[nodeIdx];
+	node.bounds.Reset(); // malloc, not initialized
+	for (int i = node.leftFirst, imax = node.leftFirst + node.triCount; i < imax; ++i)
+	{
+		uint leafTriIdx = m_TriIndices[i];
+		Triangle& leafTri = m_Tris[leafTriIdx];
+		node.bounds.Union(leafTri);
+	}
+}
+
+float BVH::FindBestSplitPlane(BVHNode& node, int& axis, float& splitPos)
+{
+	float bestCost = 1e10f;
+	for (int a = 0; a < 3; ++a)
+	{
+		// Centroid bounds
+		// The first split plane candidate is on the first centroid, the last one on the last centriod.
+		float cmin = 1e5f, cmax = -1e5f;
+		for (int i = node.leftFirst, imax = node.leftFirst + node.triCount; i < imax; ++i)
+		{
+			Triangle& tri = m_Tris[m_TriIndices[i]];
+			cmin = std::min(cmin, tri.c[a]);
+			cmax = std::max(cmax, tri.c[a]);
+		}
+		if (cmin == cmax)
+			continue;
+
+		// Populate the bins
+		Bin bins[s_Bins];
+		float scale = s_Bins / (cmax - cmin);
+		for (int i = node.leftFirst, imax = node.leftFirst + node.triCount; i < imax; ++i)
+		{
+			Triangle& tri = m_Tris[m_TriIndices[i]];
+			int binIdx = std::min((int)((tri.c[a] - cmin) * scale), s_Bins - 1);
+			Bin& bin = bins[binIdx];
+			++bin.triCount;
+			bin.bounds.Union(tri.v0); bin.bounds.Union(tri.v1); bin.bounds.Union(tri.v2);
+		}
+
+		float areas0[s_Bins - 1], areas1[s_Bins - 1];
+		float triCount0[s_Bins - 1], triCount1[s_Bins - 1];
+		float n0 = 0, n1 = 0;
+		Bounds b0, b1;
+		for (int i = 0; i < s_Bins - 1; ++i)
+		{
+			const auto& bin0 = bins[i];
+			b0.Union(bin0.bounds);
+			n0 += bin0.triCount;
+			areas0[i] = b0.Area(); triCount0[i] = n0;
+
+			const auto& bin1 = bins[s_Bins - 1 - i];
+			b1.Union(bin1.bounds);
+			n1 += bin1.triCount;
+			areas1[s_Bins - 2 - i] = b1.Area(); triCount1[s_Bins - 2 - i] = n1;
+		}
+
+		scale = 1.0f / scale;
+		for (int i = 1; i < s_Bins - 1; ++i)
+		{
+			float cost = areas0[i] * triCount0[i] + areas1[i] * triCount1[i];
+			if (cost < bestCost)
+			{
+				axis = a;
+				splitPos = cmin + scale * (i + 1);
+				bestCost = cost;
+			}
+		}
+	}
+
+	return bestCost;
+}
+
+
+/// BVHInstance
+void BVHInstance::SetTransform(const glm::mat4& transform)
+{
+	m_InvTransform = glm::inverse(transform);
+	// Calculate world-space bounds using the new matrix
+	vec3 bmin = m_BVH->AABB().bmin, bmax = m_BVH->AABB().bmax;
+	m_Bounds.Reset();
+	for (int i = 0; i < 8; ++i)
+	{
+		m_Bounds.Union(transform * vec4(
+			i & 1 ? bmax.x : bmin.x,
+			i & 2 ? bmax.y : bmin.y,
+			i & 4 ? bmax.z : bmin.z, 1.0f));
+	}
+}
+
+bool BVHInstance::Intersect(Ray& ray)
+{
+	// Backup ray and transform original
+	Ray backupRay = ray;
+	ray.ro = m_InvTransform * vec4(ray.ro, 1.0f);
+	ray.rd = m_InvTransform * vec4(ray.rd, 0.0f);
+	ray.rcpD = 1.0f / ray.rd;
+
+	// Trace ray through the BVH
+	bool bIntersect = m_BVH->Intersect(ray);
+
+	// Restore ray origin and direction
+	backupRay.tmax = ray.tmax;
+	ray = backupRay;
+
+	return bIntersect;
+}
+
+
+/// TLAS
+TLAS::TLAS(BVHInstance* bvhList, int N)
+{
+	// Copy a pointer to the array of bottom level acceleration structures
+	m_BLASList = bvhList;
+	m_BLASCount = N;
+	// Alloclate TLAS nodes
+	m_TLASNodes = (TLASNode*)_aligned_malloc(sizeof(TLASNode) * 2 * N, 64);
+	m_NodesUsed = 2;
+}
+
+TLAS::~TLAS()
+{
+	if (m_TLASNodes != nullptr)
+		_aligned_free(m_TLASNodes);
+}
+
+void TLAS::Build()
+{
+	// Assign a TLAS leaf node to each BLAS
+	// Rather than directly storing the TLASNode instances, we store indices of elements of the m_TLASNodes array,
+	// After each generated pair, it will decrement by 1 until only 1 node is left, this will be our root node.
+	int nodeIndices[256], nNode = m_BLASCount;
+	m_NodesUsed = 1;
+	for (uint i = 0; i < m_BLASCount; ++i)
+	{
+		nodeIndices[i] = m_NodesUsed;
+		auto& node = m_TLASNodes[m_NodesUsed];
+		node.bounds = m_BLASList[i].m_Bounds;
+		node.BLAS = i;
+		node.leftRight = 0; // leaf node
+
+		++m_NodesUsed;
+	}
+	// Use agglomerative clustering to build the TLAS
+	int A = 0, B = FindBestMatch(nodeIndices, nNode, A);
+	while (nNode > 1)
+	{
+		int C = FindBestMatch(nodeIndices, nNode, B);
+		if (A == C)
+		{
+			int nodeIdxA = nodeIndices[A], nodeIdxB = nodeIndices[B];
+			const auto& nodeA = m_TLASNodes[nodeIdxA];
+			const auto& nodeB = m_TLASNodes[nodeIdxB];
+
+			auto& newNode = m_TLASNodes[m_NodesUsed];
+			newNode.leftRight = nodeIdxA | (nodeIdxB << 16);
+			newNode.bounds.Reset();
+			newNode.bounds.Union(nodeA.bounds);
+			newNode.bounds.Union(nodeB.bounds);
+
+			nodeIndices[A] = m_NodesUsed;
+			nodeIndices[B] = nodeIndices[nNode-1]; // last node
+			++m_NodesUsed;
+			--nNode;
+
+			B = FindBestMatch(nodeIndices, nNode, A);
+		}
+		else
+		{
+			A = B; B = C;
+		}
+	}
+	m_TLASNodes[0] = m_TLASNodes[nodeIndices[A]];
+}
+
+int TLAS::FindBestMatch(int* indices, int N, int A)
+{
+	// Find BLAS B that, when joined with A, forms the smallest AABB
+	// It simply checks all remaining nodes in the list. For each node, the combined AABB is determined.
+	// If the area of this AABB (skipping the factor 2) is smaller than what we found before, we take note that.
+	// After checking all nodes we return our best find.
+	float smallest = 1e10f;
+	int bestB = -1;
+	for (int B = 0; B < N; ++B)
+	{
+		if (B != A)
+		{
+			const auto &nodeA = m_TLASNodes[indices[A]];
+			const auto &nodeB = m_TLASNodes[indices[B]];
+			vec3 bmax = glm::max(nodeA.bounds.bmax, nodeB.bounds.bmax);
+			vec3 bmin = glm::min(nodeA.bounds.bmin, nodeB.bounds.bmin);
+			vec3 e = bmax - bmin;
+			float surfaceArea = e.x * e.y + e.x * e.z + e.y * e.z;
+			if (surfaceArea < smallest)
+			{
+				smallest = surfaceArea;
+				bestB = B;
+			}
+		}
+	}
+
+	return bestB;
+}
+
+bool TLAS::Intersect(Ray& ray)
+{
+	TLASNode* node = &m_TLASNodes[0], *stack[64];
+	uint stackCount = 0;
+	bool bIntersect = false;
+	while (true)
+	{
+		if (node->isLeaf())
+		{
+			bIntersect = m_BLASList[node->BLAS].Intersect(ray);
+			if (stackCount == 0)
+				break;
+			else
+				node = stack[--stackCount];
+		}
+		else
+		{
+			TLASNode* pChild0 = &m_TLASNodes[ (node->leftRight & 0xFFFF) ];
+			TLASNode* pChild1 = &m_TLASNodes[ (node->leftRight >> 16) ];
+			float d0 = IntersectAABB(ray, pChild0->bounds);
+			float d1 = IntersectAABB(ray, pChild1->bounds);
+			if (d0 > d1)
+			{
+				std::swap(d0, d1);
+				std::swap(pChild0, pChild1);
+			}
+			if (d0 == Ray::TMAX)
+			{
+				if (stackCount == 0)
+					break;
+				else
+					node = stack[--stackCount];
+			}
+			else
+			{
+				node = pChild0;
+				if (d1 != Ray::TMAX)
+					stack[stackCount++] = pChild1;
+			}
+		}
+	}
+
+	return bIntersect;
 }
 
 
@@ -390,7 +831,7 @@ void BVHApp::InitCustom()
 	// GameObjects
 	{
 #if USE_MODELS
-		const char* fileName = "Models/BVHAssets/unity.tri";
+		const char* fileName = "Models/BVHAssets/unity.tri"; // bigben
 		FILE* file;
 		const auto &error = fopen_s(&file, fileName, "r");
 		if (error != 0)
@@ -426,6 +867,23 @@ void BVHApp::InitCustom()
 		m_BVHNode = (BVHNode*)_aligned_malloc(sizeof(BVHNode) * s_Num * 2, 64);
 		BuildBVH();
 
+#if USE_AS
+		m_BVH.reset(new BVH("Models/BVHAssets/armadillo.tri", 30000));
+
+		m_BVHInstances.reset(new BVHInstance[s_Instances]);
+		for (int i = 0; i < s_Instances; ++i)
+		{
+			m_Translations[i] = (vec3(rng.NextFloat(), rng.NextFloat(), rng.NextFloat()) - 0.5f) * 4.0f;
+
+			m_BVHInstances[i].SetInstance(m_BVH.get());
+			m_BVHInstances[i].SetTransform(glm::translate(m_Translations[i]));
+		}
+
+		m_TLAS.reset(new TLAS(m_BVHInstances.get(), s_Instances));
+		m_TLAS->Build();
+
+#endif
+		// Test
 		{
 			m_TestTriangle.v0 = vec3(-1.0f, -1.0f, 0.0f);
 			m_TestTriangle.v1 = vec3( 0.0f, +1.0f, 0.0f);
@@ -490,6 +948,7 @@ void BVHApp::Update(float deltaTime)
 				int y0 = tidy * tileSize;
 				int x1 = std::min(x0 + tileSize, W);
 				int y1 = std::min(y0 + tileSize, H);
+				bool bIntersect = false;
 				for (int y = y0; y < y1; ++y)
 				{
 					float v = (y + 0.5f) / H;
@@ -501,9 +960,23 @@ void BVHApp::Update(float deltaTime)
 						ray.rd = glm::normalize(lowerLeftCorner + u * horizontal + v * vertical);
 						ray.rcpD = 1.0f / ray.rd;
 
-						bool bIntersect = IntersectBVH(ray, m_RootNodeIdx);
+						uint c = 0;
+#if  USE_AS
+						// bIntersect = m_BVH->Intersect(ray);
+						bIntersect = m_TLAS->Intersect(ray);
+#else
+						bIntersect = IntersectBVH(ray, m_RootNodeIdx);
+#endif
 						if (bIntersect)
-							m_Surface->Plot(x, y, 0xFFFFFFFF);
+						{
+#if USE_MODELS || USE_AS
+							c = 500 - (int)(ray.tmax * 42);
+							c *= 0x10101;
+#else
+							c = 0xFFFFFFFF;
+#endif
+							m_Surface->Plot(x, y, c);
+						}
 					}
 				}
 			});
@@ -596,7 +1069,7 @@ void BVHApp::BuildBVH()
 	BVHNode& root = m_BVHNode[m_RootNodeIdx];
 	root.leftFirst = 0; root.triCount = s_Num;
 	UpdateNodeBounds(m_RootNodeIdx);
-	m_NodesUsed = 1;
+	m_NodesUsed = 2;
 
 	// subdivide recursively
 	Subdivide(m_RootNodeIdx);
@@ -753,16 +1226,9 @@ bool BVHApp::IntersectBVH(Ray& ray, uint nodeIdx)
 	return bIntersect;
 }
 
-struct Bin
-{
-	Bounds bounds;
-	int triCount = 0;
-};
-static constexpr int s_Bins = 8;
-
 float BVHApp::FindBestSplitPlane(BVHNode& node, int& axis, float& splitPos)
 {
-	float bestCost = 1e5f;
+	float bestCost = 1e10f;
 	for (int a = 0; a < 3; ++a)
 	{
 		// Centroid bounds
@@ -861,6 +1327,50 @@ float BVHApp::FindBestSplitPlane(BVHNode& node, int& axis, float& splitPos)
 	}
 
 	return bestCost;
+}
+
+/**
+ *	The technique where we reuse a BVH for an animated mesh is called `refitting`. The process
+ * starts at the leaf nodes, which contain the (now changed) triangles. Each leaf node gets an updated
+ * bounding box. The update may have consequences for the parent nodes of the leaf nodes, so
+ * we adjust their bounds as well, by making them tightly fit their child nodes. We proceed this way until
+ * we reach the root of the tree.
+ *	When we created the BVH, we used node 0 for the root. After that, every child node got allocated after
+ * its parent; we thus know that the index of a child is always greater than the index of its parent.
+ * We can exploit this by visiting all nodes starting at the end of the list, working our way back to
+ * the first node with outdated child nodes.
+ *	NOTE:: This refitting requires the animation frames have the same number of triangles. It also requires that
+ * the structure of the animation frames is roughly equal.
+ *	In general, refitting is applied when we have subtle animation: trees waving in the wind, objects changing
+ * position, perhaps in some cases a walking character. In those cases, we get the BVH update almost for free,
+ * often at the expense of (some) tree quality. In other cases, a rebuild will be the better option. We can
+ * also combine rebuilding and refitting: in that case, we refit some subsequent frames, and after a few refits,
+ * we rebuild, to ensure that the BVH doesn't deteriorate too much.
+ */
+void BVHApp::RefitBVH()
+{
+	for (int i = m_NodesUsed-1; i >= 0; --i)
+	{
+		auto& node = m_BVHNode[i];
+		if (!node.isValid())
+			continue;
+
+		if (node.isLeaf())
+		{
+			// Leaf node - adjust bounds to contained triangles
+			UpdateNodeBounds(i);
+		}
+		else
+		{
+			// Interior node - adjust bounds to child node bounds
+			auto& node0 = m_BVHNode[node.leftFirst];
+			auto& node1 = m_BVHNode[node.leftFirst + 1];
+			auto& bounds = node.bounds;
+			bounds.Reset();
+			bounds.Union(node0.bounds);
+			bounds.Union(node1.bounds);
+		}
+	}
 }
 
 /**

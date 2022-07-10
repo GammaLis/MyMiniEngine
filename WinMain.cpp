@@ -1,4 +1,4 @@
-#define MINI_ENGINE		// MINI_ENGINE COMMON_COMPUTE
+ï»¿#define MINI_ENGINE		// MINI_ENGINE COMMON_COMPUTE
 
 #define IMPLEMENTED_IGAMEAPP	0
 #define IMPLEMENTED_MODELVIEWER 1
@@ -26,15 +26,15 @@
 
 /**
 *	TODO:
-*	ERROR C2102: ¡°&¡±ÒªÇó×óÖµ	==>	https://stackoverflow.com/questions/65315241/how-can-i-fix-requires-l-value
-*	The problem is that pattern is actually not conformant£¨Ò»ÖÂ£¬·ûºÏ£©. The fix is to use:
+*	ERROR C2102: â€œ&â€è¦æ±‚å·¦å€¼	==>	https://stackoverflow.com/questions/65315241/how-can-i-fix-requires-l-value
+*	The problem is that pattern is actually not conformantï¼ˆä¸€è‡´ï¼Œç¬¦åˆï¼‰. The fix is to use:
 		auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		m_commandList->ResourceBarrier(1, &barrier);
 
 *	for now by disabling /permissive- by changing "Conformance Mode" to "No" in the C/C++ -> Language project settings.
 */
 
-// I. windows³ÌÐò Ô¤´¦Àí¶¨Òå-_WINDOWS,Á¬½ÓÆ÷×ÓÏµÍ³SubSystem:WINDOWS
+// I. windowsç¨‹åº é¢„å¤„ç†å®šä¹‰-_WINDOWS,è¿žæŽ¥å™¨å­ç³»ç»ŸSubSystem:WINDOWS
 //int WINAPI WinMain(_In_ HINSTANCE hInstance,
 //	_In_opt_ HINSTANCE hPrevInstance,
 //	_In_ LPSTR lpCmdLine,
@@ -51,8 +51,8 @@
 //	return ret;
 //}
 
-// II.console³ÌÐò Ô¤´¦Àí¶¨Òå-_CONSOLE,Á¬½ÓÆ÷×ÓÏµÍ³SubSystem:CONSOLE
-// »¹ÐèÁ´½Ó runtimeobject.lib
+// II.consoleç¨‹åº é¢„å¤„ç†å®šä¹‰-_CONSOLE,è¿žæŽ¥å™¨å­ç³»ç»ŸSubSystem:CONSOLE
+// è¿˜éœ€é“¾æŽ¥ runtimeobject.lib
 #pragma comment(lib, "runtimeobject.lib")
 
 int main(int argc, const char* argv[])
@@ -65,7 +65,7 @@ int main(int argc, const char* argv[])
 	
 #pragma region Test
 	// float 
-	float f = 0.25f;	// B 0.01 -> 1E(-2) -> 1E(127 -2 = 125) <0 - ·ûºÅÎ»£¬ 125 - E£¬ 0 - D>
+	float f = 0.25f;	// B 0.01 -> 1E(-2) -> 1E(127 -2 = 125) <0 - ç¬¦å·ä½ï¼Œ 125 - Eï¼Œ 0 - D>
 	float* pf = &f;
 
 	// alignment

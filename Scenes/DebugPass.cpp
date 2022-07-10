@@ -1,4 +1,4 @@
-#include "DebugPass.h"
+ï»¿#include "DebugPass.h"
 #include "Graphics.h"
 #include "GfxCommon.h"
 #include "CommandContext.h"
@@ -19,14 +19,14 @@ bool DebugPass::Init()
         m_DebugRS[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
         m_DebugRS.InitStaticSampler(0, Graphics::s_CommonStates.SamplerLinearClampDesc);
         m_DebugRS.InitStaticSampler(1, Graphics::s_CommonStates.SamplerPointClampDesc);
-        m_DebugRS.Finalize(Graphics::s_Device, L"DebugRS"); // RootFlags(0) , ²»ĞèÒªALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
+        m_DebugRS.Finalize(Graphics::s_Device, L"DebugRS"); // RootFlags(0) , ä¸éœ€è¦ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
     }
     // PSO
     {
         const auto &colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 
         m_DebugPSO.SetRootSignature(m_DebugRS);
-        m_DebugPSO.SetInputLayout(0, nullptr);  // ²»ĞèÒªÊäÈë£¬Ö±½Ó»æÖÆ È«ÆÁÈı½ÇĞÎ
+        m_DebugPSO.SetInputLayout(0, nullptr);  // ä¸éœ€è¦è¾“å…¥ï¼Œç›´æ¥ç»˜åˆ¶ å…¨å±ä¸‰è§’å½¢
         m_DebugPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
         m_DebugPSO.SetVertexShader(Graphics::s_ShaderManager.m_ScreenQuadVS);
         m_DebugPSO.SetPixelShader(CommonDebug, sizeof(CommonDebug));
@@ -41,7 +41,7 @@ bool DebugPass::Init()
     return true;
 }
 
-// SetRenderTarget ĞèÔÚµ÷ÓÃ´¦ÉèÖÃ
+// SetRenderTarget éœ€åœ¨è°ƒç”¨å¤„è®¾ç½®
 void DebugPass::Render(GraphicsContext& gfx, D3D12_CPU_DESCRIPTOR_HANDLE srv)
 {
     gfx.SetRootSignature(m_DebugRS);

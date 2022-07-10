@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "IGameApp.h"
 #include "Camera.h"
 #include "CameraController.h"
@@ -6,7 +6,13 @@
 #include "Math/GLMath.h"
 #include "Scenes/DebugPass.h"
 
+#ifndef USE_MODELS
 #define USE_MODELS 0
+#endif
+
+#ifndef USE_AS
+#define USE_AS 1
+#endif
 
 namespace MyDirectX
 {
@@ -114,8 +120,89 @@ namespace MyDirectX
 		uint leftFirst, triCount;
 		Bounds bounds;
 
+		bool isValid() const { return bounds.Valid(); }
 		bool isLeaf() const { return triCount > 0; }
 		float CalculateNodeCost() const { return bounds.Area() * triCount; }
+	};
+
+	class BVH
+	{
+	public:
+		BVH() = default;
+		BVH(const char* fileName, int N);
+		~BVH();
+
+		void Build();
+		void Refit();
+		bool Intersect(Ray& ray);
+		const Bounds& AABB() const { return m_BVHNode[m_RootNodeIdx].bounds; }
+
+	private:
+		void Subdivide(uint nodeIdx);
+		void UpdateNodeBounds(uint nodeIdx);
+		float FindBestSplitPlane(BVHNode& node, int& axis, float& splitPos);
+
+		BVHNode* m_BVHNode = nullptr;
+		Triangle* m_Tris = nullptr;
+		uint* m_TriIndices = nullptr;
+		uint m_RootNodeIdx = 0;
+		uint m_NodesUsed = 0, m_TriCount = 0;
+	};
+
+	// Instance of a BVH, with transform and world bounds
+	class BVHInstance
+	{
+	public:
+		BVHInstance() = default;
+		BVHInstance(BVH* blas) : m_BVH(blas) {  }
+
+		void SetInstance(BVH* blas) { m_BVH = blas; }
+		void SetTransform(const glm::mat4& transform);
+		bool Intersect(Ray& ray);
+
+		Bounds m_Bounds; // in world space
+
+	private:
+		BVH* m_BVH = nullptr;
+		glm::mat4 m_InvTransform;
+	};
+
+	/***
+	 * TLAS
+	 * It starts with the notion that a pair of BVHs can be combined into a single BVH, by simply adding one new node,
+	 * that has the pair of BVHs as child nodes. We now have a new, valid BVH that we can traverse as if it were a
+	 * regular BVH. The nodes we use to combine a set of BVHs into a single BVH are referred to as the top level
+	 * acceleration structure, or TLAS.
+	 * In the TLAS, we will never have more than one BLAS in a leaf node, so indirection is not needed.
+	 */
+	struct TLASNode
+	{
+		glm::vec3 bmin;
+		uint leftRight; // 2x16 bits
+		glm::vec3 bmax;
+
+		uint BLAS; // stores the index of a BLAS, otherwise it is unused
+		Bounds bounds;
+
+		bool isLeaf() const { return leftRight == 0; }
+	};
+
+	class TLAS
+	{
+	public:
+		TLAS() = default;
+		TLAS(BVHInstance* bvhList, int N);
+		~TLAS();
+
+		void Build();
+		bool Intersect(Ray & ray);
+
+	private:
+		int FindBestMatch(int* list, int N, int A);
+
+		TLASNode* m_TLASNodes = nullptr;
+		BVHInstance* m_BLASList = nullptr;
+		uint m_NodesUsed = 0, m_BLASCount = 0;
 	};
 
 	extern char g_Font[51][5][6];
@@ -158,6 +245,7 @@ namespace MyDirectX
 		static constexpr int s_Num = 12582; // Hardcoded for the Unity vehicle mesh
 #else
 		static constexpr int s_Num = 64;
+		static constexpr int s_Instances = 3;
 #endif
 
 		BVHApp(HINSTANCE hInstance, const wchar_t* title = L"BVH App", UINT width = SCR_WIDTH, UINT height = SCR_HEIGHT);
@@ -170,6 +258,7 @@ namespace MyDirectX
 		void CleanCustom() override;
 
 		void BuildBVH();
+		void RefitBVH();
 		void UpdateNodeBounds(uint nodeIdx);
 		void Subdivide(uint nodeIdx);
 		bool IntersectBVH(Ray& ray, uint nodeIdx);
@@ -199,5 +288,12 @@ namespace MyDirectX
 		BVHNode *m_BVHNode = nullptr;
 		// BVHNode m_BVHNode[s_Num * 2]; // s_Num = 10000+, Stack overflow
 		uint m_RootNodeIdx = 0, m_NodesUsed = 1;
+
+#if USE_AS
+		std::unique_ptr<BVH> m_BVH;
+		std::unique_ptr<BVHInstance[]> m_BVHInstances;
+		std::unique_ptr<TLAS> m_TLAS;
+		glm::vec3 m_Translations[4];
+#endif
 	};
 }
