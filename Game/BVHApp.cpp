@@ -68,10 +68,13 @@ bool IntersectTriangle(Ray& ray, const Triangle& tri)
 		return false;
 
 	const float t = f * glm::dot(edge2, q);
-	if (t > 0.0001f)
-		ray.tmax = std::min(ray.tmax, t);
+	if (t > 0.0001f && t < ray.tmax)
+	{
+		ray.tmax = t;
+		return true;
+	}
 
-	return ray.tmax == t;
+	return false;
 }
 
 // dot( o + t * dir - C, o + t * dir - C ) = R^2 
@@ -241,7 +244,7 @@ bool BVH::Intersect(Ray& ray)
 		{
 			for (uint i = node->leftFirst, imax = node->leftFirst + node->triCount; i < imax; ++i)
 			{
-				bIntersect = IntersectTriangle(ray, m_Tris[m_TriIndices[i]]);
+				bIntersect |= IntersectTriangle(ray, m_Tris[m_TriIndices[i]]);
 			}
 			if (stackCount == 0)
 				break;
@@ -348,7 +351,7 @@ float BVH::FindBestSplitPlane(BVHNode& node, int& axis, float& splitPos)
 	for (int a = 0; a < 3; ++a)
 	{
 		// Centroid bounds
-		// The first split plane candidate is on the first centroid, the last one on the last centriod.
+		// The first split plane candidate is on the first centroid, the last one on the last centroid.
 		float cmin = 1e5f, cmax = -1e5f;
 		for (int i = node.leftFirst, imax = node.leftFirst + node.triCount; i < imax; ++i)
 		{
@@ -544,7 +547,7 @@ bool TLAS::Intersect(Ray& ray)
 	{
 		if (node->isLeaf())
 		{
-			bIntersect = m_BLASList[node->BLAS].Intersect(ray);
+			bIntersect |= m_BLASList[node->BLAS].Intersect(ray);
 			if (stackCount == 0)
 				break;
 			else
@@ -827,6 +830,8 @@ void BVHApp::InitCustom()
 		m_Camera.SetEyeAtUp(camPos, camPos + forward, Math::Vector3(Math::kYUnitVector));
 		m_Camera.SetZRange(0.3f, 300.0f);
 		m_CameraController.reset((new CameraController(m_Camera, up, *m_Input)));
+		m_CameraController->SetMoveSpeed(200.0f);
+		m_CameraController->SetStrafeSpeed(200.0f);
 	}
 	// GameObjects
 	{
@@ -851,6 +856,7 @@ void BVHApp::InitCustom()
 #else
 		Math::RandomNumberGenerator rng;
 		rng.SetSeed(GetCurrentTime());
+#if 0
 		for (int i = 0; i < s_Num; ++i)
 		{
 			vec3 v0{ rng.NextFloat(), rng.NextFloat(), rng.NextFloat() };
@@ -862,12 +868,77 @@ void BVHApp::InitCustom()
 			tri.v1 = tri.v0 + v1;
 			tri.v2 = tri.v0 + v2;
 		}
+
+#else
+		// Test cube
+		const int w = 1, h = 1, d = 1;
+		// Front
+		m_Tris[0].v0 = vec3(-w, -h, -d);
+		m_Tris[0].v1 = vec3(-w, +h, -d);
+		m_Tris[0].v2 = vec3(+w, +h, -d);
+
+		m_Tris[1].v0 = vec3(-w, -h, -d);
+		m_Tris[1].v1 = vec3(+w, +h, -d);
+		m_Tris[1].v2 = vec3(+w, -h, -d);
+
+		// Back
+		m_Tris[2].v0 = vec3(-w, -h, +d);
+		m_Tris[2].v1 = vec3(+w, -h, +d);
+		m_Tris[2].v2 = vec3(+w, +h, +d);
+
+		m_Tris[3].v0 = vec3(-w, -h, +d);
+		m_Tris[3].v1 = vec3(+w, +h, +d);
+		m_Tris[3].v2 = vec3(-w, +h, +d);
+
+		// Top
+		m_Tris[4].v0 = vec3(-w, +h, -d);
+		m_Tris[4].v1 = vec3(-w, +h, +d);
+		m_Tris[4].v2 = vec3(+w, +h, +d);
+
+		m_Tris[5].v0 = vec3(-w, +h, -d);
+		m_Tris[5].v1 = vec3(+w, +h, +d);
+		m_Tris[5].v2 = vec3(+w, +h, -d);
+
+		// Bottom
+		m_Tris[6].v0 = vec3(-w, -h, -d);
+		m_Tris[6].v1 = vec3(+w, -h, -d);
+		m_Tris[6].v2 = vec3(+w, -h, +d);
+
+		m_Tris[7].v0 = vec3(-w, -h, -d);
+		m_Tris[7].v1 = vec3(+w, -h, +d);
+		m_Tris[7].v2 = vec3(-w, -h, +d);
+
+		// Left
+		m_Tris[8].v0 = vec3(-w, -h, +d);
+		m_Tris[8].v1 = vec3(-w, +h, +d);
+		m_Tris[8].v2 = vec3(-w, +h, -d);
+
+		m_Tris[9].v0 = vec3(-w, -h, +d);
+		m_Tris[9].v1 = vec3(-w, +h, -d);
+		m_Tris[9].v2 = vec3(-w, -h, -d);
+
+		// Right
+		m_Tris[10].v0 = vec3(+w, -h, -d);
+		m_Tris[10].v1 = vec3(+w, +h, -d);
+		m_Tris[10].v2 = vec3(+w, +h, +d);
+
+		m_Tris[11].v0 = vec3(+w, -h, -d);
+		m_Tris[11].v1 = vec3(+w, +h, +d);
+		m_Tris[11].v2 = vec3(+w, -h, +d);
+#endif
+			
 #endif
 
 		m_BVHNode = (BVHNode*)_aligned_malloc(sizeof(BVHNode) * s_Num * 2, 64);
 		BuildBVH();
 
-#if USE_AS
+#if AS_FLAG == 2
+		m_Mesh = std::make_shared<rtrt::Mesh>("Models/BVHAssets/teapot.obj", "Models/BVHAssets/bricks.png");
+		m_Mesh->Init();
+
+		m_BVHInstance = std::make_shared<rtrt::BVHInstance>(m_Mesh->m_BVH.get(), 0);
+	
+#elif AS_FLAG == 1
 		m_BVH.reset(new BVH("Models/BVHAssets/armadillo.tri", 30000));
 
 		m_BVHInstances.reset(new BVHInstance[s_Instances]);
@@ -956,20 +1027,36 @@ void BVHApp::Update(float deltaTime)
 					{
 						float u = (x + 0.5f) / W;
 
-						Ray ray{ro, rd};
+						uint c = 0;
+#if AS_FLAG != 2
+						Ray ray{ ro, rd };
+						ray.rd = glm::normalize(lowerLeftCorner + u * horizontal + v * vertical);
+						ray.rcpD = 1.0f / ray.rd;
+#endif
+
+#if  AS_FLAG == 2
+						rtrt::Ray ray{ ro, rd };
 						ray.rd = glm::normalize(lowerLeftCorner + u * horizontal + v * vertical);
 						ray.rcpD = 1.0f / ray.rd;
 
-						uint c = 0;
-#if  USE_AS
+						rtrt::Intersection isect;
+
+						bIntersect = m_BVHInstance->Intersect(ray, isect);
+#elif AS_FLAG == 1
 						// bIntersect = m_BVH->Intersect(ray);
 						bIntersect = m_TLAS->Intersect(ray);
 #else
 						bIntersect = IntersectBVH(ray, m_RootNodeIdx);
+						/*for (int i = 0; i < s_Num; ++i)
+						{
+							bIntersect |= IntersectTriangle(ray, m_Tris[i]);
+						}*/
 #endif
 						if (bIntersect)
 						{
-#if USE_MODELS || USE_AS
+#if AS_FLAG == 2
+							c = Color(vec3(isect.u, isect.v, 1.0f-isect.u - isect.v));
+#elif (USE_MODELS || (AS_FLAG == 1))
 							c = 500 - (int)(ray.tmax * 42);
 							c *= 0x10101;
 #else
@@ -1188,7 +1275,7 @@ bool BVHApp::IntersectBVH(Ray& ray, uint nodeIdx)
 		{
 			for (uint i = node->leftFirst, imax = node->leftFirst + node->triCount; i < imax; ++i)
 			{
-				bIntersect = IntersectTriangle(ray, m_Tris[m_TriIndices[i]]);
+				bIntersect |= IntersectTriangle(ray, m_Tris[m_TriIndices[i]]);
 			}
 			if (stackCount == 0)
 				break;

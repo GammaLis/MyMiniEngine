@@ -409,6 +409,9 @@
     <ClInclude Include="Game\BVHApp.h">
       <Filter>Game</Filter>
     </ClInclude>
+    <ClInclude Include="Game\Accelerations.h">
+      <Filter>Game</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -628,6 +631,9 @@
       <Filter>Game</Filter>
     </ClCompile>
     <ClCompile Include="Game\BVHApp.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Game\Accelerations.cpp">
       <Filter>Game</Filter>
     </ClCompile>
   </ItemGroup>

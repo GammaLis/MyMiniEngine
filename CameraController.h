@@ -32,6 +32,8 @@ namespace MyDirectX
 
 		void SetCurrentHeading(float heading) { m_CurrentHeading = heading; }
 		void SetCurrentPitch(float pitch) { m_CurrentPitch = pitch; }
+        void SetMoveSpeed(float speed) { m_MoveSpeed = std::max(speed, 100.0f); }
+        void SetStrafeSpeed(float speed) { m_StrafeSpeed = std::max(speed, 100.0f); }
 
 	private:
         CameraController& operator=(const CameraController&) { return *this; }

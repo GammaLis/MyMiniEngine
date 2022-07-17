@@ -20,7 +20,9 @@
 #include "OceanViewer.h"
 #include "VoronoiTextureGenerator.h"
 
+#if IMPLEMENTED == IMPLEMENTED_BVH
 #include "BVHApp.h"
+#endif
 
 #include "CubemapIBLApp.h"
 

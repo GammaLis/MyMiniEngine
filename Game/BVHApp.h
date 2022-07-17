@@ -10,8 +10,12 @@
 #define USE_MODELS 0
 #endif
 
-#ifndef USE_AS
-#define USE_AS 1
+#ifndef AS_FLAG
+#define AS_FLAG 2
+#endif
+
+#if AS_FLAG == 2
+#include "Accelerations.h"
 #endif
 
 namespace MyDirectX
@@ -244,7 +248,7 @@ namespace MyDirectX
 #if USE_MODELS
 		static constexpr int s_Num = 12582; // Hardcoded for the Unity vehicle mesh
 #else
-		static constexpr int s_Num = 64;
+		static constexpr int s_Num = 12; // 64
 		static constexpr int s_Instances = 3;
 #endif
 
@@ -289,7 +293,10 @@ namespace MyDirectX
 		// BVHNode m_BVHNode[s_Num * 2]; // s_Num = 10000+, Stack overflow
 		uint m_RootNodeIdx = 0, m_NodesUsed = 1;
 
-#if USE_AS
+#if AS_FLAG == 2
+		std::shared_ptr<rtrt::Mesh> m_Mesh;
+		std::shared_ptr<rtrt::BVHInstance> m_BVHInstance;
+#elif AS_FLAG == 1
 		std::unique_ptr<BVH> m_BVH;
 		std::unique_ptr<BVHInstance[]> m_BVHInstances;
 		std::unique_ptr<TLAS> m_TLAS;

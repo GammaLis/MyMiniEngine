@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Game\Accelerations.h" />
     <ClInclude Include="Game\BindlessDeferred.h" />
     <ClInclude Include="Game\BVHApp.h" />
     <ClInclude Include="Game\ClusteredLighting.h" />
@@ -123,6 +124,7 @@
     <ClInclude Include="Game\Voxelization.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Game\Accelerations.cpp" />
     <ClCompile Include="Game\BindlessDeferred.cpp" />
     <ClCompile Include="Game\BVHApp.cpp" />
     <ClCompile Include="Game\ClusteredLighting.cpp" />
