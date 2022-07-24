@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Accelerations.h"
 #include "Accelerations.h"
 #include "pch.h"
@@ -250,6 +250,7 @@ namespace rtrt
 
 		Mesh() = default;
 		Mesh(const char* objFile, const char* texFile);
+		Mesh(uint primCount);
 
 		void Init();
 
@@ -269,7 +270,9 @@ namespace rtrt
 		BVHInstance() = default;
 		BVHInstance(BVH* blas, uint index);
 
+		void Init(BVH* blas, uint index, const glm::mat4& transform = glm::mat4());
 		void SetTransform(const glm::mat4& transform);
+		const glm::mat4& GetTransform() const { return m_Transform; }
 
 		bool Intersect(Ray& ray, Intersection &isect);
 
@@ -283,19 +286,27 @@ namespace rtrt
 		uint m_Index = 0;
 	};
 
-	struct TLASNode
+	struct alignas(32) TLASNode
 	{
+		TLASNode()
+		{
+			bmin = float3(g_Max); leftRight = 0;
+			bmax = float3(g_Min); BLASIndex = 0;
+		}
+
+		float3 bmin;
 		union 
 		{
 			uint leftRight;
 			struct { ushort left, right; };
 		};
-		float3 bmin, bmax;
+		float3 bmax; uint BLASIndex;
 
 		bool IsLeaf() const { return leftRight == 0; }
 	};
 
 	// Top-level BVH class
+	class KdTree;
 	class TLAS
 	{
 	public:
@@ -313,23 +324,69 @@ namespace rtrt
 		BVHInstance* m_BLAS = nullptr;
 		uint m_NodesUsed = 0, m_BLASCount = 0;
 
-		// Fast agglomerative clustering functionality
-		struct SortItem
-		{
-			float pos; uint blasIndex;
-		};
-
 		void BuildQuick();
-		void SortAndSplit(uint first, uint last, uint level);
-		void CreateParent(uint index, uint left, uint right);
-		void QuickSort(SortItem items[], int first, int last);
-		// Data for fast agglomerative clustering
-		// KdTree
-		uint m_TreeSize[16];
-		std::unique_ptr<SortItem[]> m_Items;
-		uint m_TreeIndex = 0;
 	};
 
 	extern bool IntersectTriangle(Ray& ray, Intersection& isect, const Triangle& tri, const uint inst_prim);
+
+#pragma region KdTree
+	// Custom Kd-Tree, used for quick TLAS construction
+	class KdTree
+	{
+	public:
+		struct KdNode
+		{
+			KdNode();
+			KdNode& operator=(const KdNode& other);
+
+			union
+			{
+				struct { uint left, right, parax; float splitPos;  }; // for an interior node
+				struct { uint first, count, dummy0, dummy1; };	// for a leaf node, 16 bytes
+			};
+
+			union 
+			{
+				struct { float3 bmin; float w0; };
+				__m128 bmin4;
+			};
+			union 
+			{
+				struct { float3 bmax; float w1; };
+				__m128 bmax4;
+			};
+			union 
+			{
+				struct { float3 minSize; float w2; };
+				__m128 minSize4;
+			};
+
+			void* operator new(size_t size);
+			void operator delete(void* ptr);
+
+			bool IsLeaf() const { return (parax & 7) > 3; }
+		};
+
+		static uint* s_Leaf;
+
+		KdTree() = default;
+		KdTree(TLASNode* tlasNodes, uint N, uint O = 0);
+
+		void Rebuild();
+		void RecursiveRefit(uint index);
+		void Subdivide(KdNode& node, uint depth = 0);
+		// Return left child node count
+		uint Partition(KdNode& node, uint axis, float splitPos);
+		void Add(uint index);
+		void RemoveLeaf(uint index);
+		int FindNearest(uint A, uint& startB, float& startSA);
+
+		std::unique_ptr<KdNode[]> m_Nodes;
+		TLASNode* m_TLAS = nullptr;
+		std::unique_ptr<uint[]> m_TLASIndices;
+		uint m_NodeCount = 0, m_TLASCount = 0, m_BLASCount = 0, m_Offset = 0, m_Freed[2] = { 0, 0 };
+
+	};
+#pragma  endregion
 
 }

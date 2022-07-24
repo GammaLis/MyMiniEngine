@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "pch.h"
 #include "Color.h"
 #include "GpuBuffer.h"
@@ -49,7 +49,7 @@ namespace MyDirectX
 	| D3D12_RESOURCE_STATE_COPY_DEST \
 	| D3D12_RESOURCE_STATE_COPY_SOURCE)
 
-	/// CommandContext ¹ÜÀíÆ÷£¬·ÖÅä/Ïú»Ù CommandContext£¬È«¾ÖÎ¨Ò»
+	/// CommandContext ç®¡ç†å™¨ï¼Œåˆ†é…/é”€æ¯ CommandContextï¼Œå…¨å±€å”¯ä¸€
 	class ContextManager
 	{
 	public:
@@ -65,7 +65,7 @@ namespace MyDirectX
 		std::mutex m_ContextAllocationMutex;
 	};
 
-	// ²»¿É¸´ÖÆ
+	// ä¸å¯å¤åˆ¶
 	struct NonCopyable
 	{
 		NonCopyable() = default;

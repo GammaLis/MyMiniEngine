@@ -26,25 +26,53 @@ glm::vec4 Cast(const Math::Vector4 &v)
 	return glm::vec4{ v.GetX(), v.GetY(), v.GetZ(), v.GetW() };
 }
 
-uint Color(const glm::vec3 &c)
+uint Color(float r, float g, float b)
 {
 	uint ic = 0;
-	ic |= (uint(c.x * 255.9f) & 0xFF);
-	ic |= (uint(c.y * 255.9f) & 0xFF) << 8;
-	ic |= (uint(c.z * 255.9f) & 0xFF) << 16;
+	ic |= (uint(r * 255.9f) & 0xFF) << 16;
+	ic |= (uint(g * 255.9f) & 0xFF) << 8;
+	ic |= (uint(b * 255.9f) & 0xFF);
 
 	return ic;
 }
 
-uint Color(const glm::vec4 &c)
+uint Color(float r, float g, float b, float a)
 {
 	uint ic = 0;
-	ic |= (uint(c.x * 255.9f) & 0xFF);
-	ic |= (uint(c.y * 255.9f) & 0xFF) << 8;
-	ic |= (uint(c.z * 255.9f) & 0xFF) << 16;
-	ic |= (uint(c.w * 255.9f) & 0xFF) << 24;
+	ic |= (uint(a * 255.9f) & 0xFF) << 24;
+	ic |= (uint(r * 255.9f) & 0xFF) << 16;
+	ic |= (uint(g * 255.9f) & 0xFF) << 8;
+	ic |= (uint(b * 255.9f) & 0xFF);
 
 	return ic;
+}
+
+uint Color(const glm::vec3& c)
+{
+	return Color(c.x, c.y, c.z);
+}
+
+uint Color(const glm::vec4 &c)
+{
+	return Color(c.x, c.y, c.z, c.w);
+}
+
+glm::vec3 ColorRGB(uint c)
+{
+	static float s = 1.0f / 256.0f;
+	int r = (c >> 16) & 0xFF;
+	int g = (c >>  8) & 0xFF;
+	int b = (c) & 0xFF;
+	return glm::vec3(r, g, b) * s;
+}
+glm::vec4 ColorRGBA(uint c)
+{
+	static float s = 1.0f / 256.0f;
+	int a = (c >> 24) & 0xFF;
+	int r = (c >> 16) & 0xFF;
+	int g = (c >>  8) & 0xFF;
+	int b = (c) & 0xFF;
+	return glm::vec4(r, g, b, a) * s;
 }
 
 bool IntersectTriangle(Ray& ray, const Triangle& tri)
@@ -806,6 +834,12 @@ void Surface::InitCharset()
 
 
 /// BVHApp
+// Resources
+constexpr char *s_unityMesh		= "Models/BVHAssets/unity.tri";
+constexpr char *s_ArmadilloMesh	= "Models/BVHAssets/armadillo.tri";
+constexpr char *s_TeapotMesh	= "Models/BVHAssets/teapot.obj";
+constexpr char *s_BrickTexture	= "Models/BVHAssets/bricks.png";
+constexpr char *s_SkyTexture	= "Models/BVHAssets/sky_19.hdr";
 BVHApp::BVHApp(HINSTANCE hInstance, const wchar_t* title, UINT width, UINT height)
 	: IGameApp(hInstance, title, width, height)
 {
@@ -821,7 +855,7 @@ void BVHApp::InitCustom()
 	}
 	// Resources
 	{
-		m_TraceResult.Create(Graphics::s_Device, L"TracedResult", m_Surface->width, m_Surface->height, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
+		m_TraceResult.Create(Graphics::s_Device, L"TracedResult", m_Surface->width, m_Surface->height, 1, DXGI_FORMAT_B8G8R8A8_UNORM); // DXGI_FORMAT_R8G8B8A8_UNORM
 	}
 
 	// Camera
@@ -933,10 +967,14 @@ void BVHApp::InitCustom()
 		BuildBVH();
 
 #if AS_FLAG == 2
-		m_Mesh = std::make_shared<rtrt::Mesh>("Models/BVHAssets/teapot.obj", "Models/BVHAssets/bricks.png");
+		m_Mesh = std::make_shared<rtrt::Mesh>(s_TeapotMesh, s_BrickTexture);
 		m_Mesh->Init();
 
-		m_BVHInstance = std::make_shared<rtrt::BVHInstance>(m_Mesh->m_BVH.get(), 0);
+		m_BVHInstance.reset(new rtrt::BVHInstance[s_Instances]);
+		for (int i = 0; i < s_Instances; ++i)
+		{
+			m_BVHInstance[i].Init(m_Mesh->m_BVH.get(), i);
+		}
 	
 #elif AS_FLAG == 1
 		m_BVH.reset(new BVH("Models/BVHAssets/armadillo.tri", 30000));
@@ -960,6 +998,25 @@ void BVHApp::InitCustom()
 			m_TestTriangle.v1 = vec3( 0.0f, +1.0f, 0.0f);
 			m_TestTriangle.v2 = vec3(+1.0f, -1.0f, 0.0f);
 		}
+
+		// Sky
+		int bpp = 0;
+		m_SkyPixels = stbi_loadf(s_SkyTexture, &m_SkyWidth, &m_SkyHeight, &m_SkyBpp, 0);
+		if (m_SkyPixels == nullptr)
+		{
+			Utility::Printf("Load texture %s failed!", s_SkyTexture);
+		}
+		int baseIndex = 0;
+		for (int i = 0; i < m_SkyWidth * m_SkyHeight; ++i)
+		{
+			baseIndex = i * m_SkyBpp;
+			m_SkyPixels[baseIndex + 0] = std::sqrt(m_SkyPixels[baseIndex + 0]);
+			m_SkyPixels[baseIndex + 1] = std::sqrt(m_SkyPixels[baseIndex + 1]);
+			m_SkyPixels[baseIndex + 2] = std::sqrt(m_SkyPixels[baseIndex + 2]);
+		}
+
+		// Accumulator
+		m_Accumulator.reset(new rtrt::float3[m_Width * m_Height]);
 	}
 }
 
@@ -967,6 +1024,13 @@ void BVHApp::CleanCustom()
 {
 	_aligned_free(m_BVHNode);
 	m_BVHNode = nullptr;
+
+	// SkyPixels
+	if (m_SkyPixels != nullptr)
+	{
+		stbi_image_free(m_SkyPixels);
+		m_SkyPixels = nullptr;
+	}
 
 	m_TraceResult.Destroy();
 	m_DebugPass.Cleanup();
@@ -1041,7 +1105,8 @@ void BVHApp::Update(float deltaTime)
 
 						rtrt::Intersection isect;
 
-						bIntersect = m_BVHInstance->Intersect(ray, isect);
+						rtrt::float3 color = Trace(ray, isect);
+						// bIntersect = m_BVHInstance[0].Intersect(ray, isect);
 #elif AS_FLAG == 1
 						// bIntersect = m_BVH->Intersect(ray);
 						bIntersect = m_TLAS->Intersect(ray);
@@ -1052,6 +1117,8 @@ void BVHApp::Update(float deltaTime)
 							bIntersect |= IntersectTriangle(ray, m_Tris[i]);
 						}*/
 #endif
+
+#if 0
 						if (bIntersect)
 						{
 #if AS_FLAG == 2
@@ -1064,6 +1131,10 @@ void BVHApp::Update(float deltaTime)
 #endif
 							m_Surface->Plot(x, y, c);
 						}
+
+#else
+						m_Accumulator[y * m_Width + x] = color;
+#endif
 					}
 				}
 			});
@@ -1107,6 +1178,16 @@ void BVHApp::Update(float deltaTime)
 			}
 		}
 #endif
+
+		// Convert floating point accumulator into pixels
+		for (uint y = 0;y < m_Height; ++y)
+		{
+			for (uint x = 0; x < m_Width; ++x)
+			{
+				uint index = y * m_Width + x;
+				m_Surface->Plot(x, y, Color(m_Accumulator[index].x, m_Accumulator[index].y, m_Accumulator[index].z) );
+			}
+		}
 	}
 }
 
@@ -1414,6 +1495,65 @@ float BVHApp::FindBestSplitPlane(BVHNode& node, int& axis, float& splitPos)
 	}
 
 	return bestCost;
+}
+
+#if AS_FLAG >= 2
+
+rtrt::float3 g_LightPos{ 3.0f, 10.0f, 2.0f };
+rtrt::float3 g_LightColor{ 40.0f, 20.0f, 10.0f };
+rtrt::float3 g_Ambient{ 0.2f, 0.2f, 0.2f };
+
+rtrt::float3 BVHApp::Trace(rtrt::Ray& ray, rtrt::Intersection &isect, int rayDepth)
+{
+	bool bIntersect = m_BVHInstance[0].Intersect(ray, isect);
+	if (bIntersect)
+	{
+		const rtrt::float3 p = ray.ro + ray.rd * isect.t;
+
+		// Calculate texture uv based on barycentrics
+		uint triIdx = isect.inst_prim & 0xFFFFF, instIdx = isect.inst_prim >> 20;
+		const rtrt::TriangleEx& triEx = m_Mesh->m_TrianglesEx[triIdx];
+		const rtrt::Surface* pTex = m_Mesh->m_Texture.get();
+
+		float oneMinusUV = 1.0f - isect.u - isect.v;
+		rtrt::float2 uv = isect.u * triEx.uv1 + isect.v * triEx.uv2 + oneMinusUV * triEx.uv0;
+		int iu = (int)(uv.x * pTex->width ) % pTex->width;
+		int iv = (int)(uv.y * pTex->height) % pTex->height;
+		uint texel = pTex->pixels[iu + iv * pTex->width];
+		glm::vec3 albedo = ColorRGB(texel);
+
+		// Calculate the Normal for the intersection
+		rtrt::float3 N = isect.u * triEx.n1 + isect.v * triEx.n2 + oneMinusUV * triEx.n0;
+		N = glm::normalize( rtrt::float3(m_BVHInstance[instIdx].GetTransform() * rtrt::float4(N, 0.0f)) );
+		// For debug
+		// N = 0.5f * N + 0.5f;
+
+		// Calculate the diffuse reflection in the intersection point
+		rtrt::float3 L = g_LightPos - p;
+		float rcpDist = 1.0f / glm::length(L);
+		L *= rcpDist;
+
+		rtrt::float3 color = albedo * (g_Ambient + std::max(0.0f, glm::dot(N, L)) * g_LightColor) * (rcpDist * rcpDist);
+
+		return color;
+	}
+	else
+	{
+		// Sample sky
+		return SampleSky(ray.rd);
+	}
+}
+
+#endif
+
+rtrt::float3 BVHApp::SampleSky(const rtrt::float3& direction)
+{
+	float u = std::atan2f(direction.z, direction.x) * Math::Inv2Pi;
+	float v = std::acosf(direction.y) * Math::InvPi;
+	uint iu = (uint)(m_SkyWidth  * u) % m_SkyWidth - 0.5f;
+	uint iv = (uint)(m_SkyHeight * v) % m_SkyHeight - 0.5f;
+	uint index = iv * m_SkyWidth + iu;
+	return 0.65f * rtrt::float3(m_SkyPixels[index * 3 + 0], m_SkyPixels[index * 3 + 1], m_SkyPixels[index * 3 + 2]);
 }
 
 /**

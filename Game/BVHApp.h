@@ -6,6 +6,9 @@
 #include "Math/GLMath.h"
 #include "Scenes/DebugPass.h"
 
+// How to build BVH
+// twitter: @j_bikker
+
 #ifndef USE_MODELS
 #define USE_MODELS 0
 #endif
@@ -268,6 +271,11 @@ namespace MyDirectX
 		bool IntersectBVH(Ray& ray, uint nodeIdx);
 		float FindBestSplitPlane(BVHNode& node, int& axis, float& splitPos);
 
+#if AS_FLAG >= 2
+		rtrt::float3 Trace(rtrt::Ray& ray, rtrt::Intersection &isect, int rayDepth = 0);
+#endif
+		rtrt::float3 SampleSky(const rtrt::float3& direction);
+
 		/// Pipeline
 		DebugPass m_DebugPass;
 
@@ -295,12 +303,16 @@ namespace MyDirectX
 
 #if AS_FLAG == 2
 		std::shared_ptr<rtrt::Mesh> m_Mesh;
-		std::shared_ptr<rtrt::BVHInstance> m_BVHInstance;
+		std::shared_ptr<rtrt::BVHInstance[]> m_BVHInstance;
 #elif AS_FLAG == 1
 		std::unique_ptr<BVH> m_BVH;
 		std::unique_ptr<BVHInstance[]> m_BVHInstances;
 		std::unique_ptr<TLAS> m_TLAS;
 		glm::vec3 m_Translations[4];
 #endif
+
+		std::unique_ptr<rtrt::float3[]> m_Accumulator;
+		float* m_SkyPixels = nullptr;
+		int m_SkyWidth = 1, m_SkyHeight = 1, m_SkyBpp = 3;
 	};
 }

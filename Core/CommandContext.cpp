@@ -1,4 +1,4 @@
-#include "CommandContext.h"
+ï»¿#include "CommandContext.h"
 #include "Graphics.h"
 #include "CommandListManager.h"
 
@@ -264,7 +264,7 @@ void CommandContext::InitializeBuffer(GpuBuffer& dest, const void* data, size_t 
 	CommandContext& initContext = CommandContext::Begin();
 
 	DynAlloc mem = initContext.ReserveUploadMemory(numBytes);
-	SIMDMemCopy(mem.dataPtr, data, Math::DivideByMultiple(numBytes, 16));	// ÐèÒª16×Ö½Ú¶ÔÆë
+	SIMDMemCopy(mem.dataPtr, data, Math::DivideByMultiple(numBytes, 16));	// éœ€è¦16å­—èŠ‚å¯¹é½
 	// memcpy(mem.dataPtr, data, numBytes);
 
 	// copy data to the intermediate upload heap and then schedule a copy from the upload heap to the default buffer
@@ -494,11 +494,11 @@ void CommandContext::PIXSetMarker(const wchar_t* label)
 }
 
 /**
-	ÄÜ¹»Í¬Ê±ÉèÖÃ
-	D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV£¬
-	D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER£¬
-	2ÖÖ
-	Ò»°ãºÜÉÙÉèÖÃD3D12_DESCRIPTOR_HEAP_TYPE_RTVºÍD3D12_DESCRIPTOR_HEAP_TYPE_DSV£¨´ó¸Å£©£¬-2020-2-7
+	èƒ½å¤ŸåŒæ—¶è®¾ç½®
+	D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAVï¼Œ
+	D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLERï¼Œ
+	2ç§
+	ä¸€èˆ¬å¾ˆå°‘è®¾ç½®D3D12_DESCRIPTOR_HEAP_TYPE_RTVå’ŒD3D12_DESCRIPTOR_HEAP_TYPE_DSVï¼ˆå¤§æ¦‚ï¼‰ï¼Œ-2020-2-7
 */
 void CommandContext::BindDescriptorHeaps()
 {
@@ -1090,7 +1090,7 @@ be performed.
 	5. pCountBuffer - specifies a pointer to a ID3D12Resource
 	6. CountBufferOffset - specifies a UINT64 that is the offset into pCountBuffer, identifying the argument count
 
-	Example£º
+	Exampleï¼š
 		// read draw count out of count buffer
 		UINT commandCount = pCountBuffer->ReadUINT32(CountBufferOffset);
 		CommandCount = min(CommandCount, MaxCommandCount);

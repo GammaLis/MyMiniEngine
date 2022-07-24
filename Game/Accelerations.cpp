@@ -1,5 +1,6 @@
-#include "Accelerations.h"
+﻿#include "Accelerations.h"
 #include "Utility.h"
+#include <fstream>
 
 #define STBI_NO_PSD
 #define STBI_NO_PIC
@@ -7,6 +8,8 @@
 #include "stb_image.h"
 
 #define ALIGNMENT 64
+
+#define AS_LOG 0
 
 namespace rtrt
 {
@@ -96,13 +99,13 @@ namespace rtrt
 	{
 #if 1
 		FILE* f;
-		fopen_s(&f, file, "rb");
+		errno_t errorCode = fopen_s(&f, file, "rb");
 #else
 		// 'strcpy': This function or variable may be unsafe.Consider using strcpy_s instead.
 		// To disable deprecation, use _CRT_SECURE_NO_WARNINGS.
 		f = fopen(file, "rb");
 #endif
-		if (!f)
+		if (errorCode != 0)
 		{
 			Utility::Printf("File not found: %s", file);
 			while (1) exit(0);
@@ -371,6 +374,14 @@ namespace rtrt
 		fclose(file);
 	}
 
+	// Basic constructor, for top-down TLAS construction
+	Mesh::Mesh(uint primCount)
+	{
+		m_TriCount = primCount;
+		m_Triangles.reset(new Triangle[primCount]);
+		m_TrianglesEx.reset(new TriangleEx[primCount]);
+	}
+
 	void Mesh::Init()
 	{
 		m_BVH.reset(new BVH(this));
@@ -494,6 +505,8 @@ namespace rtrt
 	void BVH::Subdivide(uint nodeIndex)
 	{
 		auto& node = m_BVHNodes[nodeIndex];
+		if (node.triCount == 1)
+			return;
 
 		// Determine split axis using SAH
 		int axis = 0;
@@ -633,9 +646,16 @@ namespace rtrt
 
 
 	/// BVHInstance
-	BVHInstance::BVHInstance(BVH* blas, uint index) : m_BVH(blas), m_Index((index))
+	BVHInstance::BVHInstance(BVH* blas, uint index)
 	{
-		SetTransform(glm::mat4());
+		Init(blas, index);
+	}
+
+	void BVHInstance::Init(BVH* blas, uint index, const glm::mat4 &transform)
+	{
+		m_BVH = blas;
+		m_Index = index;
+		SetTransform(transform);
 	}
 
 	void BVHInstance::SetTransform(const glm::mat4& transform)
@@ -672,8 +692,434 @@ namespace rtrt
 		return bIntersect;
 	}
 
-
 	/// TLAS
-	
+	TLAS::TLAS(BVHInstance* bvhList, int N)
+	{
+		m_BLAS = bvhList;
+		m_BLASCount = N;
+		// Allocate TLAS nodes
+		m_TLASNodes.reset(new TLASNode[2 * N]);
+		m_NodeIndices.reset(new uint[N]);
+		m_NodesUsed = 2;
+	}
+
+	void TLAS::Build()
+	{
+		// Assign a TLASLeaf node to each BLAS
+		m_NodesUsed = 1;
+		for (uint i = 0; i < m_BLASCount; ++i)
+		{
+			m_NodeIndices[i] = m_NodesUsed;
+			auto& tlasNode = m_TLASNodes[m_NodesUsed];
+			tlasNode.bmin = m_BLAS[i].m_Bounds.bmin;
+			tlasNode.bmax = m_BLAS[i].m_Bounds.bmax;
+			tlasNode.leftRight = 0;
+			tlasNode.BLASIndex = i;
+			++m_NodesUsed;
+		}
+
+		// Use agglomerative clustering to build the TLAS
+		int nodeCount = m_BLASCount;
+		int A = 0, B = FindBestMatch(nodeCount, A);
+#if AS_LOG
+		std::fstream f;
+		f.open("Pairs.txt", f.out | f.in);
+#endif
+
+		while (nodeCount > 1)
+		{
+			int C = FindBestMatch(nodeCount, B);
+			if (A == C)
+			{
+				// Found a pair, create a new TLAS interior node
+				int nodeIdxA = m_NodeIndices[A], nodeIdxB = m_NodeIndices[B];
+				TLASNode& nodeA = m_TLASNodes[nodeIdxA], & nodeB = m_TLASNodes[nodeIdxB];
+				TLASNode& newNode = m_TLASNodes[m_NodesUsed];
+				newNode.bmin = glm::min(nodeA.bmin, nodeB.bmin);
+				newNode.bmax = glm::max(nodeA.bmax, nodeB.bmax);
+				newNode.leftRight = (nodeIdxA | (nodeIdxB << 16));
+
+				m_NodeIndices[A] = m_NodesUsed++;
+				m_NodeIndices[B] = m_NodeIndices[nodeCount - 1];
+#if AS_LOG
+				if (f.is_open()) { f << nodeIdxA << " " << nodeIdxB << std::endl; }
+#endif
+
+				--nodeCount;
+				B = FindBestMatch(nodeCount, A);
+			}
+			else
+			{
+				A = B; B = C;
+			}
+		}
+#if AS_LOG
+		f.close();
+#endif
+		// Copy last remaining node to the root node
+		m_TLASNodes[0] = m_TLASNodes[m_NodeIndices[A]];
+
+	}
+
+	bool TLAS::Intersect(Ray& ray, Intersection& isect)
+	{
+		// Calculate reciprocal ray directions for fast AABB intersection
+		ray.rcpD = float3(1.0f / ray.rd.x, 1.0f / ray.rd.y, 1.0f / ray.rd.z);
+		// Use a local stack instead of a recursive function
+		TLASNode* node = &m_TLASNodes[0], * stack[64];
+		uint stackCount = 0;
+		bool bIntersect = false;
+		while (true)
+		{
+			if (node->IsLeaf())
+			{
+				// Current node is a leaf, intersect BLAS
+				bIntersect |= m_BLAS[node->BLASIndex].Intersect(ray, isect);
+				// Pop a node from the stack, terminate if none left
+				if (stackCount == 0)
+					break;
+				else
+					node = stack[--stackCount];
+			}
+			else
+			{
+				// Current node is a interior node, visit child nodes, ordered
+				TLASNode* pChild0 = &m_TLASNodes[(node->leftRight & 0xFFFF)];
+				TLASNode* pChild1 = &m_TLASNodes[(node->leftRight >> 16)];
+				float d0 = IntersectAABB(ray, pChild0->bmin, pChild0->bmax);
+				float d1 = IntersectAABB(ray, pChild1->bmin, pChild1->bmax);
+				if (d0 > d1)
+				{
+					std::swap(d0, d1);
+					std::swap(pChild0, pChild1);
+				}
+				if (d0 == g_Max)
+				{
+					// Missed both child nodes, pop a node from the stack
+					if (stackCount == 0)
+						break;
+					else
+						node = stack[--stackCount];
+				}
+				else
+				{
+					// Visit near node, push the far node if the ray intersects it
+					node = pChild0;
+					if (d1 < g_Max)
+						stack[stackCount++] = pChild1;
+				}
+			}
+		}
+
+		return bIntersect;
+	}
+
+	int TLAS::FindBestMatch(int N, int A)
+	{
+		// Find BLAS that, when joined with A, forms the smallest AABB
+		float smallest = g_Max;
+		int bestB = -1;
+		for (int B = 0; B < N; ++B)
+		{
+			if (B != A)
+			{
+				float3 bmin = glm::min(m_TLASNodes[m_NodeIndices[A]].bmin, m_TLASNodes[m_NodeIndices[B]].bmin);
+				float3 bmax = glm::max(m_TLASNodes[m_NodeIndices[A]].bmax, m_TLASNodes[m_NodeIndices[B]].bmax);
+				float3 ext = bmax - bmin;
+				float surfaceArea = ext.x * ext.y + ext.y * ext.z + ext.z * ext.x;
+				if (surfaceArea < smallest)
+				{
+					bestB = B;
+					smallest = surfaceArea;
+				}
+			}
+		}
+
+		return bestB;
+	}
+
+	static KdTree* s_KdTree = nullptr;
+	static Mesh* s_Mesh = nullptr;
+	void TLAS::BuildQuick()
+	{
+#if 0
+		// Single-threaded code, for reference
+		// Assign a TLASLeaf node to each BLAS
+		m_NodesUsed = 1;
+		for (uint i = 0; i < m_BLASCount; ++i)
+		{
+			auto& tlasNode = m_TLASNodes[m_NodesUsed];
+			tlasNode.bmin = m_BLAS[i].m_Bounds.bmin;
+			tlasNode.bmax = m_BLAS[i].m_Bounds.bmax;
+			tlasNode.leftRight = 0;
+			tlasNode.BLASIndex = i; // makes it a leaf
+			++m_NodesUsed;
+		}
+
+		// Build a Kd-Tree over the TLAS nodes
+		
+		if (s_KdTree == nullptr)
+			s_KdTree = new KdTree(m_TLASNodes.get() + 1, m_NodesUsed - 1, 1 /*skip root*/);
+		s_KdTree->Rebuild();
+		// Use the kd-tree for fast agglomerative clustering
+		float sa = g_Max;
+		uint best = 0, workLeft = m_BLASCount;
+		uint A = 1, B = s_KdTree->FindNearest(A, best, sa);
+		while (true)
+		{
+			int C = s_KdTree->FindNearest(B, best = A, sa);
+			if (A == C)
+			{
+				// Found a pair, create a new TLAS interior node
+				TLASNode& newNode = m_TLASNodes[m_NodesUsed];
+				newNode.bmin = glm::min(m_TLASNodes[A].bmin, m_TLASNodes[B].bmin);
+				newNode.bmax = glm::max(m_TLASNodes[A].bmax, m_TLASNodes[B].bmax);
+				newNode.leftRight = (A | (B << 16));
+				if (workLeft-- == 2)
+					break;
+				s_KdTree->RemoveLeaf(A);
+				s_KdTree->RemoveLeaf(B);
+				s_KdTree->Add(A = m_NodesUsed);
+				B = s_KdTree->FindNearest(A, best = 0, sa = g_Max);
+				++m_NodesUsed;
+			}
+			else
+			{
+				A = B; B = C;
+			}
+		}
+
+		// Copy last remaining node to the root node
+		m_TLASNodes[0] = m_TLASNodes[m_NodesUsed];
+
+#else
+		// 2. building the TLAS top-down
+		if (s_Mesh == nullptr)
+			s_Mesh = new Mesh(m_BLASCount);
+		for (uint i = 0; i < m_BLASCount; ++i)
+		{
+			s_Mesh->m_Triangles[i].v0 = m_BLAS[i].m_Bounds.bmin;
+			s_Mesh->m_Triangles[i].v1 = m_BLAS[i].m_Bounds.bmax;
+			s_Mesh->m_Triangles[i].v2 = (m_BLAS[i].m_Bounds.bmin + m_BLAS[i].m_Bounds.bmax) * 0.5f; // degenerate but with the correct AABB
+		}
+		if(s_Mesh->m_BVH == nullptr)
+		{
+			s_Mesh->m_BVH.reset(new BVH(s_Mesh));
+		}
+		s_Mesh->m_BVH->Build();
+		for (uint i = 0, imax = s_Mesh->m_BVH->m_NodesUsed; i < imax; ++i)
+		{
+			const auto& bvhNode = s_Mesh->m_BVH->m_BVHNodes[i];
+			auto& tlasNode = m_TLASNodes[i];
+			if (bvhNode.IsLeaf())
+			{
+				tlasNode.BLASIndex = s_Mesh->m_BVH->m_TriIndices[bvhNode.leftFirst];
+				tlasNode.leftRight = 0; // mark as leaf
+			}
+			else
+			{
+				tlasNode.leftRight = bvhNode.leftFirst | ((bvhNode.leftFirst + 1) << 16);
+			}
+		}
+
+#endif
+
+	}
+
+
+#pragma region KdTree
+	KdTree::KdNode::KdNode()
+	{
+		left = right = parax = 0; splitPos = 0;
+		bmin4 = _mm_setzero_ps();
+		bmax4 = _mm_setzero_ps();
+		minSize4 = _mm_setzero_ps();
+	}
+
+	KdTree::KdNode& KdTree::KdNode::operator=(const KdNode& other)
+	{
+		left = other.left; right = other.right;
+		parax = other.parax; splitPos = other.splitPos;
+
+		bmin4 = other.bmin4;
+		bmax4 = other.bmax4;
+		minSize4 = other.minSize4;
+
+		return *this;
+	}
+
+	void* KdTree::KdNode::operator new(size_t size)
+	{
+		return _aligned_malloc(size, ALIGNMENT);
+	}
+	void KdTree::KdNode::operator delete(void* ptr)
+	{
+		_aligned_free(ptr);
+	}
+
+	/// KdTree
+	uint* KdTree::s_Leaf = nullptr;
+
+	uint DominantAxis(const float2 &v)
+	{
+		float x = std::abs(v.x), y = std::abs(v.y);
+		return x > y ? 0 : 1;
+	}
+	uint DominantAxis(const float3 v)
+	{
+		float x = std::abs(v.x), y = std::abs(v.y), z = std::abs(v.z);
+		uint axis = 0;
+		float m = x;
+		if (m < y) { axis = 1; m = y; }
+		if (m < z) { axis = 2; }
+		return axis;
+	}
+
+	KdTree::KdTree(TLASNode* tlasNodes, uint N, uint O)
+	{
+		// Allocate space for nodes and indices
+		m_TLAS = tlasNodes;		// copy of the original array of tlas nodes
+		m_BLASCount = N;		// m_BLASCount remains constant
+		m_TLASCount = N;		// m_TLASCount will grow during clustering
+		m_Offset = O;			// index of the first TLAS node in the array
+
+		if (s_Leaf == nullptr) s_Leaf = new uint[1000];
+
+		m_Nodes.reset(new KdNode[2 * N]); // pre-allocate kdtree nodes, aligned
+		m_TLASIndices.reset(new uint[2 * N + 64]); // tlas array indirection so we can store ranges of nodes in leaves
+	}
+
+	void KdTree::Rebuild()
+	{
+		// We'll assume we get the same number of TLAS nodes each time
+		m_TLASCount = m_BLASCount;
+		for (uint i = 0; i < m_BLASCount; ++i)
+			m_TLASIndices[i] = i;
+
+		// Subdivide root node
+		auto& rootNode = m_Nodes[0];
+		rootNode.first = 0; rootNode.count = m_BLASCount; rootNode.parax = 7;
+		m_NodeCount = 1; // root = 0, so node 1 is the first node we can create
+
+		Subdivide(rootNode); // recursively subdivide the root node
+
+		// "Each node keeps it's cluster's minimum box sizes in each axis"
+		for (int i = (int)m_NodeCount-1; i >= 0; --i)
+		{
+			auto& node = m_Nodes[i];
+			if (node.IsLeaf())
+			{
+				node.minSize = float3(g_Max);
+				for (uint j = node.first, jmax = node.first + node.count; j < jmax; ++j)
+				{
+					uint index = m_TLASIndices[j];
+					s_Leaf[index + m_Offset] = i; // we can find m_TLAS[index] in leaf node[i]
+					float3 size = (m_TLAS[index].bmax - m_TLAS[index].bmin) * 0.5f;
+					node.minSize = glm::min(node.minSize, size);
+				}
+			}
+			else
+			{
+				node.minSize = glm::min(m_Nodes[node.left].minSize, m_Nodes[node.right].minSize);
+			}
+		}
+	}
+
+	void KdTree::Subdivide(KdNode& node, uint depth)
+	{
+		// Update node bounds
+		node.bmin = float3(g_Max), node.bmax = float3(g_Min);
+		node.minSize = float3(g_Max);
+		for (uint i = 0; i < node.count; ++i)
+		{
+			const TLASNode &tlasNode = m_TLAS[ m_TLASIndices[node.first + i]];
+			float3 c = (tlasNode.bmin + tlasNode.bmax) * 0.5f;
+			node.bmin = glm::min(node.bmin, c);
+			node.bmax = glm::max(node.bmax, c);
+			node.minSize = glm::min(node.minSize, 0.5f * (tlasNode.bmax - tlasNode.bmin));
+		}
+
+		// Terminate if we are down to 1 tlas
+		if (node.count < 2)
+			return;
+
+		// Claim left and right child nodes
+		uint axis = DominantAxis(node.bmax - node.bmin);
+		float center = (node.bmin[axis] + node.bmax[axis]) * 0.5f;
+#if 1
+		// Try to balance (works quite well but doesn't seem to pay off)
+		if (node.count > 150)
+		{
+			// Count how many would go to the left
+			int leftCount = 0;
+			for (uint i = 0; i < node.count; ++i)
+			{
+				const TLASNode& tlasNode = m_TLAS[m_TLASIndices[node.first + i]];
+				float3 c = (tlasNode.bmin + tlasNode.bmax) * 0.5f;
+				if (c[axis] <= center)
+					++leftCount;
+			}
+			float ratio = std::max(0.15f, std::min(0.85f, (float)leftCount / node.count));
+			center = ratio * node.bmin[axis] + (1.0f - ratio) * node.bmax[axis];
+		}
+#endif
+		uint leftChildCount = Partition(node, axis, center);
+		if (leftChildCount == 0 || leftChildCount == node.count) // split failed
+			return;
+
+		node.left  = m_NodeCount++;
+		node.right = m_NodeCount++;
+		node.parax = (node.parax & 0xFFFFFFF8) + axis;
+		node.splitPos = center;
+
+		Subdivide(m_Nodes[node.left] , depth + 1);
+		Subdivide(m_Nodes[node.right], depth + 1);
+	}
+
+	uint KdTree::Partition(KdNode& node, uint axis, float splitPos)
+	{
+		int N = node.count, first = node.first, last = first + N;
+		if (N < 3)
+			last = first + 1;
+		else
+		{
+			while (true)
+			{
+				const auto& tlasNode = m_TLAS[m_TLASIndices[first]];
+				float c = (tlasNode.bmin[axis] + tlasNode.bmax[axis]) * 0.5f;
+				if (c > splitPos)
+					std::swap(m_TLASIndices[first], m_TLASIndices[--last]);
+				else
+					++first;
+
+				if (first >= last) break;
+			}
+		}
+		KdNode& lNode = m_Nodes[m_NodeCount];
+		lNode.first = node.first; lNode.count = last - node.first;
+		KdNode& rNode = m_Nodes[m_NodeCount + 1];
+		rNode.first = last; rNode.count = node.count - lNode.count;
+		lNode.parax = rNode.parax = (((uint)(&node - m_Nodes.get())) << 3) | 7;
+
+		return lNode.count;
+	}
+
+	void KdTree::Add(uint index)
+	{
+		// TODO...
+	}
+
+	void KdTree::RemoveLeaf(uint index)
+	{
+		// TODO...
+	}
+
+	int KdTree::FindNearest(uint A, uint& startB, float& startSA)
+	{
+		// TODO...
+		return 0;
+	}
+
+#pragma endregion
 
 }
