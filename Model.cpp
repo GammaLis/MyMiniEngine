@@ -1,4 +1,4 @@
-#include "Model.h"
+ï»¿#include "Model.h"
 #include "TextureManager.h"
 #include "Graphics.h"
 #include <DirectXPackedVector.h>
@@ -19,7 +19,7 @@ namespace MyDirectX
 	using namespace Math;
 	using namespace DirectX::PackedVector;
 
-	// È¥³ıÀ©Õ¹Ãû
+	// å»é™¤æ‰©å±•å
 	inline std::string ModifyFilePath(const char* str, const std::string &name)
 	{
 		if (*str == '\0')
@@ -35,7 +35,7 @@ namespace MyDirectX
 		path[i++] = '/';
 		path[i++] = '\0';
 
-		// ÀàËÆ textures\\xxx.png
+		// ç±»ä¼¼ textures\\xxx.png
 		const char* pStart = strrchr(str, '\\');
 		if (pStart == nullptr)
 			pStart = strrchr(str, '/');
@@ -47,8 +47,8 @@ namespace MyDirectX
 
 		strncat_s(path, pStart, Size - 1);
 		
-		// ¼ÓÔØDDSÍ¼Æ¬ĞèÒª
-		// É¾³ıÎÄ¼şÀ©Õ¹Ãû
+		// åŠ è½½DDSå›¾ç‰‡éœ€è¦
+		// åˆ é™¤æ–‡ä»¶æ‰©å±•å
 		char* pch = strrchr(path, '.');
 		while (pch != nullptr && *pch != 0) *(pch++) = 0;
 
@@ -84,6 +84,7 @@ namespace MyDirectX
 	{
 		m_VertexBuffer.Destroy();
 		m_IndexBuffer.Destroy();
+		m_HitShaderMeshInfoBuffer.Destroy();
 
 		if (m_pMesh)
 		{
@@ -98,13 +99,13 @@ namespace MyDirectX
 		if (m_pVertexData)
 		{
 			delete[] m_pVertexData;
-			// _aligned_free(m_pVertexData);	// ¶ÔÓ¦_aligned_malloc
+			// _aligned_free(m_pVertexData);	// å¯¹åº”_aligned_malloc
 			m_pVertexData = nullptr;
 		}
 		if (m_pIndexData)
 		{
 			delete[] m_pIndexData;
-			// _aligned_free(m_pIndexData);	// ¶ÔÓ¦_aligned_malloc
+			// _aligned_free(m_pIndexData);	// å¯¹åº”_aligned_malloc
 			m_pIndexData = nullptr;
 		}
 		if (m_SRVs)
@@ -152,26 +153,26 @@ namespace MyDirectX
 	{
 		if (LoadFromAssimp(fileName))
 		{
-			// vertex buffer & index buffer
+			// Vertex buffer & index buffer
 			{
 				m_VertexBuffer.Create(pDevice, L"VertexBuffer", m_VertexDataByteSize / m_VertexStride, m_VertexStride, m_pVertexData);
 				m_IndexBuffer.Create(pDevice, L"IndexBuffer", m_IndexDataByteSize / sizeof(uint16_t), sizeof(uint16_t), m_pIndexData);
 
 				delete[] m_pVertexData;
-				// _aligned_free(m_pVertexData);	// ¶ÔÓ¦_aligned_malloc
+				// _aligned_free(m_pVertexData);	// å¯¹åº”_aligned_malloc
 				m_pVertexData = nullptr;
 
 				delete[] m_pIndexData;
-				// _aligned_free(m_pIndexData);	// ¶ÔÓ¦_aligned_malloc
+				// _aligned_free(m_pIndexData);	// å¯¹åº”_aligned_malloc
 				m_pIndexData = nullptr;
 			}
 
-			// textures
+			// Textures
 			{
-				// Ä¬ÈÏ¼ÓÔØDDSÍ¼Æ¬,ĞèÒªÉ¾È¥Í¼Æ¬Â·¾¶À©Õ¹Ãû
+				// é»˜è®¤åŠ è½½DDSå›¾ç‰‡,éœ€è¦åˆ å»å›¾ç‰‡è·¯å¾„æ‰©å±•å
 				LoadTextures(pDevice);
 				
-				// ²ÉÓÃstb_image¼ÓÔØÍ¼Æ¬£¨Ä¬ÈÏpng¸ñÊ½£© 
+				// é‡‡ç”¨stb_imageåŠ è½½å›¾ç‰‡ï¼ˆé»˜è®¤pngæ ¼å¼ï¼‰ 
 				// LoadTexturesBySTB_IMAGE(pDevice);
 			}
 
@@ -225,17 +226,15 @@ namespace MyDirectX
 	{
 		if (scene->HasTextures())
 		{
-			// embedded textures...
+			// Embedded textures...
 		}
 
 		if (scene->HasAnimations())
 		{
-			// to do
+			// TODO...
 		}
 
-		/**
-			Material
-		*/
+		// Materials
 		{
 			m_MaterialCount = scene->mNumMaterials;
 			m_pMaterial = new Material[m_MaterialCount];
@@ -246,7 +245,7 @@ namespace MyDirectX
 				const aiMaterial* srcMat = scene->mMaterials[matIdx];
 				Material* dstMat = m_pMaterial + matIdx;
 
-				// constants
+				// Constants
 				aiColor3D diffuse(1.0f, 1.0f, 1.0f);
 				aiColor3D specular(1.0f, 1.0f, 1.0f);
 				aiColor3D ambient(1.0f, 1.0f, 1.0f);
@@ -256,7 +255,7 @@ namespace MyDirectX
 				float shininess = 0.0f;
 				float specularStrength = 1.0f;
 
-				// textures
+				// Textures
 				aiString texDiffusePath;
 				aiString texSpecularPath;
 				aiString texNormalPath;
@@ -274,11 +273,10 @@ namespace MyDirectX
 				srcMat->Get(AI_MATKEY_SHININESS, shininess);
 				srcMat->Get(AI_MATKEY_SHININESS_STRENGTH, specularStrength);
 
-				// my test
+				// > My test
 				float transparencyFactor = 0.0f;
 				srcMat->Get(AI_MATKEY_TRANSPARENCYFACTOR, transparencyFactor);
-
-				// test end
+				// Test end <
 
 				srcMat->Get(AI_MATKEY_TEXTURE(aiTextureType_DIFFUSE, 0), texDiffusePath);
 				srcMat->Get(AI_MATKEY_TEXTURE(aiTextureType_SPECULAR, 0), texSpecularPath);
@@ -320,7 +318,7 @@ namespace MyDirectX
 		m_pMesh = new Mesh[m_MeshCount];
 		memset(m_pMesh, 0, sizeof(Mesh) * m_MeshCount);
 		{
-			// first pass, count everything
+			// First pass, count everything
 			for (unsigned int meshIndex = 0; meshIndex < m_MeshCount; ++meshIndex)
 			{
 				const aiMesh* srcMesh = scene->mMeshes[meshIndex];
@@ -330,8 +328,8 @@ namespace MyDirectX
 
 				dstMesh->materialIndex = srcMesh->mMaterialIndex;
 
-				// just store everything as float. Can quantize in Model::optimize()
-				// 0.position
+				// Just store everything as float. Can quantize in Model::optimize()
+				// 0.Position
 				// if (srcMesh->HasPositions())	// always true
 				{
 					dstMesh->attribsEnabled |= (unsigned int)AttribMask::attrib_mask_position;
@@ -344,8 +342,8 @@ namespace MyDirectX
 					dstMesh->vertexStride += sizeof(float) * 3;
 				}
 
-				// 1.texcoord0
-				// if (srcMesh->HasTextureCoords(0))	// Ä¬ÈÏº¬ÓĞ£¬Í³Ò»¸ñÊ½
+				// 1.Texcoord0
+				// if (srcMesh->HasTextureCoords(0))	// é»˜è®¤å«æœ‰ï¼Œç»Ÿä¸€æ ¼å¼
 				{
 					dstMesh->attribsEnabled |= (unsigned int)AttribMask::attrib_mask_texcoord0;
 
@@ -357,8 +355,8 @@ namespace MyDirectX
 					dstMesh->vertexStride += sizeof(float) * 2;
 				}
 
-				// 2.normal
-				// if (srcMesh->HasNormals())	// Ä¬ÈÏº¬ÓĞ£¬Í³Ò»¸ñÊ½
+				// 2.Normal
+				// if (srcMesh->HasNormals())	// é»˜è®¤å«æœ‰ï¼Œç»Ÿä¸€æ ¼å¼
 				{
 					dstMesh->attribsEnabled |= (unsigned int)AttribMask::attrib_mask_normal;
 
@@ -370,10 +368,10 @@ namespace MyDirectX
 					dstMesh->vertexStride += sizeof(float) * 3;
 				}
 
-				// 3.tangent & bitangent
+				// 3.Tangent & bitangent
 				// if (srcMesh->HasTangentsAndBitangents())
 				{
-					// tangent
+					// Tangent
 					dstMesh->attribsEnabled |= (unsigned int)AttribMask::attrib_mask_tangent;
 					
 					auto &attrib_tangent = dstMesh->attrib[(unsigned int)Attrib::attrib_tangent];
@@ -383,7 +381,7 @@ namespace MyDirectX
 					attrib_tangent.format = (unsigned int)AttribFormat::attrib_format_float;
 					dstMesh->vertexStride += sizeof(float) * 3;
 
-					// bitangent
+					// Bitangent
 					dstMesh->attribsEnabled |= (unsigned int)AttribMask::attrib_mask_bitangent;
 
 					auto& attrib_bitangent = dstMesh->attrib[(unsigned int)Attrib::attrib_bitangent];
@@ -406,30 +404,30 @@ namespace MyDirectX
 		}
 
 		{
-			// ÈÏÎªËùÓĞ submesh vertexstride Ò»ÖÂ£¨ÕâÑù²ÅÄÜ·ÅÔÚÒ»¸öVertexBufferÀï£©
+			// è®¤ä¸ºæ‰€æœ‰ submesh vertexstride ä¸€è‡´ï¼ˆè¿™æ ·æ‰èƒ½æ”¾åœ¨ä¸€ä¸ªVertexBufferé‡Œï¼‰
 			m_VertexStride = m_pMesh[0].vertexStride;
 
-			// allocate storage
+			// Allocate storage
 			/**
 				https://docs.microsoft.com/en-us/cpp/cpp/align-cpp?view=vs-2019
-				Note that ordinary allocators¡ªfor example, malloc, C++ operator new, and the Win32 allocators¡ª
+				Note that ordinary allocatorsâ€”for example, malloc, C++ operator new, and the Win32 allocatorsâ€”
 			return memory that is usually not sufficiently aligned for __declspec(align(#)) structures or arrays of
 			structures.
 			*/
 			m_pVertexData = new unsigned char[m_VertexDataByteSize];
 			m_pIndexData = new unsigned char[m_IndexDataByteSize];
-			// new Ä¬ÈÏÄÚ´æ¶ÔÆë £¿£¿
-			// (×¢£ºC++17 ÏÔÊ½Ö§³Ö¶ÔÆë void *operator new (std::size_t count, std::align_val al))
+			// new é»˜è®¤å†…å­˜å¯¹é½ ï¼Ÿï¼Ÿ
+			// (æ³¨ï¼šC++17 æ˜¾å¼æ”¯æŒå¯¹é½ void *operator new (std::size_t count, std::align_val al))
 			// or
-			// _aligned_malloc&_aligned_free È·±£ÄÚ´æ¶ÔÆë	-20-2-26
+			// _aligned_malloc&_aligned_free ç¡®ä¿å†…å­˜å¯¹é½	-20-2-26
 			//m_pVertexData = (unsigned char*)_aligned_malloc(m_VertexDataByteSize, 16);
 			//m_pIndexData = (unsigned char*)_aligned_malloc(m_IndexDataByteSize, 16);
 			
 			// -mf
 			memset(m_pVertexData, 0, m_VertexDataByteSize);
 			memset(m_pIndexData, 0, m_IndexDataByteSize);
-			// ¸ÄÓÃ SIMDÖ¸Áî
-			// ºÃÏñ²»ÄÜÊ¹ÓÃnew·ÖÅäµÄÄÚ´æ£¬±¨´í£»²ÉÓÃ_aligned_mallocÃ»ÓĞÎÊÌâ	-20-2-26
+			// æ”¹ç”¨ SIMDæŒ‡ä»¤
+			// å¥½åƒä¸èƒ½ä½¿ç”¨newåˆ†é…çš„å†…å­˜ï¼ŒæŠ¥é”™ï¼›é‡‡ç”¨_aligned_mallocæ²¡æœ‰é—®é¢˜	-20-2-26
 			//__m128 val = _mm_set1_ps(0);
 			//SIMDMemFill(m_pVertexData, val, Math::DivideByMultiple(m_VertexDataByteSize, 16));
 			//SIMDMemFill(m_pIndexData, val, Math::DivideByMultiple(m_IndexDataByteSize, 16));
@@ -744,16 +742,16 @@ namespace MyDirectX
 		for (unsigned int meshIndex = 0; meshIndex < m_MeshCount; ++meshIndex)
 		{
 			const Mesh &mesh = m_pMesh[meshIndex];
-
 			auto& meshInfoData = m_MeshInfoData[meshIndex];
+
 			meshInfoData.IndexOffsetBytes = mesh.indexDataByteOffset;
 			meshInfoData.UVAttributeOffsetBytes = mesh.vertexDataByteOffset + mesh.attrib[(unsigned)Attrib::attrib_texcoord0].offset;
 			meshInfoData.NormalAttributeOffsetBytes = mesh.vertexDataByteOffset + mesh.attrib[(unsigned)Attrib::attrib_normal].offset;
 			meshInfoData.PositionAttributeOffsetBytes = mesh.vertexDataByteOffset + mesh.attrib[(unsigned)Attrib::attrib_position].offset;
 			meshInfoData.TangentAttributeOffsetBytes = mesh.vertexDataByteOffset + mesh.attrib[(unsigned)Attrib::attrib_tangent].offset;
 			meshInfoData.BitangentAttributeOffsetBytes = mesh.vertexDataByteOffset + mesh.attrib[(unsigned)Attrib::attrib_bitangent].offset;
-			meshInfoData.AttributeStrideBytes = mesh.vertexDataByteOffset + mesh.vertexStride;
-			meshInfoData.MaterialInstanceId = mesh.vertexDataByteOffset + mesh.materialIndex;
+			meshInfoData.AttributeStrideBytes = mesh.vertexStride;
+			meshInfoData.MaterialInstanceId = mesh.materialIndex;
 		}
 	}
 }
@@ -784,7 +782,7 @@ an animation. DirectX calls them "frames", others call them ""objects, we call t
 the node, but instead in an array of aiMesh inside the aiScene. A node only refers to them 
 by their array index. This also means that multiple nodes can refer to the same mesh, which
 provides a simple form of instancing. A mesh referred to by this way lives in the node's local
-coordinate system. If you want the mesh's orientation in global space, you'd have to concatenate£¨Á¬½Ó£©
+coordinate system. If you want the mesh's orientation in global space, you'd have to concatenateï¼ˆè¿æ¥ï¼‰
 the transformations from the referring node and all of its parents.
 
 	>> Meshes

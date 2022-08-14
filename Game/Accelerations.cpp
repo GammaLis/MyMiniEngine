@@ -8,7 +8,6 @@
 #include "stb_image.h"
 
 #define ALIGNMENT 64
-
 #define AS_LOG 0
 
 namespace rtrt

@@ -1550,8 +1550,8 @@ rtrt::float3 BVHApp::SampleSky(const rtrt::float3& direction)
 {
 	float u = std::atan2f(direction.z, direction.x) * Math::Inv2Pi;
 	float v = std::acosf(direction.y) * Math::InvPi;
-	uint iu = (uint)(m_SkyWidth  * u) % m_SkyWidth - 0.5f;
-	uint iv = (uint)(m_SkyHeight * v) % m_SkyHeight - 0.5f;
+	uint iu = (uint)((uint)(m_SkyWidth  * u) % m_SkyWidth - 0.5f);
+	uint iv = (uint)((uint)(m_SkyHeight * v) % m_SkyHeight - 0.5f);
 	uint index = iv * m_SkyWidth + iu;
 	return 0.65f * rtrt::float3(m_SkyPixels[index * 3 + 0], m_SkyPixels[index * 3 + 1], m_SkyPixels[index * 3 + 2]);
 }

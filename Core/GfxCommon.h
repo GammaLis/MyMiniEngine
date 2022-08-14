@@ -96,7 +96,7 @@ namespace MyDirectX
 		void ResizeDisplayDependentBuffers(ID3D12Device* pDevice, uint32_t nativeWidth, uint32_t nativeHeight);
 		void DestroyRenderingBuffers();
 
-		// resources
+		// Resources
 		ColorBuffer m_SceneColorBuffer;		// R11G11B10_FLOAT
 		DepthBuffer m_SceneDepthBuffer;		// D32_FLOAT_S8_UINT
 		ColorBuffer m_SceneNormalBuffer;	// R16G16B16A16_FLOAT
@@ -113,13 +113,13 @@ namespace MyDirectX
 		// 实际计算时，=1 / (1 + (f-n)/n * z')	(忽略分子f)	-20-2-20	[n/f, 1] -> 近似 [0, 1]
 		ColorBuffer m_LinearDepth[2];		// normalized planar distance (0 at eye, 1 at far plane) computed from the SceneDepthBuffer
 
-		// temporal effects
+		// Temporal effects
 		ColorBuffer m_TemporalColor[2];		// 犹豫是将相关资源统一管理还是各个效果各自管理？？？ -20-2-19 --> 统一管理更好！ -21-10-3
 		ColorBuffer m_TemporalMinBound;
 		ColorBuffer m_TemporalMaxBound;
 
-		// post effects
-		// bloom
+		// Post effects
+		// Bloom
 		ColorBuffer m_aBloomUAV1[2];	// 1/3
 		ColorBuffer m_aBloomUAV2[2];	// 1/6
 		ColorBuffer m_aBloomUAV3[2];	// 1/12
@@ -140,11 +140,11 @@ namespace MyDirectX
 		CD3DX12_SHADER_BYTECODE m_BasicTriangleVS;
 		CD3DX12_SHADER_BYTECODE m_BasicTrianglePS;
 
-		/// screen effects
-		// screen quad VS
+		/// Screen effects
+		// Screen quad VS
 		CD3DX12_SHADER_BYTECODE m_ScreenQuadVS;
 
-		// present
+		// Present
 		CD3DX12_SHADER_BYTECODE m_PresentHDRPS;
 		CD3DX12_SHADER_BYTECODE m_PresentSDRPS;
 		CD3DX12_SHADER_BYTECODE m_MagnifyPixelsPS;
@@ -154,7 +154,7 @@ namespace MyDirectX
 		CD3DX12_SHADER_BYTECODE m_ScaleAndCompositeHDRPS;
 		CD3DX12_SHADER_BYTECODE m_BufferCopyPS;		// blend overlay ui
 		CD3DX12_SHADER_BYTECODE m_BlendUIHDRPS;
-		// image scaling
+		// Image scaling
 		CD3DX12_SHADER_BYTECODE m_BilinearUpsamplePS;
 		CD3DX12_SHADER_BYTECODE m_BicubicHorizontalUpsamplePS;
 		CD3DX12_SHADER_BYTECODE m_BicubicVerticalUpsamplePS;
@@ -162,11 +162,11 @@ namespace MyDirectX
 		CD3DX12_SHADER_BYTECODE m_BicubicUpsampleCS;
 		CD3DX12_SHADER_BYTECODE m_LanczosCS;
 
-		// generate mips
+		// Generate mips
 		CD3DX12_SHADER_BYTECODE m_GenerateMips;
 		CD3DX12_SHADER_BYTECODE m_Generete3DTexMips;
 
-		/// text 
+		/// Text 
 		CD3DX12_SHADER_BYTECODE m_TextVS;
 		CD3DX12_SHADER_BYTECODE m_TextAntialiasPS;
 		CD3DX12_SHADER_BYTECODE m_TextShadowPS;
@@ -221,18 +221,18 @@ namespace MyDirectX
 		D3D12_DEPTH_STENCIL_DESC DepthStateReadOnlyReversed;
 		D3D12_DEPTH_STENCIL_DESC DepthStateTestEqual;
 
-		// indirect args - command signature
+		// Indirect args - command signature
 		CommandSignature DispatchIndirectCommandSignature{ 1 };
 		CommandSignature DrawIndirectCommandSignature{ 1 };
 
-		// common RSs & PSOs
+		// Common RSs & PSOs
 		RootSignature CommonRS;
 		RootSignature GenerateMipsRS;
 		// ComputePSO GenerateMipsLinearPSO[4];
 		// ComputePSO GenerateMipsGammaPSO[4];
-		// 暂时默认 Power_Of_Two，Linear	-2020-5-2
+		// TODO: Default -> Power_Of_Two，Linear
 		ComputePSO GenerateMipsPSO;
-		// 3D texture, now only support Power_Of_Two size	-2020-9-7
+		// TODO: 3D texture, now only support Power_Of_Two size
 		RootSignature Generate3DTexMipsRS;
 		ComputePSO Generate3DTexMipsPSO;
 

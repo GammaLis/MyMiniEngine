@@ -3,7 +3,7 @@
 #include "GfxCommon.h"
 #include "CommandContext.h"
 
-// compiled shaders
+// Compiled shaders
 #include "TemporalBlendCS.h"
 #include "BoundNeighborhoodCS.h"
 #include "SharpenTAACS.h"
@@ -15,7 +15,7 @@ using namespace Math;
 
 void TemporalAA::Init(ID3D12Device* pDevice)
 {
-	// root signature
+	// Root signature
 	{
 		m_RootSignature.Reset((UINT)RSId::Count, 2);
 		m_RootSignature[(UINT)RSId::CBConstants].InitAsConstants(0, 4);
@@ -107,7 +107,7 @@ void TemporalAA::Update(uint64_t frameIndex)
 		}
 		else
 		{
-			// with CBR, having an odd number of jitter positions is good because odd and even
+			// With CBR, having an odd number of jitter positions is good because odd and even
 			// frames can both explore all sample positions. (Also, the latest useful sample is
 			// the first one, which is exactly centered between 4 pixels.)
 			if (m_EnableCBR)
@@ -145,7 +145,7 @@ void TemporalAA::ClearHistory(CommandContext& context)
 	}
 }
 
-// temporal resolve
+// Temporal resolve
 void TemporalAA::ResolveImage(CommandContext& context)
 {
 	auto& computeContext = context.GetComputeContext();
@@ -172,11 +172,12 @@ void TemporalAA::ResolveImage(CommandContext& context)
 			ApplyTemporalIntelAA(computeContext);
 		else
 			ApplyTemporalAA(computeContext);
+
 		SharpenImage(computeContext, Graphics::s_BufferManager.m_TemporalColor[currIndex]);
 	}
 }
 
-// resolve Image
+// Resolve Image
 void TemporalAA::ApplyTemporalAA(ComputeContext& context)
 {
 	struct alignas(16) CSConstants
@@ -294,7 +295,7 @@ void TemporalAA::ApplyTemporalIntelAA(ComputeContext& context/*, const Math::Mat
 	context.Dispatch2D(width, height, 8, 8);	
 }
 
-// sharpen or copy image
+// Sharpen or copy image
 void TemporalAA::SharpenImage(ComputeContext& context, ColorBuffer& temporalColor)
 {
 	auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;

@@ -14,7 +14,7 @@ void CubemapIBLApp::Init(const std::wstring& fileName, UINT width, UINT height, 
 
 	auto pDevice = Graphics::s_Device;
 
-	// root signatures
+	// Root signatures
 	{
 		D3D12_SAMPLER_DESC samplerDesc = {};
 		samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -42,7 +42,7 @@ void CubemapIBLApp::Init(const std::wstring& fileName, UINT width, UINT height, 
 		m_IrradianceMapPSO.Finalize(pDevice);
 	}
 
-	// resources
+	// Resources
 	{
 		auto filePath = fileName;
 		auto pos = filePath.rfind('.');

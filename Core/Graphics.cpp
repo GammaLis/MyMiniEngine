@@ -1,4 +1,4 @@
-#include "Graphics.h"
+ï»¿#include "Graphics.h"
 #include "CommandListManager.h"
 #include "CommandContext.h"
 #include "TextureManager.h"
@@ -152,7 +152,7 @@ namespace MyDirectX
         m_DisplayWidth = std::max<UINT>(width, 1);
         m_DisplayHeight = std::max<UINT>(height, 1);
 
-        // ¾²Ì¬»º´æ width height
+        // é™æ€ç¼“å­˜ width height
         GfxStates::s_DisplayWidth = m_DisplayWidth;
         GfxStates::s_DisplayHeight = m_DisplayHeight;
 
@@ -165,8 +165,8 @@ namespace MyDirectX
         GfxStates::SetNativeResolution(m_Device.Get(), m_CurNativeRes);
         CustomInit();
 
-        // ¿¼ÂÇ·ÅÔÚ GraphicsÀï »¹ÊÇ IGameAppÀï -20-1-27
-        // Ä¿Ç° ¸Ğ¾õ·ÅÔÚ GraphicsÀï ¸ü¼ÓºÏÊÊ
+        // è€ƒè™‘æ”¾åœ¨ Graphicsé‡Œ è¿˜æ˜¯ IGameAppé‡Œ -20-1-27
+        // ç›®å‰ æ„Ÿè§‰æ”¾åœ¨ Graphicsé‡Œ æ›´åŠ åˆé€‚
         Effects::Init(m_Device.Get());
     }
 
@@ -187,13 +187,13 @@ namespace MyDirectX
         m_DisplayWidth = newWidth;
         m_DisplayHeight = newHeight;
 
-        // ¾²Ì¬»º´æ width height
+        // é™æ€ç¼“å­˜ width height
         GfxStates::s_DisplayWidth = m_DisplayWidth;
         GfxStates::s_DisplayHeight = m_DisplayHeight;
 
         DEBUGPRINT("Changing display resolution to %ux%u", newWidth, newHeight);
 
-        // ÒÔÏÂ£¬¿ÉÒÔÖ±½Óµ÷ÓÃ CreateWindowSizeDependentResources
+        // ä»¥ä¸‹ï¼Œå¯ä»¥ç›´æ¥è°ƒç”¨ CreateWindowSizeDependentResources
         // ...
         m_PreDisplayBuffer.Create(m_Device.Get(), L"PreDisplay Buffer", newWidth, newHeight, 1, m_SwapChainFormat);
 
@@ -217,7 +217,7 @@ namespace MyDirectX
         // m_BackBufferIndex = 0;
         m_BackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
 
-        // µ÷Õû ÏÔÊ¾³ß´çÏà¹Øbuffer´óĞ¡
+        // è°ƒæ•´ æ˜¾ç¤ºå°ºå¯¸ç›¸å…³bufferå¤§å°
         s_CommandManager.IdleGPU();
         s_BufferManager.ResizeDisplayDependentBuffers(m_Device.Get(), 
             GfxStates::s_NativeWidth, GfxStates::s_NativeHeight);
@@ -234,7 +234,7 @@ namespace MyDirectX
         CommandContext::DestroyAllContexts();
         s_CommandManager.Shutdown();
 
-        // m_SwapChain->Release();  // ±¨´í£¡ ²»ÒªÖ±½Óµ÷ÓÃ ComPtr->Release()
+        // m_SwapChain->Release();  // æŠ¥é”™ï¼ ä¸è¦ç›´æ¥è°ƒç”¨ ComPtr->Release()
         m_SwapChain.Reset();
         // or
         // m_SwapChain = nullptr;
@@ -243,15 +243,15 @@ namespace MyDirectX
         RootSignature::DestroyAll();
         DescriptorAllocator::DestroyAll();
 
-        // resources
+        // Resources
         s_CommonStates.DestroyCommonStates();
         s_BufferManager.DestroyRenderingBuffers();
         s_TextureManager.Shutdown();
 
-        // effects
+        // Effects
         Effects::Shutdown();
 
-        // back buffers
+        // Back buffers
         for (UINT i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
         {
             m_BackBuffer[i].Destroy();
@@ -267,7 +267,7 @@ namespace MyDirectX
         }
 #endif
 
-        // m_Device->Release();     // ComPtr->Release()±¨´í, ²»ÒªÖ±½Óµ÷ÓÃ ComPtr->Release()
+        // m_Device->Release();     // ComPtr->Release()æŠ¥é”™, ä¸è¦ç›´æ¥è°ƒç”¨ ComPtr->Release()
         m_Device.Reset();
         // or
         // m_Device = nullptr;
@@ -276,7 +276,7 @@ namespace MyDirectX
 
     void Graphics::Present()
     {
-        // Ä¬ÈÏ¿ªÆôHDR
+        // é»˜è®¤å¼€å¯HDR
         // m_bEnableHDROutput = true;
         if (m_bEnableHDROutput)
             PreparePresentHDR();
@@ -289,14 +289,14 @@ namespace MyDirectX
 
         ++m_FrameIndex;
 
-        // Ç¿ÖÆÃ¿Ö¡Í¬²½CPU    -2020-4-25
-        // GPUÑÓ³Ù½Ï´óÊ±£¬CPU²»¶Ï·ÖÅäÄÚ´æ£¬Ôì³ÉÄÚ´æºÄ¾¡    Ä¿Ç°½öÔÚ¼ÆËãCascadedShadowMapÊ±¿ªÆô -2020-4-29
+        // å¼ºåˆ¶æ¯å¸§åŒæ­¥CPU    -2020-4-25
+        // GPUå»¶è¿Ÿè¾ƒå¤§æ—¶ï¼ŒCPUä¸æ–­åˆ†é…å†…å­˜ï¼Œé€ æˆå†…å­˜è€—å°½    ç›®å‰ä»…åœ¨è®¡ç®—CascadedShadowMapæ—¶å¼€å¯ -2020-4-29
         // s_CommandManager.IdleGPU();
 
-        // ÕâÊÇMS MiniEinge×ö·¨£¬ÒÆµ½ModelViewer::Update -20-2-22
+        // è¿™æ˜¯MS MiniEingeåšæ³•ï¼Œç§»åˆ°ModelViewer::Update -20-2-22
         // Effects::s_TemporalAA.Update(m_FrameIndex);
 
-        // ¿ÉÒÔ¶¯Ì¬¸Ä±ä NativeResolution
+        // å¯ä»¥åŠ¨æ€æ”¹å˜ NativeResolution
         GfxStates::SetNativeResolution(m_Device.Get(), m_CurNativeRes);
     }
 
@@ -339,7 +339,7 @@ namespace MyDirectX
 
     void Graphics::CreateWindowSizeDependentResources()
     {
-        // wait until all previous GPU work is complete
+        // Wait until all previous GPU work is complete
         s_CommandManager.IdleGPU();
 
         m_PreDisplayBuffer.Create(m_Device.Get(), L"PreDisplay Buffer", m_DisplayWidth, m_DisplayHeight, 1, m_SwapChainFormat);
@@ -354,7 +354,7 @@ namespace MyDirectX
         m_BackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
 
         // TODO
-        // create display dependent buffers
+        // Create display dependent buffers
     }
 
     void Graphics::EnableDebugLayer()
@@ -401,7 +401,7 @@ namespace MyDirectX
 #endif
     }
    
-    // obtain the DXGI factory
+    // Obtain the DXGI factory
     ComPtr<IDXGIFactory6> Graphics::CreateFactory()
     {
         ComPtr<IDXGIFactory6> dxgiFactory6;
@@ -409,15 +409,15 @@ namespace MyDirectX
         return dxgiFactory6;
     }
 
-    // determines whether tearing support is available for fullscreen borderless windows
+    // Determines whether tearing support is available for fullscreen borderless windows
     bool Graphics::CheckTearingSupport()
     {
         BOOL allowTearing = FALSE;
 
         if (m_Options & c_AllowTearing)
         {
-            // rather than create the DXGIFactory5 directly, we create the DXGIFactory4 and query for DXGIFactory5.
-            // this is to enable the graphics debugging tools which will not support the DXGIFactory5 until a future update
+            // Rather than create the DXGIFactory5 directly, we create the DXGIFactory4 and query for DXGIFactory5.
+            // This is to enable the graphics debugging tools which will not support the DXGIFactory5 until a future update
             ComPtr<IDXGIFactory5> dxgiFactory5 = m_Factory;
             HRESULT hr = TRUE;  // m_Factory.As(&dxgiFactory5);
             hr = dxgiFactory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allowTearing, sizeof(allowTearing));
@@ -464,10 +464,10 @@ namespace MyDirectX
             }
 
             ComPtr<ID3D12Device> pDevice;
-            // check to see if the adpater supports Direct3D 12, but don't create the actual device yet.
+            // Check to see if the adpater supports Direct3D 12, but don't create the actual device yet.
             if (SUCCEEDED(D3D12CreateDevice(dxgiAdapter1.Get(), m_D3DMinFeatureLevel, __uuidof(ID3D12Device), &pDevice)))
             {
-                // check raytracing support
+                // Check raytracing support
                 D3D12_FEATURE_DATA_D3D12_OPTIONS5 featureSupportData = {};
                 bool bSupportRaytracing = SUCCEEDED(pDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &featureSupportData, sizeof(featureSupportData)));
                 bSupportRaytracing = bSupportRaytracing && featureSupportData.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
@@ -495,10 +495,10 @@ namespace MyDirectX
 
                 if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
                 {
-                    // don't select the Basic Render Driver adatper
+                    // Don't select the Basic Render Driver adatper
                     continue;
                 }
-                // check to see if the adapter supports Direct3D 12, but don't create the actual device yet
+                // Check to see if the adapter supports Direct3D 12, but don't create the actual device yet
                 if (SUCCEEDED(D3D12CreateDevice(dxgiAdapter1.Get(), m_D3DMinFeatureLevel, _uuidof(ID3D12Device), nullptr)))
                 {
 #ifdef _DEBUG
@@ -513,7 +513,7 @@ namespace MyDirectX
 #if !defined(NDEBUG)
         if (!dxgiAdapter1)
         {
-            // try WARP12 instead
+            // Try WARP12 instead
             if (FAILED(m_Factory->EnumWarpAdapter(IID_PPV_ARGS(dxgiAdapter1.ReleaseAndGetAddressOf()))))
             {
                 throw std::exception("WARP12 not available. Enable the 'Graphics Tools' optional feature!");
@@ -545,7 +545,7 @@ namespace MyDirectX
         d3d12Device->SetName(L"D3D12Device");
 
 #if !defined(NDEBUG)
-        // configure debug device (if active)
+        // Configure debug device (if active)
         ComPtr<ID3D12InfoQueue> d3dInfoQueue;
         if (SUCCEEDED(d3d12Device.As(&d3dInfoQueue)))   
         // (d3d12Device->QueryInterface(IID_PPV_ARGS(d3dInfoQueue.GetAddressOf())));
@@ -554,16 +554,16 @@ namespace MyDirectX
             d3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
             d3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
 #endif
-            // suppress whole categories of messages
+            // Suppress whole categories of messages
             //D3D12_MESSAGE_CATEGORY categories[] = {  };
 
-            // suppress messages based on their severity level£¨ÑÏÖØµÈ¼¶£©
+            // Suppress messages based on their severity levelï¼ˆä¸¥é‡ç­‰çº§ï¼‰
             D3D12_MESSAGE_SEVERITY severities[] =
             {
                 D3D12_MESSAGE_SEVERITY_INFO
             };
 
-            // suppress individual messages by their ID
+            // Suppress individual messages by their ID
             D3D12_MESSAGE_ID denyIds[] =
             {
                 D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,
@@ -571,9 +571,9 @@ namespace MyDirectX
                 D3D12_MESSAGE_ID_EXECUTECOMMANDLISTS_WRONGSWAPCHAINBUFFERREFERENCE,
 
                 // 3dgep.com
-                // this occurs when a render target is cleared using a clear color that is not the optimized color
+                // This occurs when a render target is cleared using a clear color that is not the optimized color
                 // specified during resource creation.
-                // ºöÂÔ ClearRenderTargetView clearValue ÓëÉèÖÃÖµ²»Ò»µÄwarning
+                // å¿½ç•¥ ClearRenderTargetView clearValue ä¸è®¾ç½®å€¼ä¸ä¸€çš„warning
                 D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
 
                 // This occurs when there are uninitialized descriptors in a descriptor table, even when a
@@ -605,7 +605,7 @@ namespace MyDirectX
             // d3dInfoQueue->PushStorageFilter(&filter);
         }
 #endif
-        // »º´æ¾²Ì¬pDevice
+        // ç¼“å­˜é™æ€pDevice
         s_Device = d3d12Device.Get();
 
         return d3d12Device;
@@ -642,7 +642,7 @@ namespace MyDirectX
             }
         }
 
-        // Õâ¸ö¿ÉÒÔÂÔÈ¥...
+        // è¿™ä¸ªå¯ä»¥ç•¥å»...
         // feature level
         static const D3D_FEATURE_LEVEL s_featureLevels[] =
         {
@@ -829,7 +829,7 @@ namespace MyDirectX
         m_PresentHDRPSO.Finalize(m_Device.Get());
 
         auto CreatePSO = [&](GraphicsPSO &pso, const CD3DX12_SHADER_BYTECODE &pixelShader, const GraphicsPSO &templatePSO /*= m_PresentSDRPSO*/)
-            // ´íÎó	C2648	¡°MyDirectX::Graphics::m_PresentSDRPSO¡±: ½«³ÉÔ±×÷ÎªÄ¬ÈÏ²ÎÊıÊ¹ÓÃÒªÇó¾²Ì¬³ÉÔ±
+            // é”™è¯¯	C2648	â€œMyDirectX::Graphics::m_PresentSDRPSOâ€: å°†æˆå‘˜ä½œä¸ºé»˜è®¤å‚æ•°ä½¿ç”¨è¦æ±‚é™æ€æˆå‘˜
         {
             pso = templatePSO;
             pso.SetPixelShader(pixelShader);
@@ -881,8 +881,8 @@ namespace MyDirectX
             pso.Finalize(m_Device.Get());
         };
 
-        // Ä¿Ç°½öÌí¼ÓDefaultUpsample -2021-4-16
-        // TODO: ÍêÉÆÊ£ÓàCS
+        // ç›®å‰ä»…æ·»åŠ DefaultUpsample -2021-4-16
+        // TODO: å®Œå–„å‰©ä½™CS
         CreateCS(m_BicubicCS[(uint32_t)UpsampleCS::kDefaultCS], s_ShaderManager.m_BicubicUpsampleCS);
         CreateCS(m_LanczosCS[(uint32_t)UpsampleCS::kDefaultCS], s_ShaderManager.m_LanczosCS);
     }
@@ -937,10 +937,10 @@ namespace MyDirectX
         
         // context.SetViewportAndScissor(0, 0, GfxStates::s_NativeWidth, GfxStates::s_NativeHeight);
         // Note: -20-1-21
-        // MS MiniEngine²ÉÓÃNativeWidthºÍNativeHeight
-        // µ«ÊÇ Èç¹û DisplayWidthºÍDisplayHeightÓëÖ®²»Í¬£¬ÏÔÊ¾²¿·ÖÍ¼Ïñ£¨½Ø¶Ï£©£¨Ä¬ÈÏDisplay WºÍH¸üĞ¡£©£¬
-        // ÕâÑù shaderÀïÃæÓ¦¸Ã²ÉÓÃ ²ÉÑù £¨Sample£©¶ø·Ç È¡Öµ£¨Tex[xy]£©
-        // NOTE: -21-4-17 MSÒÑ¾­ĞŞ¸ÄÎª DisplayWidth/DisplayHeight
+        // MS MiniEngineé‡‡ç”¨NativeWidthå’ŒNativeHeight
+        // ä½†æ˜¯ å¦‚æœ DisplayWidthå’ŒDisplayHeightä¸ä¹‹ä¸åŒï¼Œæ˜¾ç¤ºéƒ¨åˆ†å›¾åƒï¼ˆæˆªæ–­ï¼‰ï¼ˆé»˜è®¤Display Wå’ŒHæ›´å°ï¼‰ï¼Œ
+        // è¿™æ · shaderé‡Œé¢åº”è¯¥é‡‡ç”¨ é‡‡æ · ï¼ˆSampleï¼‰è€Œé å–å€¼ï¼ˆTex[xy]ï¼‰
+        // NOTE: -21-4-17 MSå·²ç»ä¿®æ”¹ä¸º DisplayWidth/DisplayHeight
         context.SetViewportAndScissor(0, 0, GfxStates::s_DisplayWidth, GfxStates::s_DisplayHeight);
         struct Constants
         {
@@ -990,15 +990,15 @@ namespace MyDirectX
         context.SetDynamicDescriptor(0, 0, overlayBuffer.GetSRV());
 
         // >>> Debug
-        // ÏÔÊ¾ Default×ÖÌåÎÆÀí £¨µ÷ÊÔÊ¹ÓÃ£© -20-1-28
+        // æ˜¾ç¤º Defaultå­—ä½“çº¹ç† ï¼ˆè°ƒè¯•ä½¿ç”¨ï¼‰ -20-1-28
         // auto& textRenderer = Effect::s_TextRenderer;
         // context.SetDynamicDescriptor(0, 0, textRenderer.GetDefaultFontTexture());
         
-        // ÏÔÊ¾ LinearDepth [n, f] / f    -20-2-18
+        // æ˜¾ç¤º LinearDepth [n, f] / f    -20-2-18
         // auto& linearDepth = s_BufferManager.m_LinearDepth[m_FrameIndex % 2];
         // context.SetDynamicDescriptor(0, 0, linearDepth.GetSRV());
 
-        // ÏÔÊ¾ BloomBuffer   -20-2-24
+        // æ˜¾ç¤º BloomBuffer   -20-2-24
         //auto& bloomBuffer = s_BufferManager.m_aBloomUAV1[1];
         //context.TransitionResource(bloomBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         //context.SetDynamicDescriptor(0, 0, bloomBuffer.GetSRV());
@@ -1007,12 +1007,12 @@ namespace MyDirectX
 
         context.SetPipelineState(GfxStates::s_bEnableHDROutput ? m_BlendUIHDRPSO : m_BlendUIPSO);
         // context.SetConstants(1, 1.0f / GfxStates::s_NativeWidth, 1.0f / GfxStates::s_NativeHeight);
-        // NOTE: m_BlendUIPSO¾ÉÓĞ²ÎÊıÎª_RcpDestDim£¬Ã»ÓĞÓÃµ½
+        // NOTE: m_BlendUIPSOæ—§æœ‰å‚æ•°ä¸º_RcpDestDimï¼Œæ²¡æœ‰ç”¨åˆ°
         context.SetConstants(1, GfxStates::s_HDRPaperWhite / 10000.0f, (float)GfxStates::s_MaxDisplayLuminance);
         context.Draw(3);
     }
 
-    // ** TODO: ÓĞ´ıĞŞ¸Ä   -2021-4-17
+    // ** TODO: æœ‰å¾…ä¿®æ”¹   -2021-4-17
     void Graphics::PreparePresentLDR()
     {
         GraphicsContext &context = GraphicsContext::Begin(L"Present");
@@ -1075,7 +1075,7 @@ namespace MyDirectX
             const float WB = 1.0f + 4.0f * WA;
             // offset0 - (cosTheta * x + sinTheta * y)
             // offset1 - (sinTheta * x - cosTheta * y)
-            // ÇãĞ± theta ½Ç¶ÈµÄ2¸ö»¥Ïà´¹Ö±µÄÏòÁ¿
+            // å€¾æ–œ theta è§’åº¦çš„2ä¸ªäº’ç›¸å‚ç›´çš„å‘é‡
             float Constants[] = { X * texelWidth, Y * texelHeight, Y * texelWidth, -X * texelHeight, WA, WB };
             context.SetConstantArray(1, _countof(Constants), Constants);
             context.Draw(3);

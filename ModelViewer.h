@@ -1,10 +1,13 @@
-#pragma once
+Ôªø#pragma once
 #include "IGameApp.h"
 #include "Camera.h"
 #include "ShadowCamera.h"
 #include "CameraController.h"
+#include "DescriptorHeap.h"
 #include "GameInput.h"
 #include "Skybox.h"
+
+#include <atlbase.h>
 
 namespace MyDirectX
 {
@@ -23,6 +26,35 @@ namespace MyDirectX
 		kNum
 	};
 
+	enum class RaytracingType
+	{
+		Primarybarycentric = 0,
+		Reflectionbarycentric,
+		Shadows,
+		DiffuseHitShader,
+		Reflection,
+
+		Num
+	};
+
+	struct RaytracingDispatchRayInputs
+	{
+		RaytracingDispatchRayInputs() {  }
+		RaytracingDispatchRayInputs(ID3D12Device* pDevice, ID3D12StateObject* pPSO,
+			void* pHitGroupShaderTable, UINT HitGroupStride, UINT HitGroupTableSize,
+			LPCWSTR rayGenExportName, LPCWSTR missExportName);
+		~RaytracingDispatchRayInputs();
+
+		D3D12_DISPATCH_RAYS_DESC GetDispatchRayDesc(UINT DispatchWidth, UINT DispatchHeight);
+
+		UINT m_HitGroupStride = 0;
+		CComPtr<ID3D12StateObject> m_pPSO;
+		ByteAddressBuffer m_RayGenShaderTable;
+		ByteAddressBuffer m_MissShaderTable;
+		ByteAddressBuffer m_HitShaderTable;
+
+	};
+
 	class ModelViewer final : public IGameApp
 	{
 	public:
@@ -31,7 +63,7 @@ namespace MyDirectX
 		virtual void Update(float deltaTime) override;
 		virtual void Render() override;
 
-		virtual void Raytrace();
+		virtual void Raytrace(GraphicsContext &gfxContext);
 
 		struct CommonStates
 		{
@@ -59,16 +91,11 @@ namespace MyDirectX
 		void RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4 viewProjMat, ObjectFilter filter = ObjectFilter::kAll);
 		void CreateParticleEffects();
 
-		void InitRaytracingStateObjects();
-		void RaytraceDiffuse(GraphicsContext& gfxContext);
-		void RaytraceShadows(GraphicsContext& gfxContext);
-		void RaytraceReflections(GraphicsContext& gfxContext);
-
 		Math::Camera m_Camera;
 		std::unique_ptr<CameraController> m_CameraController;
 		Math::Matrix4 m_ViewProjMatrix;
 
-		// root signature & PSOs
+		// Root signature & PSOs
 		RootSignature m_RootSig;
 		GraphicsPSO m_DepthPSO{ L"Depth PSO" };
 		GraphicsPSO m_CutoutDepthPSO{ L"Cutout Depth PSO" };
@@ -77,7 +104,7 @@ namespace MyDirectX
 		GraphicsPSO m_ShadowPSO{ L"Shadow PSO" };
 		GraphicsPSO m_CutoutShadowPSO{ L"Cutout Shadow PSO" };
 
-		// ¡Ÿ ±…Ë÷√£¨∫Û√Ê–Ë“™“∆µΩ±¥¶ -20-2-21
+		// ‰∏¥Êó∂ËÆæÁΩÆÔºåÂêéÈù¢ÈúÄË¶ÅÁßªÂà∞Âà´Â§Ñ -20-2-21
 		RootSignature m_LinearDepthRS;
 		ComputePSO m_LinearDepthCS;
 
@@ -85,8 +112,41 @@ namespace MyDirectX
 		ShadowCamera m_SunShadow;
 
 		D3D12_CPU_DESCRIPTOR_HANDLE m_ExtraTextures[6];
+
+		void InitRaytracing();
+		void InitRaytracingViews(ID3D12Device* pDevice);
+		void InitRaytracingAS(ID3D12Device* pDevice);
+		void InitRaytracingStateObjects(ID3D12Device* pDevice);
+		void CleanRaytracing();
+
+		void RaytraceBarycentrics(CommandContext& context);
+		void RaytraceBarycentricsSSR(CommandContext& context);
+		void RaytraceDiffuse(GraphicsContext& gfxContext);
+		void RaytraceShadows(GraphicsContext& gfxContext);
+		void RaytraceReflections(GraphicsContext& gfxContext);
+
+		CComPtr<ID3D12Device5> m_RaytracingDevice;
+		std::vector<CComPtr<ID3D12Resource>> m_BLAS;
+		CComPtr<ID3D12Resource> m_TLAS;
+		RootSignature m_GlobalRaytracingRS;
+		RootSignature m_LocalRaytracingRS;
+
+		UserDescriptorHeap m_RaytracingDescHeap;
+		// UAVs
+		D3D12_GPU_DESCRIPTOR_HANDLE m_OutColorUAV;
+		D3D12_GPU_DESCRIPTOR_HANDLE m_DepthAndNormalsTable;
+		D3D12_GPU_DESCRIPTOR_HANDLE m_SceneSrvs;
+		// Meshes
+		D3D12_GPU_DESCRIPTOR_HANDLE m_GpuMeshInfo;
+		// Texture srv descriptors
+		D3D12_GPU_DESCRIPTOR_HANDLE m_GpuSceneMaterialSrvs[32];
+
+		RaytracingDispatchRayInputs m_RaytracingInputs[(uint32_t)RaytracingType::Num];
+		D3D12_CPU_DESCRIPTOR_HANDLE m_BVHAttribSrvs[40];
+		ByteAddressBuffer m_HitConstantBuffer;
+		ByteAddressBuffer m_DynamicConstantBuffer;
 		
-		// skybox
+		// Skybox
 		Skybox m_Skybox;
 
 		const char* m_ModelName = nullptr;

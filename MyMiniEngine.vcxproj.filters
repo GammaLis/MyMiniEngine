@@ -412,6 +412,9 @@
     <ClInclude Include="Game\Accelerations.h">
       <Filter>Game</Filter>
     </ClInclude>
+    <ClInclude Include="Core\ProfilingScope.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -635,6 +638,9 @@
     </ClCompile>
     <ClCompile Include="Game\Accelerations.cpp">
       <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\ProfilingScope.cpp">
+      <Filter>Core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

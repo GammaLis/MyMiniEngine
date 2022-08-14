@@ -1,4 +1,4 @@
-#pragma once
+Ôªø#pragma once
 #include "pch.h"
 #include "GpuBuffer.h"
 
@@ -21,7 +21,7 @@ namespace MyDirectX
 		virtual void Load() {  }
 
 		// attributes
-		// ‘›∂®8∏ˆ
+		// ÊöÇÂÆö8‰∏™
 		static const unsigned MaxAttrib = 8;
 		enum class AttribMask
 		{
@@ -96,7 +96,7 @@ namespace MyDirectX
 
 			unsigned int materialIndex;
 
-			// ∂•µ„ Ù–‘
+			// È°∂ÁÇπÂ±ûÊÄß
 			unsigned int attribsEnabled;
 			unsigned int vertexStride;
 			VAttrib attrib[MaxAttrib];
@@ -121,7 +121,7 @@ namespace MyDirectX
 			float shininess;			// specular exponent
 			float specularStrength;		// multiplier on top of specular color
 
-			// textures (Œ∆¿ÌŒƒº˛¬∑æ∂)
+			// textures (Á∫πÁêÜÊñá‰ª∂Ë∑ØÂæÑ)
 			std::string texDiffusePath;
 			std::string texSpecularPath;
 			std::string texNormalPath;
@@ -153,9 +153,15 @@ namespace MyDirectX
 			return m_BoundingBox;
 		}
 
-		D3D12_CPU_DESCRIPTOR_HANDLE* GetSRVs(uint32_t materialIdx) const
+		uint32_t GetVertexStride() const { return m_VertexStride; }
+		D3D12_VERTEX_BUFFER_VIEW GetVertexBuffer() const { return m_VertexBuffer.VertexBufferView(); }
+		D3D12_CPU_DESCRIPTOR_HANDLE GetVertexBufferSRV() const { return m_VertexBuffer.GetSRV(); }
+		D3D12_INDEX_BUFFER_VIEW GetIndexBuffer() const { return m_IndexBuffer.IndexBufferView(); }
+		D3D12_CPU_DESCRIPTOR_HANDLE GetIndexBufferSRV() const { return m_IndexBuffer.GetSRV(); }
+
+		D3D12_CPU_DESCRIPTOR_HANDLE* GetSRVs(uint32_t materialIdx, uint32_t subIdx = 0) const
 		{
-			return m_SRVs + materialIdx * 6;
+			return m_SRVs + (materialIdx * 6 + subIdx);
 		}
 
 		D3D12_CPU_DESCRIPTOR_HANDLE GetDefaultSRV() const

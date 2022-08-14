@@ -6,7 +6,7 @@
 namespace MyDirectX
 {
 	/**
-		this is an unbounded resource descriptor allocator. It is intended to provide space for CPU-visible
+		This is an unbounded resource descriptor allocator. It is intended to provide space for CPU-visible
 	resource descriptors as resources are created. For those that need to be made shader-visible, they will
 	need to be copied to a UserDescriptorHeap or a DynamicDescriptorHeap.
 	*/
@@ -35,7 +35,7 @@ namespace MyDirectX
 		uint32_t m_RemainingFreeHandles = 0;
 	};
 
-	// this handle refersto a descriptor or a descriptor table (contiguous descriptors) that is shader visible
+	// This handle refers to a descriptor or a descriptor table (contiguous descriptors) that is shader visible
 	class DescriptorHandle
 	{
 	public:
