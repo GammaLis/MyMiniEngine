@@ -4,6 +4,7 @@
 #include "ShadowCamera.h"
 #include "CameraController.h"
 #include "DescriptorHeap.h"
+#include "ColorBuffer.h"
 #include "GameInput.h"
 #include "Skybox.h"
 
@@ -34,7 +35,21 @@ namespace MyDirectX
 		DiffuseHitShader,
 		Reflection,
 
+		ReferencePathTracing,
+
 		Num
+	};
+
+	enum class RaytracingMode
+	{
+		Off,
+		Traversal,
+		SSR,
+		Shadows,
+		DiffuseWithShadowMaps,
+		DiffuseWithShadowRays,
+		Reflections,
+		ReferencePathTracing,
 	};
 
 	struct RaytracingDispatchRayInputs
@@ -43,7 +58,8 @@ namespace MyDirectX
 		RaytracingDispatchRayInputs(ID3D12Device* pDevice, ID3D12StateObject* pPSO,
 			void* pHitGroupShaderTable, UINT HitGroupStride, UINT HitGroupTableSize,
 			LPCWSTR rayGenExportName, LPCWSTR missExportName);
-		~RaytracingDispatchRayInputs();
+
+		void Cleanup();
 
 		D3D12_DISPATCH_RAYS_DESC GetDispatchRayDesc(UINT DispatchWidth, UINT DispatchHeight);
 
@@ -78,6 +94,8 @@ namespace MyDirectX
 		CommonStates m_CommonStates;
 
 		static const UINT c_MaxRayRecursion = 2;
+		static const UINT c_MaxPayloadSize = 64;
+		static const UINT c_MaxAttributeSize = 8;
 
 	private:
 		virtual void InitPipelineStates() override;
@@ -124,6 +142,7 @@ namespace MyDirectX
 		void RaytraceDiffuse(GraphicsContext& gfxContext);
 		void RaytraceShadows(GraphicsContext& gfxContext);
 		void RaytraceReflections(GraphicsContext& gfxContext);
+		void ReferencePathTracing(GraphicsContext& gfxContext);
 
 		CComPtr<ID3D12Device5> m_RaytracingDevice;
 		std::vector<CComPtr<ID3D12Resource>> m_BLAS;
@@ -132,12 +151,13 @@ namespace MyDirectX
 		RootSignature m_LocalRaytracingRS;
 
 		UserDescriptorHeap m_RaytracingDescHeap;
-		// UAVs
+		// UAVs & SRVs
 		D3D12_GPU_DESCRIPTOR_HANDLE m_OutColorUAV;
 		D3D12_GPU_DESCRIPTOR_HANDLE m_DepthAndNormalsTable;
 		D3D12_GPU_DESCRIPTOR_HANDLE m_SceneSrvs;
+		D3D12_GPU_DESCRIPTOR_HANDLE m_LightBufferSrv;
 		// Meshes
-		D3D12_GPU_DESCRIPTOR_HANDLE m_GpuMeshInfo;
+		D3D12_GPU_DESCRIPTOR_HANDLE m_GpuMeshInfo; // Not used now
 		// Texture srv descriptors
 		D3D12_GPU_DESCRIPTOR_HANDLE m_GpuSceneMaterialSrvs[32];
 
@@ -145,6 +165,13 @@ namespace MyDirectX
 		D3D12_CPU_DESCRIPTOR_HANDLE m_BVHAttribSrvs[40];
 		ByteAddressBuffer m_HitConstantBuffer;
 		ByteAddressBuffer m_DynamicConstantBuffer;
+
+		ComputePSO m_BufferCopyPSO{ L"Copy Buffer PSO"};
+		ComputePSO m_ClearBufferPSO{ L"Clear Buffer PSO" };
+		ColorBuffer m_AccumulationBuffer;
+		DescriptorHandle m_AccumulationBufferUAV;
+		DescriptorHandle m_AccumulationBufferSRV;
+		int m_AccumulationIndex = -1;
 		
 		// Skybox
 		Skybox m_Skybox;

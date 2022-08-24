@@ -771,6 +771,36 @@
     <None Include="Core\Shaders\BicubicFilterFunctions.hlsli">
       <Filter>Core\Shaders\Present</Filter>
     </None>
+    <None Include="Shaders\Raytracing\PathTracingCommon.hlsl">
+      <Filter>Shaders\ModelViewer\Raytracing</Filter>
+    </None>
+    <None Include="Shaders\Raytracing\RayTracingCommon.hlsl">
+      <Filter>Shaders\ModelViewer\Raytracing</Filter>
+    </None>
+    <None Include="Shaders\Raytracing\RayTracingIntersection.hlsl">
+      <Filter>Shaders\ModelViewer\Raytracing</Filter>
+    </None>
+    <None Include="Shaders\Raytracing\ShaderPassPathTracing.hlsl">
+      <Filter>Shaders\ModelViewer\Raytracing</Filter>
+    </None>
+    <None Include="Shaders\Common.hlsl">
+      <Filter>Shaders\Common</Filter>
+    </None>
+    <None Include="Shaders\MonteCarlo.hlsl">
+      <Filter>Shaders\Common</Filter>
+    </None>
+    <None Include="Shaders\BSDF.hlsl">
+      <Filter>Shaders\Common</Filter>
+    </None>
+    <None Include="Shaders\Random.hlsl">
+      <Filter>Shaders\Common</Filter>
+    </None>
+    <None Include="Shaders\Raytracing\RayTracingLightingCommon.hlsl">
+      <Filter>Shaders\ModelViewer\Raytracing</Filter>
+    </None>
+    <None Include="Shaders\OctahedralCommon.hlsl">
+      <Filter>Shaders\Common</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Core\Shaders\TextVS.hlsl">
@@ -1091,26 +1121,32 @@
     <FxCompile Include="Core\Shaders\ResolveTAACS_Intel.hlsl">
       <Filter>Core\Shaders\Temporal</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\RayGenShaderLib.hlsl">
+    <FxCompile Include="Shaders\Raytracing\RayGenShaderLib.hlsl">
       <Filter>Shaders\ModelViewer\Raytracing</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\RayGenShaderSSRLib.hlsl">
+    <FxCompile Include="Shaders\Raytracing\RayGenShaderSSRLib.hlsl">
       <Filter>Shaders\ModelViewer\Raytracing</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\RayGenShaderShadowsLib.hlsl">
+    <FxCompile Include="Shaders\Raytracing\RayGenShaderShadowsLib.hlsl">
       <Filter>Shaders\ModelViewer\Raytracing</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\MissShaderLib.hlsl">
+    <FxCompile Include="Shaders\Raytracing\MissShaderLib.hlsl">
       <Filter>Shaders\ModelViewer\Raytracing</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\MissShadowsLib.hlsl">
+    <FxCompile Include="Shaders\Raytracing\MissShadowsLib.hlsl">
       <Filter>Shaders\ModelViewer\Raytracing</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\HitShaderLib.hlsl">
+    <FxCompile Include="Shaders\Raytracing\HitShaderLib.hlsl">
       <Filter>Shaders\ModelViewer\Raytracing</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\DiffuseHitShaderLib.hlsl">
+    <FxCompile Include="Shaders\Raytracing\DiffuseHitShaderLib.hlsl">
       <Filter>Shaders\ModelViewer\Raytracing</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Raytracing\SimplePathTracing.hlsl">
+      <Filter>Shaders\ModelViewer\Raytracing</Filter>
+    </FxCompile>
+    <FxCompile Include="Core\Shaders\BufferCopyCS.hlsl">
+      <Filter>Core\Shaders\Present</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

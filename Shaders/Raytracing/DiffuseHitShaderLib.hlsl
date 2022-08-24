@@ -11,10 +11,10 @@
 // Author(s):    James Stanard, Christopher Wallis
 //
 #define HLSL
-#include "../ModelViewerRaytracing.h"
-#include "../Core/RayTracing/RayTracingHlslCompat.h"
+#include "../../ModelViewerRaytracing.h"
+#include "../../Core/RayTracing/RayTracingHlslCompat.h"
 
-cbuffer CBMaterial : register(b3)
+cbuffer CBMaterial : register(b3, space1)
 {
 	uint _MaterialID;
 }
@@ -26,8 +26,8 @@ ByteAddressBuffer _Attributes	: register(t3);
 Texture2D<float> _TexShadow		: register(t4);
 Texture2D<float> _TexSSAO		: register(t5);
 
-Texture2D<float4> _LocalTexture : register(t6);
-Texture2D<float4> _LocalNormal	: register(t7);
+Texture2D<float4> _LocalTexture : register(t6, space1);
+Texture2D<float4> _LocalNormal	: register(t7, space1);
 
 Texture2D<float4> _TexNormal	: register(t13);
 
@@ -197,7 +197,7 @@ void Hit(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr
 	const float3 bitangent2 = asfloat(_Attributes.Load3(info.BitangentAttributeOffsetBytes + ii.z * info.AttributeStrideBytes));
 	float3 vsBitangent = normalize(bary.z * bitangent0 + bary.y * bitangent1 + bary.z * bitangent2);
 
-	// TODO: Should just store uv partial derivatives in here rather than loading position and culculating it per pixel
+	// TODO: Should just store uv partial derivatives in here rather than loading position and calculating it per pixel
 	const float3 p0 = asfloat(_Attributes.Load3(info.PositionAttributeOffsetBytes + ii.x * info.AttributeStrideBytes));
 	const float3 p1 = asfloat(_Attributes.Load3(info.PositionAttributeOffsetBytes + ii.y * info.AttributeStrideBytes));
 	const float3 p2 = asfloat(_Attributes.Load3(info.PositionAttributeOffsetBytes + ii.z * info.AttributeStrideBytes));

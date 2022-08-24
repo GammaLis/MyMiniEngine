@@ -25,8 +25,8 @@ namespace MyDirectX
 		void CreatePlaced(ID3D12Device* pDevice, const std::wstring& name, ID3D12Heap* pBackingHeap, uint32_t heapOffset, uint32_t numElements,
 			uint32_t elementSize, const void* initialData = nullptr);
 
-		const D3D12_CPU_DESCRIPTOR_HANDLE GetUAV() const { return m_UAV; }
-		const D3D12_CPU_DESCRIPTOR_HANDLE GetSRV() const { return m_SRV; }
+		const D3D12_CPU_DESCRIPTOR_HANDLE& GetUAV() const { return m_UAV; }
+		const D3D12_CPU_DESCRIPTOR_HANDLE& GetSRV() const { return m_SRV; }
 
 		D3D12_GPU_VIRTUAL_ADDRESS RootConstantBufferView() const { return m_GpuVirtualAddress; }
 

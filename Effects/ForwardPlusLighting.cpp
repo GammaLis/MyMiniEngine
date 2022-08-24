@@ -1,4 +1,4 @@
-#include "ForwardPlusLighting.h"
+ï»¿#include "ForwardPlusLighting.h"
 #include "CommandContext.h"
 #include "Graphics.h"
 #include "GfxCommon.h"
@@ -22,7 +22,7 @@ namespace MyDirectX
 		float _InvTileDim;
 		float _RcpZMagic;
 		uint32_t _TileCount;
-		//uint32_t _Padding[3];	// Matrix4 ÒÑ¾­128Î»(16×Ö½Ú)¶ÔÆë£¬²»ÓÃ²¹Æë -20-2-17
+		//uint32_t _Padding[3];	// Matrix4 å·²ç»128ä½(16å­—èŠ‚)å¯¹é½ï¼Œä¸ç”¨è¡¥é½ -20-2-17
 		Matrix4 _ViewProjMat; 
 	};
 
@@ -151,7 +151,7 @@ namespace MyDirectX
 			m_LightData[n].type = type;
 			m_LightData[n].coneDir = XMFLOAT3(coneDir.GetX(), coneDir.GetY(), coneDir.GetZ());
 			m_LightData[n].coneAngles = XMFLOAT2(1.0f / (cos(coneInner) - cos(coneOuter)), cos(coneOuter));
-			// WARNING:²»ÄÜ´æÎªMath::Matrix4 - 16×Ö½Ú¶ÔÆë SIMDÖ¸Áî £¡£¡£¡
+			// WARNING:ä¸èƒ½å­˜ä¸ºMath::Matrix4 - 16å­—èŠ‚å¯¹é½ SIMDæŒ‡ä»¤ ï¼ï¼ï¼
 			// m_LightData[n].shadowTextureMatrix = DirectX::XMMATRIX(Transpose(shadowTextureMatrix));
 			DirectX::XMStoreFloat4x4(&m_LightData[n].shadowTextureMatrix, DirectX::XMMATRIX(Transpose(shadowTextureMatrix)));
 		}
@@ -179,7 +179,7 @@ namespace MyDirectX
 
 		// assumes max resolution of 1920x1080
 		uint32_t maxWidth = 1920, maxHeight = 1080;
-		// light grid cells ×î´óÊıÁ¿
+		// light grid cells æœ€å¤§æ•°é‡
 		uint32_t lightGridCells = Math::DivideByMultiple(maxWidth, MinLightGridDim) * Math::DivideByMultiple(maxHeight, MinLightGridDim);
 		uint32_t lightGridSizeBytes = lightGridCells * (4 + MaxLights * 4);
 		m_LightGrid.Create(pDevice, L"m_LightGrid", lightGridSizeBytes, 1, nullptr);

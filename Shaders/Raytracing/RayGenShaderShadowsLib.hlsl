@@ -1,5 +1,5 @@
 #define HLSL
-#include "../ModelViewerRaytracing.h"
+#include "../../ModelViewerRaytracing.h"
 
 Texture2D<float> _DepthTex :	register(t12);
 

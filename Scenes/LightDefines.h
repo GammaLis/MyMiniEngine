@@ -17,7 +17,7 @@ struct LightData
 	float3 positionOrDirection = float3(0, -1, 0);
 	uint type = 0;		// 0 - directional lights, 1 - punctual lights
 	float3 color = float3(1, 1, 1);	// the color of emitted light, as a linear RGB color
-	float intensity = 1.0f;	// the light's brighness. The unit depends on the type of light
+	float intensity = 1.0f;	// the light's brightness. The unit depends on the type of light
 	float3 spotDirection = float3(0, -1, 0);
 	float falloffRadius = 100.0f;	// maximum distance of influence
 	float2 spotAttenScaleOffset = float2(0, 1);	// Dot(...) * scaleOffset.x + scaleOffset.y

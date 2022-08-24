@@ -16,9 +16,6 @@ float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET
 	// float2 uv = saturate(_RcpDestDim * pos.xy);
 	// color = _ColorTex.SampleLevel(s_BilinearSampler, uv, 0);
 
-	// -mf (显示字体纹理)
-	// color = _ColorTex.SampleLevel(s_BilinearSampler, uv, 0);
-
 	color = _ColorTex[(uint2)pos.xy];
 
 	return color;

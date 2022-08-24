@@ -1,5 +1,5 @@
 #define HLSL
-#include "../ModelViewerRaytracing.h"
+#include "../../ModelViewerRaytracing.h"
 
 [shader("raygeneration")]
 void RayGen()
