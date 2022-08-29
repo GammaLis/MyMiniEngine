@@ -14,13 +14,18 @@
 #include "MyBaseApp.h"
 #include "Utility.h"
 #include "IGameApp.h"
-#include "ModelViewer.h"
-#include "glTFViewer.h"
-#include "SceneViewer.h"
-#include "OceanViewer.h"
-#include "VoronoiTextureGenerator.h"
 
-#if IMPLEMENTED == IMPLEMENTED_BVH
+#if IMPLEMENTED == IMPLEMENTED_MODELVIEWER
+#include "ModelViewer.h"
+#elif IMPLEMENTED == IMPLEMENTED_GLTFVIEWER
+#include "glTFViewer.h"
+#elif IMPLEMENTED == IMPLEMENTED_SCENEVIEWER
+#include "SceneViewer.h"
+#elif IMPLEMENTED == IMPLEMENTED_OCEANVIEWER
+#include "OceanViewer.h"
+#elif IMPLEMENTED == IMPLEMENTED_VORONOITEXTURE
+#include "VoronoiTextureGenerator.h"
+#elif IMPLEMENTED == IMPLEMENTED_BVH
 #include "BVHApp.h"
 #endif
 

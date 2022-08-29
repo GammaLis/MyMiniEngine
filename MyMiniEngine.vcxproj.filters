@@ -415,6 +415,9 @@
     <ClInclude Include="Core\ProfilingScope.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="Game\ReservoirSampling.h">
+      <Filter>Game</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -801,6 +804,9 @@
     <None Include="Shaders\OctahedralCommon.hlsl">
       <Filter>Shaders\Common</Filter>
     </None>
+    <None Include="Shaders\Raytracing\Reservoir.hlsl">
+      <Filter>Shaders\ModelViewer\Raytracing</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Core\Shaders\TextVS.hlsl">
@@ -1147,6 +1153,12 @@
     </FxCompile>
     <FxCompile Include="Core\Shaders\BufferCopyCS.hlsl">
       <Filter>Core\Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Raytracing\ClearReservoirs.hlsl">
+      <Filter>Shaders\ModelViewer\Raytracing</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Raytracing\ReSTIRWithDirectLighting.hlsl">
+      <Filter>Shaders\ModelViewer\Raytracing</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

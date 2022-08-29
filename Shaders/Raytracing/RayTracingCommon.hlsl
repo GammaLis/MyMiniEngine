@@ -19,6 +19,7 @@
 #include "../BSDF.hlsl"
 #include "../../ModelViewerRaytracing.h"
 #include "../../Core/RayTracing/RayTracingHlslCompat.h"
+#include "../../Core/Shaders/PixelPacking_Velocity.hlsli"
 
 cbuffer CBMaterial : register(b3, space1)
 {
@@ -31,13 +32,15 @@ ByteAddressBuffer _Attributes	: register(t3);
 
 StructuredBuffer<LightData> _LightBuffer : register(t4);
 
-Texture2D<float> _TexShadow		: register(t5);
-Texture2D<float> _TexSSAO		: register(t6);
+Texture2D<float> _TexShadow		: register(t6);
+Texture2D<float> _TexSSAO		: register(t7);
 
 Texture2D<float4> _LocalTexture : register(t6, space1);
 Texture2D<float4> _LocalNormal	: register(t7, space1);
 
+Texture2D<float>  _TexDepth		: register(t12);
 Texture2D<float4> _TexNormal	: register(t13);
+Texture2D<packed_velocity_t> _TexVelocity	: register(t14);
 
 SamplerState _S0 : register(s0);
 SamplerComparisonState SamplerShadow : register(s1);

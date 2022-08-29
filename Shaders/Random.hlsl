@@ -1,4 +1,4 @@
-﻿#ifndef RANDOM_INCLUDED
+#ifndef RANDOM_INCLUDED
 #define RANDOM_INCLUDED
 
 #ifndef USE_PCG

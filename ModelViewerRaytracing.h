@@ -45,6 +45,7 @@ struct DynamicCB
 	float4 worldCameraPosition; // xyz - camPos, w - unused
 	float4 backgroundColor;
 	float2 resolution;
+	int frameIndex;
 	int accumulationIndex;
 };
 
@@ -112,6 +113,11 @@ inline float3 DirectionalColor(float3 rd)
 {
 	float t = 0.5f * (rd.y + 1.0f);
 	return lerp(float3(1, 1, 1), float3(0.5, 0.7, 1.0), t);
+}
+
+float2 STtoUV(float2 st)
+{
+	return (st + 0.5) * rcp(_Dynamics.resolution);
 }
 
 #endif // HLSL

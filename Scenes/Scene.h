@@ -13,7 +13,7 @@
 #include "RootSignature.h"
 #include "CommandSignature.h"
 #include "PipelineState.h"
-#include "bindlessDeferred.h"
+#include "BindlessDeferred.h"
 
 namespace MyDirectX
 {

@@ -8,6 +8,9 @@
 #include "GameInput.h"
 #include "Skybox.h"
 
+/// Raytracing
+#include "ReservoirSampling.h"
+
 #include <atlbase.h>
 
 namespace MyDirectX
@@ -27,6 +30,7 @@ namespace MyDirectX
 		kNum
 	};
 
+	/// Raytracing
 	enum class RaytracingType
 	{
 		Primarybarycentric = 0,
@@ -36,6 +40,7 @@ namespace MyDirectX
 		Reflection,
 
 		ReferencePathTracing,
+		ReSTIRWithDirectLights,
 
 		Num
 	};
@@ -50,6 +55,7 @@ namespace MyDirectX
 		DiffuseWithShadowRays,
 		Reflections,
 		ReferencePathTracing,
+		ReSTIRWithDirectLights
 	};
 
 	struct RaytracingDispatchRayInputs
@@ -143,6 +149,7 @@ namespace MyDirectX
 		void RaytraceShadows(GraphicsContext& gfxContext);
 		void RaytraceReflections(GraphicsContext& gfxContext);
 		void ReferencePathTracing(GraphicsContext& gfxContext);
+		void ReSTIRWithDirectLights(GraphicsContext& gfxContext);
 
 		CComPtr<ID3D12Device5> m_RaytracingDevice;
 		std::vector<CComPtr<ID3D12Resource>> m_BLAS;
@@ -163,6 +170,8 @@ namespace MyDirectX
 
 		RaytracingDispatchRayInputs m_RaytracingInputs[(uint32_t)RaytracingType::Num];
 		D3D12_CPU_DESCRIPTOR_HANDLE m_BVHAttribSrvs[40];
+
+		// Ray tracing constants
 		ByteAddressBuffer m_HitConstantBuffer;
 		ByteAddressBuffer m_DynamicConstantBuffer;
 
@@ -172,6 +181,16 @@ namespace MyDirectX
 		DescriptorHandle m_AccumulationBufferUAV;
 		DescriptorHandle m_AccumulationBufferSRV;
 		int m_AccumulationIndex = -1;
+
+		// Reservoir sampling
+		ComputePSO m_ClearReservoirPSO{ L"Clear Reservoir PSO" };
+		ComputePSO m_TemporalReservoirReusePSO{ L"Temporal Reuse PSO" };
+		ComputePSO m_SpatialReservoirReusePSO{ L"Spatial Reuse PSO" };
+		StructuredBuffer m_ReservoirBuffer[2];
+		StructuredBuffer m_IntermediateReservoirBuffer; // TODO...
+		DescriptorHandle m_ReservoirBufferUAV;
+		DescriptorHandle m_ReservoirBufferSRV;
+		bool m_bNeedClearReservoirs = true;
 		
 		// Skybox
 		Skybox m_Skybox;

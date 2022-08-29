@@ -14,7 +14,7 @@ struct StaticVertexData
 {
 	float3 position;
 	float3 normal;
-	float3 tangent;		// assimp tagent - float3
+	float3 tangent;		// assimp tangent - float3
 	float3 bitangent;
 	float2 uv;
 };

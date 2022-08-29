@@ -1,0 +1,180 @@
+// Ref: "Spatiotemporal Reservior Resampling for Real-time Ray Tracing with Dynamic Direct Lighting"
+
+#define USE_PCG 1
+
+// Number of candidates 
+#define RIS_CANDIDATES_LIGHTS 8
+
+// Enable this to cast shadow rays for each candidate during resampling. This is expensive but increases quality
+#define SHADOW_RAY_IN_RIS 0
+
+#include "RayTracingCommon.hlsl"
+#include "RayTracingIntersection.hlsl"
+#include "Reservoir.hlsl"
+#include "RayTracingLightingCommon.hlsl"
+#include "ShaderPassPathTracing.hlsl"
+
+// #define DEBUG 1
+
+MaterialProperties GetMaterialProperties(FHitInfo payload)
+{
+    MaterialProperties material = (MaterialProperties)0;
+	material.baseColor = payload.color;
+	material.opacity = 1.0f;
+	material.roughness = 0.5f;
+	return material;
+}
+
+// Calculate probability of selecting BRDF (specular or diffuse) using the approximate Fresnel term
+float GetBRDFProbability(MaterialProperties material, float3 V, float3 shadingNormal)
+{
+	// Evaluate Fresnel term using the shading normal
+    // Note: we use the shading normal instead of the microfacet normal (half-vector) for Fresnel term here.
+    // That's suboptimal for rough surfaces at grazing angles, but half-vector is yet unknown at this point
+	float specularF0 = Luminance(BaseColorToSpecularF0(material.baseColor, material.metallic));
+	float diffuseReflectance = Luminance(BaseColorToDiffuseReflectance(material.baseColor, material.metallic));
+	float Fresnel = saturate(Luminance(EvalFresnel(specularF0, ShadowedF90(specularF0), max(0.0f, dot(V, shadingNormal)))));
+
+    // Approximate relative contribution of BRDFs using the Fresnel term
+	float specular = Fresnel;
+	float diffuse = diffuseReflectance * (1.0f - Fresnel); // if diffuse term is weighted by Fresnel, apply it here as well
+
+    // Return probability of selecting specular BRDF over diffuse BRDF
+	float p = (specular / max(0.0001f, (specular + diffuse)));
+
+    // Clamp probability to avoid undersampling of less prominent BRDF
+	return clamp(p, 0.1f, 0.9f);
+}
+
+/**
+ * A Monte Carlo Unidirectional Path Tracer
+ * > Path tracing simulates how light energy moves through an environment (light transport) by constructing `paths` between
+ * light sources and the virtual camera. A path is the combination of several ray segments. Ray segments are the connections
+ * between the camera, surfaces in environment, and/or light sources.
+ * > Unidirectional means paths are constructed in a single (macro) direction. Paths can start at the camera and move toward
+ * light sources or vice versa.
+ * > Monte Carlo algorithm use random sampling to approximate difficult or intractable integrals. In a path tracer,
+ * the approximated integral is the rendering equation, and tracing more paths (a) increases the accuracy of the integral
+ * approximation and (b) produces a better image. Since paths are costly to compute, we accumulate the resulting color from
+ * each path over time to construct the final image.
+ */
+[shader("raygeneration")]
+void RayGen()
+{
+    uint2 launchIndex = DispatchRaysIndex().xy;
+    uint2 launchDimensions = DispatchRaysDimensions().xy;
+
+    // Initialize random number generator
+    RngStateType rngState = InitRNG(launchIndex, launchDimensions, uint(_Dynamics.frameIndex));
+
+    float2 pixel = float2(DispatchRaysIndex().xy);
+    const float2 resolution = float2(DispatchRaysDimensions().xy);
+
+    // TODO...
+    // Add a random offset to the pixel's screen coordinates
+	float2 offset = 0.5f;
+	if (_Dynamics.accumulationIndex >= 0)
+		offset = float2(Rand(rngState), Rand(rngState));
+
+    pixel = (pixel + offset) / resolution * 2.0f - 1.0f;
+    pixel.y = -pixel.y;
+
+    /**
+     * The inverse view-projection matrix can be applied to "unproject" points on screen from
+     * normalized device coordinate space. This is not recommended, however, as near and far plane
+     * settings stored in the projection matrix cause numerical precision issues when the transformation 
+     * is reversed.
+     */
+	float4 unprojected = mul(float4(pixel, 0, 1), _Dynamics.cameraToWorld);
+    float3 world = unprojected.xyz / unprojected.w;
+	float3 origin = origin = _Dynamics.worldCameraPosition.xyz;
+    float3 direction = normalize(world - origin);
+
+    RayDesc ray;
+    ray.Origin = _Dynamics.worldCameraPosition.xyz;
+    ray.TMin = 0.0f;
+    ray.TMax = FLT_MAX;
+    ray.Direction = direction;
+
+    FHitInfo payload = (FHitInfo)0;
+    payload.T = -1;
+    payload.materialID = -1;
+	payload.color = 0;
+
+    // Initialize path tracing data
+    // Radiance is the final intensity of the light energy presented on screen for a given path
+    float3 radiance = float3(0, 0, 0);
+	float3 throughput = float3(1, 1, 1);
+    PackedReservoir r = CreateReservoir();
+
+    // Trace the ray
+    TraceRay(
+        g_Accel,
+        RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
+        0xFF,
+        STANDARD_RAY_INDEX, 
+        1,
+        STANDARD_RAY_INDEX,
+        ray,  
+        payload);
+    // On a smiss, load the sky value and break out of the ray tracing loop
+    if (!payload.HasHit())
+    {
+        radiance += throughput * _Dynamics.backgroundColor.rgb;
+		g_ScreenOutput[launchIndex] = float4( /*SrgbToLinear*/(radiance), 1.0f);
+		StoreReservoir(r, launchIndex, (uint2) _Dynamics.resolution);
+        return;
+    }
+
+    // Decode normals and flip them towards the incident ray direction (needed for backfacing triangles)
+    float3 geometryNormal = DecodeNormalOctahedron(payload.encodedNormals.xy);
+    float3 shadingNormal = DecodeNormalOctahedron(payload.encodedNormals.zw);
+    float3 hitPosition = payload.hitPosition;
+
+    float3 V = -ray.Direction;
+    if (dot(geometryNormal, V) < 0.0)
+        geometryNormal = -geometryNormal;
+    if (dot(geometryNormal, shadingNormal) < 0.0f)
+        shadingNormal = -shadingNormal;
+
+    // MaterialInputs
+    MaterialProperties material = GetMaterialProperties(payload);
+
+    // Evalute sun light
+#if 0
+    LightData sunLight = GetSunLight();
+    float3 LSun = -sunLight.pos;
+    if (CastShadowRay(hitPosition, geometryNormal, LSun, FLT_MAX))
+    {
+        radiance += throughput * EvalCombinedBRDF(shadingNormal, LSun, V, material) * GetLightIntensity(sunLight, hitPosition);
+    }
+#endif
+
+    // Evaluate punctual light
+#if 1
+    // Evalute direct light (next event estimation), start by sampling one light
+    bool bValidLightSample = SampleLightReSTIR(rngState, launchIndex, hitPosition, geometryNormal, r);
+    if (bValidLightSample)
+    {
+        // Prepare data needed to evaluate the light
+        LightData light = _LightBuffer[r.LightData];
+        float3 lightVec = light.pos - hitPosition;
+        float  lightDist = length(lightVec);
+        float3 L = lightVec / max(0.01f, lightDist);
+        float  lightWeight = r.Weights / max(0.001f, r.M * r.TargetPdf);
+
+        // If the light is not in shadow, evaluate BRDF and accumulate its contribution into radiance
+        radiance += EvalCombinedBRDF(shadingNormal, L, V, material) * GetLightIntensity(light, hitPosition) * lightWeight;
+    }
+#endif
+
+	g_ScreenOutput[launchIndex] = float4( /*SrgbToLinear*/(radiance), 1.0f);
+	StoreReservoir(r, launchIndex, (uint2) _Dynamics.resolution);
+}
+
+[shader("miss")]
+void Miss(inout FHitInfo payload)
+{
+    payload.materialID = INVALID_ID;
+	payload.T = -1;
+}

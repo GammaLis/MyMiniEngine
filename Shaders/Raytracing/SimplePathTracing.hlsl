@@ -71,7 +71,7 @@ void RayGen()
     uint2 launchDimensions = DispatchRaysDimensions().xy;
 
     // Initialize random number generator
-    RngStateType rngState = InitRNG(launchIndex, launchDimensions, uint(_Dynamics.accumulationIndex));
+    RngStateType rngState = InitRNG(launchIndex, launchDimensions, uint(_Dynamics.frameIndex));
 
     float2 pixel = float2(DispatchRaysIndex().xy);
     const float2 resolution = float2(DispatchRaysDimensions().xy);
@@ -158,7 +158,7 @@ void RayGen()
 		radiance += throughput * material.emissive;
 
         // Evalute sun light
-#if 1
+#if 0
 		LightData sunLight = GetSunLight();
 		float3 LSun = -sunLight.pos;
 		if (CastShadowRay(hitPosition, geometryNormal, LSun, FLT_MAX))
@@ -256,10 +256,11 @@ void RayGen()
 	}
 
     // Temporal accumulation
-	float3 prevColor = g_AccumulationOutput[launchIndex].rgb;
 	float3 accumulatedColor = radiance;
     if (_Dynamics.accumulationIndex >= 0)
     {
+		float3 prevColor = g_AccumulationOutput[launchIndex].rgb;
+
 		int accumulationIndex = _Dynamics.accumulationIndex;
 		int accumulationCount = min(accumulationIndex + 1, 256);
 		accumulatedColor = lerp(prevColor, accumulatedColor, 1.0f / accumulationCount);
