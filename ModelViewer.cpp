@@ -80,7 +80,7 @@ DynamicCB g_DynamicCB = {};
 HitShaderConstants g_HitShaderConstants = {};
 
 // Reservoirs
-struct PackedReservoir
+struct FReservoir
 {
 	uint  LightData;
 	float TargetPdf;
@@ -1218,8 +1218,8 @@ void ModelViewer::InitRaytracing()
 		m_AccumulationBuffer.Create(pDevice, L"Accumulation Buffer", W, H, 1, DXGI_FORMAT_R32G32B32A32_FLOAT);
 
 		const uint32_t N = W * H;
-		m_ReservoirBuffer[0].Create(pDevice, L"Reservoir Buffer 0", N * c_MaxReservoirs, sizeof(PackedReservoir));
-		m_ReservoirBuffer[1].Create(pDevice, L"Reservoir Buffer 1", N * c_MaxReservoirs, sizeof(PackedReservoir));
+		m_ReservoirBuffer[0].Create(pDevice, L"Reservoir Buffer 0", N * c_MaxReservoirs, sizeof(FReservoir));
+		m_ReservoirBuffer[1].Create(pDevice, L"Reservoir Buffer 1", N * c_MaxReservoirs, sizeof(FReservoir));
 	}
 
 	// RT resources & pipelines

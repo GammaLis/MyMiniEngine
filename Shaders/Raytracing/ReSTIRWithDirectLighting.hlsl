@@ -8,6 +8,8 @@
 // Enable this to cast shadow rays for each candidate during resampling. This is expensive but increases quality
 #define SHADOW_RAY_IN_RIS 0
 
+#define COMBINE_SPATIOTEMPORAL 1
+
 #include "RayTracingCommon.hlsl"
 #include "RayTracingIntersection.hlsl"
 #include "Reservoir.hlsl"
@@ -46,6 +48,30 @@ float GetBRDFProbability(MaterialProperties material, float3 V, float3 shadingNo
 	return clamp(p, 0.1f, 0.9f);
 }
 
+float3 EvalReservoir(Reservoir r, float3 position, float3 normal, float3 V, MaterialProperties material)
+{
+    float3 radiance = 0;
+
+    if (r.LightData >= 0)
+    {
+        LightData light = _LightBuffer[r.LightData];
+        float3 lightVec = light.pos - position;
+        float  lightDist = length(lightVec);
+        float3 L = lightVec / max(0.01f, lightDist);
+        float  lightWeight = 1.0f;
+    #if RESTIR_WEIGHT_NORMALIZATION
+        lightWeight = r.Weights;
+    #else
+        lightWeight = r.Weights / max(0.001f, r.M * r.TargetPdf);
+    #endif
+
+        // If the light is not in shadow, evaluate BRDF and accumulate its contribution into radiance
+        radiance = EvalCombinedBRDF(normal, L, V, material) * GetLightIntensity(light, position) * lightWeight;
+    }
+    
+    return radiance;
+}
+
 /**
  * A Monte Carlo Unidirectional Path Tracer
  * > Path tracing simulates how light energy moves through an environment (light transport) by constructing `paths` between
@@ -70,7 +96,6 @@ void RayGen()
     float2 pixel = float2(DispatchRaysIndex().xy);
     const float2 resolution = float2(DispatchRaysDimensions().xy);
 
-    // TODO...
     // Add a random offset to the pixel's screen coordinates
 	float2 offset = 0.5f;
 	if (_Dynamics.accumulationIndex >= 0)
@@ -105,12 +130,12 @@ void RayGen()
     // Radiance is the final intensity of the light energy presented on screen for a given path
     float3 radiance = float3(0, 0, 0);
 	float3 throughput = float3(1, 1, 1);
-    PackedReservoir r = CreateReservoir();
+    Reservoir r = CreateReservoir();
 
     // Trace the ray
     TraceRay(
         g_Accel,
-        RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
+        0, // RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
         0xFF,
         STANDARD_RAY_INDEX, 
         1,
@@ -150,9 +175,137 @@ void RayGen()
     }
 #endif
 
-    // Evaluate punctual light
+    // Evaluate punctual lights
 #if 1
+
     // Evalute direct light (next event estimation), start by sampling one light
+    // Local reservoir (RIS candidates)
+    Reservoir localReservoir = CreateReservoir();
+    bool bValidLightSample = SampleLightRIS(rngState, hitPosition, geometryNormal, localReservoir);
+    if (bValidLightSample)
+    {
+        // Prepare data needed to evaluate the light
+        LightData light = _LightBuffer[localReservoir.LightData];
+        float3 lightVec = light.pos - hitPosition;
+        float  lightDist = length(lightVec);
+        float3 L = lightVec / max(0.01f, lightDist);
+
+        // See if the light sample is visible
+		if (!SHADOW_RAY_IN_RIS && !CastShadowRay(hitPosition, geometryNormal, L, lightDist))
+        {
+            // If not visible, discard the sample (but keep the M)
+            localReservoir.LightData = -1;
+            localReservoir.TargetPdf = 0;
+            localReservoir.Weights = 0;
+            bValidLightSample = false;
+        }
+    }
+    // r = localReservoir;
+    CombineReservoirs(r, localReservoir, 0.5, localReservoir.TargetPdf);
+#if COMBINE_SPATIOTEMPORAL
+    FinalizeResampling(r);
+    r.M = 1;
+    // Or
+    // r = localReservoir;
+#endif
+
+
+#if !COMBINE_SPATIOTEMPORAL
+    // Temporal reuse
+    Reservoir temporalReservoir = CreateReservoir();
+    {
+    #if 1
+        float3 velocity = UnpackVelocity(_TexVelocity[launchIndex]);
+        float2 prevPixel = float2(launchIndex + 0.5) + velocity.xy;
+    #else
+        float2 prevPixel = launchIndex;
+    #endif
+
+        if (IsValidScreenSample(prevPixel))
+        {
+            temporalReservoir = GetReservoir(uint2(prevPixel), _Dynamics.resolution);
+            // Clamp the previous frame's M to at most 20x of the current frame's reservoir's M
+            float MMax = r.M * 20;
+            if (temporalReservoir.M > MMax)
+            {
+                temporalReservoir.Weights *= MMax / temporalReservoir.M;
+                temporalReservoir.M = MMax;
+            }
+
+            float sampleWeight = 0;
+            if (temporalReservoir.LightData >= 0)
+            {
+                LightData sampleLight = _LightBuffer[temporalReservoir.LightData];
+                float3 lightVector = sampleLight.pos - hitPosition;
+                float  lightDistance = length(lightVector);
+                float3 L = lightVector / max(0.01f, lightDistance);
+                float  NdotL = saturate(dot(geometryNormal, L));
+
+            #if SHADOW_RAY_IN_RIS
+                if (!CastShadowRay(hitPosition, geometryNormal, L, lightDistance))
+                    NdotL = 0;
+            #endif
+
+                float3 lightIntensity = GetLightIntensity(sampleLight, hitPosition) * NdotL;
+                sampleWeight = Luminance(lightIntensity);
+            }
+
+            CombineReservoirs(r, temporalReservoir, Rand(rngState), sampleWeight); // sampleWeight r.TargetPdf
+        }
+    }
+
+    // Spatiotemporal reuse
+    Reservoir spatiotemporalReservoir = CreateReservoir();
+    {
+        // TODO...
+    }
+
+    FinalizeResampling(r);
+
+#else // COMBINE_SPATIOTEMPORAL
+    // Reservoir SampleLightSpatiotemporal(inout RngStateType rngState, Reservoir curSample, uint2 pixel, float3 position, float3 normal)
+    Reservoir spatiotemporalReservoir = SampleLightSpatiotemporal(rngState, r, launchIndex, hitPosition, geometryNormal);
+    
+#endif // COMBINE_SPATIOTEMPORAL
+
+    /// Shading
+    {
+    #if !COMBINE_SPATIOTEMPORAL
+        radiance += EvalReservoir(localReservoir, hitPosition, shadingNormal, V, material);
+        radiance += EvalReservoir(temporalReservoir, hitPosition, shadingNormal, V, material);
+        // radiance += EvalReservoir(spatiotemporalReservoir, hitPosition, shadingNormal, V, material);
+    
+    #else
+        if (spatiotemporalReservoir.LightData >= 0)
+        {
+			LightData sampleLight = _LightBuffer[spatiotemporalReservoir.LightData];
+            float3 lightVector = sampleLight.pos - hitPosition;
+            float  lightDistance = length(lightVector);
+            float3 L = lightVector / max(0.01f, lightDistance);
+			float lightWeight = spatiotemporalReservoir.Weights;
+
+            // If not visible, discard the shading output and the light sample
+            if (!SHADOW_RAY_IN_RIS && !CastShadowRay(hitPosition, geometryNormal, L, lightDistance))
+            {
+                // radiance = 0;
+
+                spatiotemporalReservoir.LightData = -1;
+                spatiotemporalReservoir.TargetPdf = 0;
+                spatiotemporalReservoir.Weights = 0;
+            }
+            else
+            {                
+                radiance += EvalCombinedBRDF(shadingNormal, L, V, material) * GetLightIntensity(sampleLight, hitPosition) * lightWeight;
+            }
+
+            r = spatiotemporalReservoir;
+        }
+    #endif
+    }
+
+
+#if 0
+
     bool bValidLightSample = SampleLightReSTIR(rngState, launchIndex, hitPosition, geometryNormal, r);
     if (bValidLightSample)
     {
@@ -161,12 +314,22 @@ void RayGen()
         float3 lightVec = light.pos - hitPosition;
         float  lightDist = length(lightVec);
         float3 L = lightVec / max(0.01f, lightDist);
-        float  lightWeight = r.Weights / max(0.001f, r.M * r.TargetPdf);
 
-        // If the light is not in shadow, evaluate BRDF and accumulate its contribution into radiance
-        radiance += EvalCombinedBRDF(shadingNormal, L, V, material) * GetLightIntensity(light, hitPosition) * lightWeight;
-    }
+        if (CastShadowRay(hitPosition, geometryNormal, L, lightDist))
+		{
+        #if RESTIR_WEIGHT_NORMALIZATION
+			float lightWeight = r.Weights;
+        #else
+			float lightWeight = r.Weights / max(0.001f, r.M * r.TargetPdf);
+        #endif
+
+            // If the light is not in shadow, evaluate BRDF and accumulate its contribution into radiance
+			radiance += EvalCombinedBRDF(shadingNormal, L, V, material) * GetLightIntensity(light, hitPosition) * lightWeight;
+		}
+	}
 #endif
+
+#endif // Punctual lights
 
 	g_ScreenOutput[launchIndex] = float4( /*SrgbToLinear*/(radiance), 1.0f);
 	StoreReservoir(r, launchIndex, (uint2) _Dynamics.resolution);

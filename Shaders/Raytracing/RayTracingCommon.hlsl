@@ -203,4 +203,7 @@ float3 DecodeNormalOctahedron(float2 p)
 	return normalize(n);
 }
 
+
+/// Math
+
 #endif // RAYTRACING_COMMON_INCLUDED

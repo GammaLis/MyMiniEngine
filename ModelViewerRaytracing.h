@@ -120,6 +120,11 @@ float2 STtoUV(float2 st)
 	return (st + 0.5) * rcp(_Dynamics.resolution);
 }
 
+bool IsValidScreenSample(float2 pixel)
+{
+	return all(pixel >= 0) && all(pixel < _Dynamics.resolution);
+}
+
 #endif // HLSL
 
 // Functions for encoding/decoding material and geometry ID into single integer

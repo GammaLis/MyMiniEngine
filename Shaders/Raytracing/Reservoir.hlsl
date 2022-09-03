@@ -19,11 +19,15 @@
 // Use MIS-like normalization with visibility rays. Unbiased.
 #define RESTIR_BAIS_CORRECTION_RAY_TRACED 3
 
+#define RESTIR_WEIGHT_NORMALIZATION 1
+
 #ifndef RESERVOIR_EPS 
-#define RESERVOIR_EPS (1e-4)
+#define RESERVOIR_EPS (1e-4f)
 #endif
 
-struct PackedReservoir
+static const uint s_MaxM = 0x3FFF;
+
+struct Reservoir
 {
 	int LightData;
 	float TargetPdf;
@@ -31,37 +35,37 @@ struct PackedReservoir
 	float M;
 };
 
-StructuredBuffer<PackedReservoir> _ReservoirBuffer		: register(t5);
+StructuredBuffer<Reservoir> _ReservoirBuffer	: register(t5);
 
-RWStructuredBuffer<PackedReservoir> RWReservoirBuffer	: register(u4);
+RWStructuredBuffer<Reservoir> RWReservoirBuffer	: register(u4);
 
-PackedReservoir GetReservoir(uint2 pixel, uint2 resolution)
+Reservoir GetReservoir(uint2 pixel, uint2 resolution)
 {
 	uint index = pixel.y * resolution.x + pixel.x;
 	return _ReservoirBuffer[index];
 }
 
-void StoreReservoir(PackedReservoir r, int2 pixel, uint2 resolution)
+void StoreReservoir(Reservoir r, int2 pixel, uint2 resolution)
 {
 	uint index = pixel.y * resolution.x + pixel.x;
 	RWReservoirBuffer[index] = r;
 }
 
-PackedReservoir CreateReservoir()
+Reservoir CreateReservoir()
 {
-	PackedReservoir r = (PackedReservoir)0;
-	r.LightData = 0;
+	Reservoir r = (Reservoir)0;
+	r.LightData = -1;
 	r.TargetPdf = 0;
 	r.Weights = 0;
 	r.M = 0;
 	return r;
 }
 
-bool UpdateReservoir(inout PackedReservoir r, int lightIndex, float targetPdf, float weight, inout RngStateType rngState)
+bool UpdateReservoir(inout Reservoir r, int lightIndex, float targetPdf, float weight, float random)
 {
 	r.Weights += weight;
 	r.M += 1;
-	if ((Rand(rngState) * r.Weights) < weight)
+	if (random * r.Weights < weight)
 	{
 		r.LightData = lightIndex;
 		r.TargetPdf = targetPdf;
@@ -82,24 +86,31 @@ bool UpdateReservoir(inout PackedReservoir r, int lightIndex, float targetPdf, f
  * p_q', we reweight the samples with the factor p_q(y)/p_q'(y) to account for areas that were over- or undersampled at
  * the neighbor compared to the current pixel.
  */
-bool CombineReservoirs(inout PackedReservoir dstReservoir, PackedReservoir srcReservoir, inout RngStateType rngState)
+bool CombineReservoirs(inout Reservoir dstReservoir, Reservoir srcReservoir, float random, float targetPdf = 1.0f)
 {
-	dstReservoir.Weights += srcReservoir.Weights;
 	dstReservoir.M += srcReservoir.M;
-#if 0
-	float w = srcReservoir.Weights * dstReservoir.TargetPdf / max(RESERVOIR_EPS, (dstReservoir.Weights * srcReservoir.TargetPdf));
-	if (Rand(rngState) < w)
+#if RESTIR_WEIGHT_NORMALIZATION
+	float risWeight = targetPdf * (srcReservoir.Weights * srcReservoir.M);
+	dstReservoir.Weights += risWeight;
 #else
-	float srcWeight = srcReservoir.Weights * dstReservoir.TargetPdf * srcReservoir.M;
-	if (Rand(rngState) * dstReservoir.Weights < srcWeight)
+	float risWeight = srcReservoir.TargetPdf < RESERVOIR_EPS ? 0 : srcReservoir.Weights * targetPdf / srcReservoir.TargetPdf;
+	dstReservoir.Weights += risWeight;
 #endif
+	if (random * dstReservoir.Weights < risWeight)
 	{
 		dstReservoir.LightData = srcReservoir.LightData;
-		dstReservoir.TargetPdf = srcReservoir.TargetPdf;
+		dstReservoir.TargetPdf = targetPdf;
 		return true;
 	}
 
 	return false;
+}
+
+// Performs normalization of the reservoir after streaming. Equation (6) from the ReSTIR paper.
+void FinalizeResampling(inout Reservoir r)
+{
+	float denominator = r.TargetPdf * r.M;
+	r.Weights = denominator < RESERVOIR_EPS ? 0.0 : r.Weights / denominator;
 }
 
 
