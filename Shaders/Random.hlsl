@@ -60,7 +60,7 @@ uint JenkinsHash(uint x)
 	return x;
 }
 
-// Converts unsigned integer into float int range <0; 1) by using 23 most significant bits for mantissa
+// Converts unsigned integer into float int range [0, 1) by using 23 most significant bits for mantissa
 // of the floating-point number representation and setting the sign bits and exponent to 0.
 float UintToFloat(uint x) {
 	return asfloat(0x3f800000 | (x >> 9)) - 1.0f;

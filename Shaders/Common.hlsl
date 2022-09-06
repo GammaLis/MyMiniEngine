@@ -16,6 +16,32 @@ const static float Max11BitsFloat = 65024.0f;
 const static float Max10BitsFloat = 64512.0f;
 const static float3 Max111110BitsFloat3 = float3(Max11BitsFloat, Max11BitsFloat, Max10BitsFloat);
 
+// DirectX MSAA subpixel offsets, with pixel center [0.5, 0.5]
+const static float2 g_PixelOffsets1[] = { float2(0.5f, 0.5f) };
+const static float2 g_PixelOffsets2[] = { float2(0.25f, 0.25f), float2(0.75f, 0.75f) };
+const static float2 g_PixelOffsets4[] = 
+{
+	float2(0.375f, 0.125f), float2(0.875f, 0.375f), 
+	float2(0.625f, 0.875f), float2(0.125f, 0.625f)
+};
+const static float2 g_PixelOffsets8[] = 
+{
+	float2(0.5625f, 0.6875f), float2(0.4375f, 0.3125f),
+	float2(0.8125f, 0.4375f), float2(0.3125f, 0.8125f),
+	float2(0.1875f, 0.1875f), float2(0.0625f, 0.5625f),
+	float2(0.6875f, 0.0625f), float2(0.9375f, 0.9375f)
+};
+const static float2 g_PixelOffsets16[] = 
+{
+	float2(0.5625f, 0.4375f), float2(0.4375f, 0.6875f),
+	float2(0.3125f, 0.375f ), float2(0.75f  , 0.5625f),
+	float2(0.1875f, 0.625f ), float2(0.625f , 0.1875f),
+	float2(0.1875f, 0.3125f), float2(0.6875f, 0.8125f),
+	float2(0.375f , 0.125f ), float2(0.5f   , 0.9375f),
+	float2(0.25f  , 0.875f ), float2(0.125f , 0.25f  ),
+	float2(0.0f   , 0.5f   ), float2(0.9375f, 0.75f  ),
+	float2(0.875f , 0.0625f), float2(0.0625f, 0.0f   )
+};
 
 // Control MIP level used for material texture fetches. By default only raytracing 
 // shaders (i.e., !PIXELSHADER) use manual MIP level selection. A material shader 

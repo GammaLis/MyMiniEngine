@@ -23,8 +23,8 @@ StructuredBuffer<RayTraceMeshInfo> _MeshInfo : register(t1);
 ByteAddressBuffer _Indices		: register(t2);
 ByteAddressBuffer _Attributes	: register(t3);
 
-Texture2D<float> _TexShadow		: register(t4);
-Texture2D<float> _TexSSAO		: register(t5);
+Texture2D<float> _TexShadow		: register(t6);
+Texture2D<float> _TexSSAO		: register(t7);
 
 Texture2D<float4> _LocalTexture : register(t6, space1);
 Texture2D<float4> _LocalNormal	: register(t7, space1);
@@ -295,4 +295,27 @@ void Hit(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr
 	}
 
 	g_ScreenOutput[DispatchRaysIndex().xy] = float4(outColor, 1.0);
+}
+
+[shader("anyhit")]
+void AnyHit(inout RayPayload paylod, BuiltInTriangleIntersectionAttributes attributeData)
+{
+	uint triangleID = PrimitiveIndex();
+	uint geometryID = _MaterialID;
+	const RayTraceMeshInfo info = _MeshInfo[geometryID];
+
+	const uint3 ii = Load3x16BitIndices(info.IndexOffsetBytes + triangleID * 3 * 2);
+	const float2 uv0 = GetUVAttribute(info.UVAttributeOffsetBytes + ii.x * info.AttributeStrideBytes);
+	const float2 uv1 = GetUVAttribute(info.UVAttributeOffsetBytes + ii.y * info.AttributeStrideBytes);
+	const float2 uv2 = GetUVAttribute(info.UVAttributeOffsetBytes + ii.z * info.AttributeStrideBytes);
+
+	float3 bary = float3(1.0 - attributeData.barycentrics.x - attributeData.barycentrics.y, attributeData.barycentrics.x, attributeData.barycentrics.y);
+	float2 uv = bary.x * uv0 + bary.y * uv1 + bary.z * uv2;
+
+	// Load material properties at the hit point
+	const float alpha = _LocalTexture.SampleLevel(_S0, uv, 0).a;
+	if (alpha < 0.5f)
+	{
+		IgnoreHit();
+	}
 }

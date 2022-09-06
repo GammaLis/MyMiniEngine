@@ -69,23 +69,6 @@ int main(int argc, const char* argv[])
 	ASSERT_SUCCEEDED(InitializeWinRT);
 
 	HINSTANCE hInst = GetModuleHandle(0);
-	
-#pragma region Test
-	// float 
-	float f = 0.25f;	// B 0.01 -> 1E(-2) -> 1E(127 -2 = 125) <0 - 符号位， 125 - E， 0 - D>
-	float* pf = &f;
-
-	// alignment
-	struct alignas(32) AA
-	{
-		float f[3];
-		int i;
-	};
-	AA a;
-	int sa = sizeof(AA);
-	bool bb = reinterpret_cast<uintptr_t>(&a) % alignof(AA) == 0;
-
-#pragma endregion
 
 #if defined(MINI_ENGINE)
 	constexpr int SceneWidth = 1280, SceneHeight = 720;

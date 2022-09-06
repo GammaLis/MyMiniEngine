@@ -3,21 +3,23 @@
 
 namespace MyDirectX
 {
-	// effects
-	// motion blur
+	/// Effects
+	// Motion blur
 	MotionBlur Effects::s_MotionBlur;
-	// temporal antialiasing
+	// Temporal antialiasing
 	TemporalAA Effects::s_TemporalAA;
-	// post effects
+	// Temporal effects
+	TemporalEffects Effects::s_TemporalEffects;
+	// Post effects
 	PostEffects Effects::s_PostEffects;
 
-	// text
+	// Text
 	TextRenderer Effects::s_TextRenderer;
 
-	// forward+ lighting
+	// Forward+ lighting
 	ForwardPlusLighting Effects::s_ForwardPlusLighting;
 
-	// particle effects
+	// Particle effects
 	ParticleEffects::ParticleEffectManager Effects::s_ParticleEffectManager;
 
 	void Effects::Init(ID3D12Device* pDevice)
@@ -40,11 +42,17 @@ namespace MyDirectX
 	{
 		s_MotionBlur.Shutdown();
 		s_TemporalAA.Shutdown();
+		s_TemporalEffects.Shutdown();
 		s_PostEffects.Shutdown();
 
 		s_TextRenderer.Shutdown();
 		s_ForwardPlusLighting.Shutdown();
 
 		s_ParticleEffectManager.Shutdown();
+	}
+
+	void Effects::Resize(UINT width, UINT height)
+	{
+		s_TemporalEffects.Resize(width, height);
 	}
 }

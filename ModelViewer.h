@@ -82,6 +82,8 @@ namespace MyDirectX
 	public:
 		ModelViewer(HINSTANCE hInstance, const char *modelName, const wchar_t* title = L"Hello, World!", UINT width = SCR_WIDTH, UINT height = SCR_HEIGHT);
 
+		virtual void OnResize(UINT width, UINT height, bool minimized) override;
+
 		virtual void Update(float deltaTime) override;
 		virtual void Render() override;
 

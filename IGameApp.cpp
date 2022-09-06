@@ -67,9 +67,10 @@ bool IGameApp::Init()
 	return true;
 }
 
-void IGameApp::OnResize()
+void IGameApp::OnResize(UINT width, UINT height, bool minimized)
 {
-
+	m_Gfx->Resize(width, height);
+	Effects::Resize(width, height);
 }
 
 void IGameApp::Update(float deltaTime)
@@ -112,9 +113,10 @@ void IGameApp::Cleanup()
 	m_Gfx->Shutdown();	
 }
 
-// TODO	-2021-3-7
 int IGameApp::Run()
 {
+	m_Window->Show();
+
 	m_Timer->Reset();
 
 	MSG msg = {};
@@ -175,6 +177,16 @@ LRESULT IGameApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		}
 		return 0;
 
+	case WM_SIZE:
+	{
+		RECT windowRect = {};
+		GetWindowRect(hwnd, &windowRect);
+
+		RECT clientRect = {};
+		GetClientRect(hwnd, &clientRect);
+		OnResize(clientRect.right - clientRect.left, clientRect.bottom - clientRect.top, wParam == SIZE_MINIMIZED);
+		return 0;
+	}
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		return 0;

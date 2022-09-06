@@ -62,7 +62,7 @@ namespace MyDirectX
 		float GetFrameRate() const;
 
 
-		// static members
+		/// static members
 		static ID3D12Device* s_Device;
 		static CommandListManager s_CommandManager;
 		static ContextManager s_ContextManager;

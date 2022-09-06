@@ -3,7 +3,7 @@
 #define USE_PCG 1
 
 // Number of candidates 
-#define RIS_CANDIDATES_LIGHTS 8
+#define RIS_CANDIDATES_LIGHTS 16
 
 // Enable this to cast shadow rays for each candidate during resampling. This is expensive but increases quality
 #define SHADOW_RAY_IN_RIS 0

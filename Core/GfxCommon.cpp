@@ -58,6 +58,7 @@ using namespace MyDirectX;
 
 using Microsoft::WRL::ComPtr;
 
+/// Graphic states
 uint32_t GfxStates::s_DisplayWidth = 1280, GfxStates::s_DisplayHeight = 720;
 uint32_t GfxStates::s_NativeWidth = 0, GfxStates::s_NativeHeight = 0;
 
@@ -83,6 +84,9 @@ UpsampleFilter GfxStates::s_UpsampleFilter = UpsampleFilter::kBilinear;
 
 DXGI_FORMAT GfxStates::s_DefaultHdrColorFormat = DXGI_FORMAT_R11G11B10_FLOAT;
 DXGI_FORMAT GfxStates::s_DefaultDSVFormat = DXGI_FORMAT_D32_FLOAT;
+
+// Common settings
+bool GfxStates::s_bEnableTemporalEffects = false;
 
 void GfxStates::SetNativeResolution(ID3D12Device* pDevice, Resolutions nativeRes)
 {
@@ -183,9 +187,11 @@ void GfxStates::GetWHFromResolution(Resolutions res, uint32_t& width, uint32_t &
 	}
 }
 
+
+/// Buffer manager
 void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferWidth, uint32_t bufferHeight)
 {
-	GraphicsContext& initContext = GraphicsContext::Begin();
+	// GraphicsContext& initContext = GraphicsContext::Begin();
 
 	const uint32_t bufferWidth1 = (bufferWidth + 1) / 2;
 	const uint32_t bufferWidth2 = (bufferWidth + 3) / 4;
@@ -220,10 +226,12 @@ void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferW
 	// temporal effects
 	m_TemporalColor[0].Create(pDevice, L"Temporal Color 0", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16B16A16_FLOAT);
 	m_TemporalColor[1].Create(pDevice, L"Temporal Color 1", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16B16A16_FLOAT);
-	Effects::s_TemporalAA.ClearHistory(initContext);		// Çå¿Õ
 
+#if 0
+	// Not used yet
 	m_TemporalMinBound.Create(pDevice, L"Temporal Min Color", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R11G11B10_FLOAT);
 	m_TemporalMaxBound.Create(pDevice, L"Temporal Max Color", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R11G11B10_FLOAT);
+#endif
 
 	// post effects
 	// this is useful for storing per-pixel weights such as motion strength or pixel luminance
@@ -259,7 +267,7 @@ void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferW
 	// bicubic horizontal upsample intermediate buffer
 	m_HorizontalBuffer.Create(pDevice, L"Bicubic Intermediate", GfxStates::s_DisplayWidth, bufferHeight, 1, GfxStates::s_DefaultHdrColorFormat);
 
-	initContext.Finish();
+	// initContext.Finish();
 }
 
 void BufferManager::ResizeDisplayDependentBuffers(ID3D12Device* pDevice, uint32_t bufferWidth, uint32_t bufferHeight)
@@ -293,6 +301,10 @@ void BufferManager::DestroyRenderingBuffers()
 	m_TemporalMinBound.Destroy();
 	m_TemporalMaxBound.Destroy();
 
+	m_ColorHistory.Destroy();
+	m_DepthHistory.Destroy();
+	m_NormalHistory.Destroy();
+
 	// post effects
 	m_LumaBuffer.Destroy();
 	m_Histogram.Destroy();
@@ -317,6 +329,8 @@ void BufferManager::DestroyRenderingBuffers()
 	m_HorizontalBuffer.Destroy();
 }
 
+
+/// Shader manager
 void ShaderManager::CreateFromByteCode()
 {
 	m_ScreenQuadVS = CD3DX12_SHADER_BYTECODE(ScreenQuadVS, sizeof(ScreenQuadVS));
@@ -406,7 +420,8 @@ void ShaderManager::CompileShadersFromFile()
 	}
 }
 
-// CommonStates
+
+/// CommonStates
 void CommonStates::InitCommonStates(ID3D12Device* pDevice)
 {
 	// Sampler Desc

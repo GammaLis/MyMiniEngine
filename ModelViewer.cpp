@@ -96,6 +96,13 @@ ModelViewer::ModelViewer(HINSTANCE hInstance, const char *modelName, const wchar
 	m_ModelName = modelName;
 }
 
+void ModelViewer::OnResize(UINT width, UINT height, bool minimized)
+{
+	IGameApp::OnResize(width, height, minimized);
+
+	Effects::Resize(width, height);
+}
+
 /**
 * The keys '0'...'6' can be used to cycle through different modes
 * -Off, Full rasterization
@@ -513,10 +520,13 @@ void ModelViewer::InitCustom()
 	// m_Camera.Update();	// 若无CameraController，需要手动更新
 	m_CameraController.reset(new CameraController(m_Camera, Math::Vector3(Math::kYUnitVector), *m_Input));
 
-	// Effects
+	// Resources
 	// ...
 	m_ExtraTextures[0] = Graphics::s_TextureManager.GetWhiteTex2D().GetSRV();	// 暂时为空
 	m_ExtraTextures[1] = Graphics::s_BufferManager.m_ShadowBuffer.GetSRV();
+
+	// Effects
+	Effects::Init(Graphics::s_Device);
 
 	// Forward+ lighting
 	const auto &boundingBox = m_Model->GetBoundingBox();
@@ -548,10 +558,11 @@ void ModelViewer::InitCustom()
 
 void ModelViewer::CleanCustom()
 {
+	Effects::Shutdown();
+	CleanRaytracing();
+
 	m_Model->Cleanup();
 	m_Skybox.Shutdown();
-
-	CleanRaytracing();
 }
 
 void ModelViewer::PostProcess()
@@ -1297,8 +1308,12 @@ void ModelViewer::InitRaytracingViews(ID3D12Device* pDevice)
 			// TODO ...
 
 			// Shadow buffer
+			DescriptorHandle shadowBufferSRV = m_RaytracingDescHeap.Alloc();
+			pDevice->CopyDescriptorsSimple(1, shadowBufferSRV.GetCpuHandle(), Graphics::s_TextureManager.GetBlackTex2D().GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 			// SSAO
+			DescriptorHandle AOTextureSRV = m_RaytracingDescHeap.Alloc();
+			pDevice->CopyDescriptorsSimple(1, AOTextureSRV.GetCpuHandle(), Graphics::s_TextureManager.GetWhiteTex2D().GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		}
 	}
 	
@@ -1361,6 +1376,11 @@ void ModelViewer::InitRaytracingAS(ID3D12Device* pDevice)
 		D3D12_RAYTRACING_GEOMETRY_DESC& desc = geometryDescs[i];
 		desc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
 		desc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+#if 1
+		bool bCutoutMat = m_Model->m_MaterialIsCutout[mesh.materialIndex];
+		if (bCutoutMat) desc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
+#endif
+		// NOTE::The any-hit shader will be ignored for acceleration structures created with the D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE flag.
 
 		D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC& trianglesDesc = desc.Triangles; // union { Triangles, AABBs }
 		trianglesDesc.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
@@ -1626,6 +1646,11 @@ void ModelViewer::InitRaytracingStateObjects(ID3D12Device *pDevice)
 	SetDxilLibrary(stateObjectDesc, HitShaderLib, hitExportName);
 #endif
 
+	LPCWSTR anyHitExportName = L"AnyHit";
+	SetDxilLibrary(stateObjectDesc, HitShaderLib, anyHitExportName);
+
+	// Miss shader stuff
+	// --------------------------------------------------------
 	LPCWSTR missExportName = L"Miss";
 #if !USE_CD3DX12
 	D3D12_EXPORT_DESC missExportDesc;
@@ -1669,6 +1694,7 @@ void ModelViewer::InitRaytracingStateObjects(ID3D12Device *pDevice)
 #else
 	auto hitGroupSubObject = stateObjectDesc.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
 	hitGroupSubObject->SetHitGroupExport(hitGroupExportName);
+	hitGroupSubObject->SetAnyHitShaderImport(anyHitExportName);
 	hitGroupSubObject->SetClosestHitShaderImport(hitExportName);
 #endif
 
@@ -1776,6 +1802,7 @@ void ModelViewer::InitRaytracingStateObjects(ID3D12Device *pDevice)
 #else
 		ReplaceDxilLibrary(pStateObjectDesc, RayGenShaderLib, rayGenExportName);
 		ReplaceDxilLibrary(pStateObjectDesc, DiffuseHitShaderLib, hitExportName);
+		ReplaceDxilLibrary(pStateObjectDesc, DiffuseHitShaderLib, anyHitExportName);
 		ReplaceDxilLibrary(pStateObjectDesc, MissShaderLib, missExportName);
 #endif
 		CComPtr<ID3D12StateObject> pDiffusePSO;
@@ -1810,6 +1837,7 @@ void ModelViewer::InitRaytracingStateObjects(ID3D12Device *pDevice)
 		ReplaceDxilLibrary(pStateObjectDesc, SimplePathTracing, rayGenExportName);
 		ReplaceDxilLibrary(pStateObjectDesc, SimplePathTracing, hitExportName);
 		ReplaceDxilLibrary(pStateObjectDesc, SimplePathTracing, missExportName);
+		ReplaceDxilLibrary(pStateObjectDesc, SimplePathTracing, anyHitExportName);
 
 		CComPtr<ID3D12StateObject> pSimplePathTracingPSO;
 		m_RaytracingDevice->CreateStateObject(pStateObjectDesc, IID_PPV_ARGS(&pSimplePathTracingPSO));

@@ -49,9 +49,11 @@ bool MyWindow::Init()
 
 	SetWindowLongPtr(m_HWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
 
-	// ÏÔÊ¾´°¿Ú
+#if 0
+	// Show after app inited
 	ShowWindow(m_HWnd, SW_SHOWDEFAULT);
 	UpdateWindow(m_HWnd);
+#endif
 
 	return true;
 }
@@ -171,7 +173,7 @@ int MyWindow::RegisterWindowClass()
 
 int MyWindow::CreateWindowInstance()
 {
-	UINT width = m_Width, height = m_Height;
+	LONG width = m_Width, height = m_Height;
 	RECT rect = { 0, 0, width, height };
 	AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
 

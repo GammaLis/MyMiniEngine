@@ -10,3 +10,9 @@ void Hit(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr
 		g_ScreenOutput[DispatchRaysIndex().xy] = float4(attrib.barycentrics, 1.0f - attrib.barycentrics.x - attrib.barycentrics.y, 1.0f);
 	}
 }
+
+[shader("anyhit")]
+void AnyHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attrib)
+{
+	// Empty
+}

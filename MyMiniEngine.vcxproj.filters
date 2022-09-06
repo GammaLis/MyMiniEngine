@@ -418,6 +418,9 @@
     <ClInclude Include="Game\ReservoirSampling.h">
       <Filter>Game</Filter>
     </ClInclude>
+    <ClInclude Include="Effects\TemporalEffects.h">
+      <Filter>Effects</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -645,6 +648,9 @@
     <ClCompile Include="Core\ProfilingScope.cpp">
       <Filter>Core</Filter>
     </ClCompile>
+    <ClCompile Include="Effects\TemporalEffects.cpp">
+      <Filter>Effects</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Core\Math\Functions.inl">
@@ -806,6 +812,9 @@
     </None>
     <None Include="Shaders\Raytracing\Reservoir.hlsl">
       <Filter>Shaders\ModelViewer\Raytracing</Filter>
+    </None>
+    <None Include="Shaders\ProceduralTextures.hlsl">
+      <Filter>Shaders\Common</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

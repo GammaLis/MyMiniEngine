@@ -164,10 +164,6 @@ namespace MyDirectX
         s_CommonStates.InitCommonStates(m_Device.Get());
         GfxStates::SetNativeResolution(m_Device.Get(), m_CurNativeRes);
         CustomInit();
-
-        // 考虑放在 Graphics里 还是 IGameApp里 -20-1-27
-        // 目前 感觉放在 Graphics里 更加合适
-        Effects::Init(m_Device.Get());
     }
 
     void Graphics::Resize(uint32_t newWidth, uint32_t newHeight)

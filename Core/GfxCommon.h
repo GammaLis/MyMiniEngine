@@ -75,6 +75,9 @@ namespace MyDirectX
 
 		static DXGI_FORMAT s_DefaultHdrColorFormat;
 		static DXGI_FORMAT s_DefaultDSVFormat;
+
+		// Settings
+		static bool s_bEnableTemporalEffects;
 	};
 
 	class BufferManager
@@ -105,6 +108,10 @@ namespace MyDirectX
 		ColorBuffer m_TemporalColor[2];		// 犹豫是将相关资源统一管理还是各个效果各自管理？？？ -20-2-19 --> 统一管理更好！ -21-10-3
 		ColorBuffer m_TemporalMinBound;
 		ColorBuffer m_TemporalMaxBound;
+
+		ColorBuffer m_ColorHistory;
+		ColorBuffer m_DepthHistory;
+		ColorBuffer m_NormalHistory;
 
 		// Post effects
 		// Bloom
