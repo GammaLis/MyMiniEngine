@@ -3,7 +3,7 @@
 #include "GfxCommon.h"
 #include "CommandContext.h"
 
-// compiled shader bytecode
+// Compiled shader bytecode
 #include "CommonDebug.h"
 
 using namespace MyDirectX;

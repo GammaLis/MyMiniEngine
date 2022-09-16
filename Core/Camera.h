@@ -45,6 +45,7 @@ namespace Math
         const Matrix4& GetViewMatrix() const { return m_ViewMatrix; }
         const Matrix4& GetProjMatrix() const { return m_ProjMatrix; }
         const Matrix4& GetViewProjMatrix() const { return m_ViewProjMatrix; }
+        const Matrix4& GetPrevViewProjMatrix() const { return m_PreviousViewProjMatrix; }
         const Matrix4& GetReprojectionMatrix() const { return m_ReprojectMatrix; }
         const Frustum& GetViewSpaceFrustum() const { return m_FrustumVS; }
         const Frustum& GetWorldSpaceFrustum() const { return m_FrustumWS; }
@@ -104,6 +105,9 @@ namespace Math
         float GetFarClip() const { return m_FarClip; }
         float GetClearDepth() const { return m_ReverseZ ? 0.0f : 1.0f; }
 
+        // Vector used by shaders to convert depth buffer samples into z coordinates in world space
+        Vector4 m_InvDeviceZToWorldZTransform;
+
     private:
 
         void UpdateProjMatrix( void );
@@ -155,5 +159,14 @@ namespace Math
 
         m_PreviousViewProjMatrix = m_ViewProjMatrix;
     }
+
+    // Ref: UE - SceneView.cpp
+    /**
+     * Utility function to create the inverse depth projection transform to be used by the shader system.
+     * @param ProjMatrix - used to extract the scene depth ratios
+     * @param InvertZ - projection calc is affected by inverted device Z
+     * @return Vector containing the ratios needed to convert from device Z to world Z
+     */
+    Vector4 CreateInvDeviceZToWorldZTransform(const Matrix4 &ProjMatrix);
 
 } // namespace Math

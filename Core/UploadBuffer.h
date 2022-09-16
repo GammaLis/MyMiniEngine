@@ -7,7 +7,7 @@ namespace MyDirectX
 	*	Description: An upload buffer is visible to both the CPU and the GPU, but because the memory is write combined,
 	* you should avoid reading data with CPU. An upload buffer is intended for moving data to a default GPU buffer. You can
 	* read from a file directly into an upload buffer, rather than reading into regular cached memory, copying that to
-	* an upload buffer, and copying that to the CPU.
+	* an upload buffer, and copying that to the GPU.
 	*/
 	class UploadBuffer : public GpuResource
 	{

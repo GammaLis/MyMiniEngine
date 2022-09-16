@@ -5,8 +5,9 @@
 #include "Model.h"
 #include "Effects.h"
 #include "ProfilingScope.h"
+#include "UniformBuffers.h"
 
-// shaders
+// Compiled shaders
 #include "DepthViewerVS.h"
 #include "DepthViewerPS.h"
 #include "ModelViewerVS.h"
@@ -37,6 +38,9 @@
 
 using namespace MyDirectX;
 
+/// Uniforms
+using namespace MyDirectX::UniformBuffers;
+
 struct VSConstants
 {
 	Math::Matrix4 _ModelToProjection;
@@ -57,6 +61,7 @@ struct alignas(16) PSConstants
 
 	uint32_t _FrameIndexMod2;
 };
+
 
 /// Raytracing
 struct alignas(16) HitShaderConstants
@@ -96,13 +101,6 @@ ModelViewer::ModelViewer(HINSTANCE hInstance, const char *modelName, const wchar
 	m_ModelName = modelName;
 }
 
-void ModelViewer::OnResize(UINT width, UINT height, bool minimized)
-{
-	IGameApp::OnResize(width, height, minimized);
-
-	Effects::Resize(width, height);
-}
-
 /**
 * The keys '0'...'6' can be used to cycle through different modes
 * -Off, Full rasterization
@@ -113,6 +111,7 @@ void ModelViewer::OnResize(UINT width, UINT height, bool minimized)
 * -Diffuse&ShadowRays, Fully-raytraced pass that shoots primary rays for diffuse lights and recursively fires shadow rays.
 * -Reflection Rays, Hybrid pass that renders primary diffuse with rasterization and if the ground plane is detected, fires reflection rays.
 */
+static bool bDenoise = true;
 void ModelViewer::Update(float deltaTime)
 {
 	IGameApp::Update(deltaTime);
@@ -136,6 +135,9 @@ void ModelViewer::Update(float deltaTime)
 		raytracingMode = RaytracingMode::ReferencePathTracing;
 	else if (m_Input->IsFirstPressed(DigitalInput::kKey_8))
 		raytracingMode = RaytracingMode::ReSTIRWithDirectLights;
+
+	bool bNeedDenoising = raytracingMode == RaytracingMode::ReSTIRWithDirectLights;
+	Effects::s_Denoier.SetActive(bNeedDenoising);
 
 	// Update camera params
 	{
@@ -188,11 +190,18 @@ void ModelViewer::Update(float deltaTime)
 	// 注：MS MiniEngine - 在Graphics::Present之后调用TemporalEffects::Update，为什么？ -20-2-21
 	uint64_t frameIndex = m_Gfx->GetFrameCount();
 	Effects::s_TemporalAA.Update(frameIndex);
-
 	Effects::s_TemporalAA.GetJitterOffset(m_MainViewport.TopLeftX, m_MainViewport.TopLeftY);
-	
-	auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
-	auto bufferWidth = colorBuffer.GetWidth(), bufferHeight = colorBuffer.GetHeight();
+
+	if (Effects::s_Denoier.IsActive())
+	{
+		if (!Effects::s_Denoier.HasInited())
+			Effects::s_Denoier.Init(Graphics::s_Device);
+
+		Effects::s_Denoier.Update(frameIndex);
+	}
+
+	// Viewport & Scissor
+	const uint32_t bufferWidth = GfxStates::s_NativeWidth, bufferHeight = GfxStates::s_NativeHeight;
 	
 	// >>> DEBUG (改变Viewport位置，尺寸，Scissor位置，尺寸)
 	// m_MainViewport.TopLeftX = m_MainViewport.TopLeftY = 0.0f;
@@ -208,6 +217,49 @@ void ModelViewer::Update(float deltaTime)
 	m_MainScissor.top = 0;
 	m_MainScissor.right = (LONG)bufferWidth;
 	m_MainScissor.bottom = (LONG)bufferHeight;
+
+	// View uniforms
+	{
+		const auto& viewMat = m_Camera.GetViewMatrix();
+		const auto& projMat = m_Camera.GetProjMatrix();
+		const auto& invViewMat = Math::Invert(viewMat);
+		const auto& invProjMat = Math::Invert(projMat);
+#if 0
+		Math::Matrix4 screenToViewMat = Math::Matrix4(
+			Math::Vector4(1, 0, 0, 0),
+			Math::Vector4(0, 1, 0, 0),
+			Math::Vector4(0, 0, projMat.GetZ().GetZ(), -1),
+			Math::Vector4(0, 0, projMat.GetW().GetZ(), 0)) * invProjMat;
+#else
+		Math::Matrix4 screenToViewMat = Math::Matrix4(
+			Math::Vector4(1.0f/projMat.GetX().GetX(), 0, 0, 0),
+			Math::Vector4(0, 1.0f/projMat.GetY().GetY(), 0, 0),
+			Math::Vector4(0, 0, 1.0f, 0),
+			Math::Vector4(0, 0, 0, 1.0f));
+#endif
+		Math::Matrix4 screenToWorldMat = invViewMat * screenToViewMat; // Transpose later
+		g_ViewUniformBufferParameters.ViewMatrix = Math::Transpose(viewMat);
+		g_ViewUniformBufferParameters.ProjMatrix = Math::Transpose(projMat);
+		g_ViewUniformBufferParameters.ViewProjMatrix = Math::Transpose(m_Camera.GetViewProjMatrix());
+		g_ViewUniformBufferParameters.PrevViewProjMatrix = Math::Transpose(m_Camera.GetPrevViewProjMatrix());
+		g_ViewUniformBufferParameters.ReprojectMatrix = Math::Transpose(m_Camera.GetReprojectionMatrix());
+		g_ViewUniformBufferParameters.InvViewMatrix = Math::Transpose(invViewMat);
+		g_ViewUniformBufferParameters.InvProjMatrix = Math::Transpose(invProjMat);
+		g_ViewUniformBufferParameters.ScreenToViewMatrix = Math::Transpose(screenToViewMat);
+		g_ViewUniformBufferParameters.ScreenToWorldMatrix = Math::Transpose(screenToWorldMat);
+		g_ViewUniformBufferParameters.BufferSizeAndInvSize = Math::Vector4((float)bufferWidth, (float)bufferHeight, 1.0f / bufferWidth, 1.0f / bufferHeight);
+		g_ViewUniformBufferParameters.InvDeviceZToWorldZTransform = Math::CreateInvDeviceZToWorldZTransform(projMat);
+		g_ViewUniformBufferParameters.DebugColor = Math::Vector4(c_BackgroundColor);
+		g_ViewUniformBufferParameters.CamPos = m_Camera.GetPosition();
+
+		float farClip = m_Camera.GetFarClip(), nearClip = m_Camera.GetNearClip();
+		g_ViewUniformBufferParameters.ZNear = nearClip;
+		g_ViewUniformBufferParameters.ZFar = farClip;
+		g_ViewUniformBufferParameters.ZMagic = (farClip - nearClip) / nearClip;
+
+		// FIXME: Use UploadBuffer seems run slower ???
+		g_ViewUniformBuffer.CopyToGpu(&g_ViewUniformBufferParameters, sizeof(g_ViewUniformBufferParameters));
+	}
 
 	// Update particles
 	ComputeContext& computeContext = ComputeContext::Begin(L"Particle Update");
@@ -267,6 +319,8 @@ void ModelViewer::Render()
 
 	// Z prepass
 	{
+		ProfilingScope profilingScope(L"Render PreDepth", gfxContext);
+
 		// Opaque 
 		{
 			gfxContext.SetDynamicConstantBufferView((uint32_t)RSId::kMaterialConstants, sizeof(psConstants), &psConstants);
@@ -293,6 +347,8 @@ void ModelViewer::Render()
 		// 暂时先在这里 计算线性深度 （实际应在SSAO中计算，目前没有实现）
 		// Linearize depth
 		{
+			ProfilingScope profilingScope(L"Compute Linear Depth", gfxContext);
+
 			auto& computeContext = gfxContext.GetComputeContext();
 			computeContext.SetRootSignature(m_LinearDepthRS);
 			computeContext.SetPipelineState(m_LinearDepthCS);
@@ -326,6 +382,8 @@ void ModelViewer::Render()
 		auto& shadowBuffer = Graphics::s_BufferManager.m_ShadowBuffer;
 		// Render shadow map
 		{
+			ProfilingScope profilingScope(L"Render Shadowmap", gfxContext);
+
 			m_SunShadow.UpdateMatrix(-m_SunDirection, Math::Vector3(0, -500.0f, 0),
 				Math::Vector3(m_CommonStates.ShadowDimX, m_CommonStates.ShadowDimY, m_CommonStates.ShadowDimZ),
 				shadowBuffer.GetWidth(), shadowBuffer.GetHeight(), 16);
@@ -342,6 +400,8 @@ void ModelViewer::Render()
 
 		// Render color
 		{
+			ProfilingScope profilingScope(L"Render Main Color", gfxContext);
+
 			gfxContext.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
 
 			D3D12_CPU_DESCRIPTOR_HANDLE rtvs[] = { colorBuffer.GetRTV(), normalBuffer.GetRTV() };
@@ -377,7 +437,6 @@ void ModelViewer::Render()
 		auto& linearDepth = Graphics::s_BufferManager.m_LinearDepth[frameIndex % 2];
 		Effects::s_ParticleEffectManager.Render(gfxContext, m_Camera, colorBuffer, depthBuffer, linearDepth);
 	}
-
 	
 	// 普通渲染顺序，不经z prepass
 	/**
@@ -400,6 +459,29 @@ void ModelViewer::Render()
 	// Raytracing
 	if (rayTracingMode != RaytracingMode::Off)
 		Raytrace(gfxContext);
+
+	// Denoising
+	if (Effects::s_Denoier.IsActive())
+		Effects::s_Denoier.Render(gfxContext);
+
+	// DEBUG
+#if 0
+	if (Effects::s_Denoier.IsActive())
+	{
+		gfxContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		gfxContext.SetRenderTarget(colorBuffer.GetRTV());
+		m_DebugPass.Render(gfxContext, Effects::s_Denoier.GetDebugOutput());
+	}
+#endif
+
+	// Update histories
+	if (GfxStates::s_bEnableTemporalEffects)
+	{
+		if (!Effects::s_TemporalEffects.HasInited())
+			Effects::s_TemporalEffects.Init(Graphics::s_Device);
+
+		Effects::s_TemporalEffects.UpdateHistory(gfxContext);
+	}
 
 	gfxContext.Finish();
 }
@@ -520,6 +602,11 @@ void ModelViewer::InitCustom()
 	// m_Camera.Update();	// 若无CameraController，需要手动更新
 	m_CameraController.reset(new CameraController(m_Camera, Math::Vector3(Math::kYUnitVector), *m_Input));
 
+	// Common uniforms
+	{
+		g_ViewUniformBuffer.Create(Graphics::s_Device, L"View Uniform Buffer", 1, sizeof(FViewUniformBufferParameters), true);
+	}
+
 	// Resources
 	// ...
 	m_ExtraTextures[0] = Graphics::s_TextureManager.GetWhiteTex2D().GetSRV();	// 暂时为空
@@ -554,6 +641,8 @@ void ModelViewer::InitCustom()
 
 	// Raytracing
 	InitRaytracing();
+
+	m_DebugPass.Init();
 }
 
 void ModelViewer::CleanCustom()
@@ -563,6 +652,13 @@ void ModelViewer::CleanCustom()
 
 	m_Model->Cleanup();
 	m_Skybox.Shutdown();
+
+	m_DebugPass.Cleanup();
+
+	// Gloabls
+	{
+		g_ViewUniformBuffer.Destroy();
+	}
 }
 
 void ModelViewer::PostProcess()
@@ -574,6 +670,8 @@ void ModelViewer::PostProcess()
 // 先将shadow深度渲染到Light::m_LightShadowTempBuffer,然后将其CopySubResource到Light::m_LightShadowArray.
 void ModelViewer::RenderLightShadows(GraphicsContext& gfxContext)
 {
+	ProfilingScope profilingScope(L"Render Light Shadows", gfxContext);
+
 	static uint32_t LightIndex = 0;
 
 	auto& forwardPlusLighting = Effects::s_ForwardPlusLighting;
@@ -601,6 +699,24 @@ void ModelViewer::RenderLightShadows(GraphicsContext& gfxContext)
 
 void ModelViewer::RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4 viewProjMat, ObjectFilter filter)
 {
+	using std::wstring;
+	static const wstring RenderOpaqueObjectsString = L"Render Objects Opaque";
+	static const wstring RenderCutoutObjectsString = L"Render Objects Cutout";
+	static const wstring RenderTransparentObjectsString = L"Render Objects Transparent";
+	static const wstring RenderAllObjectsString = L"Render Objects All";
+	
+	wstring ProfilingString(L"");
+	if (filter == ObjectFilter::kOpaque)
+		ProfilingString = RenderOpaqueObjectsString;
+	else if (filter == ObjectFilter::kCutout)
+		ProfilingString = RenderCutoutObjectsString;
+	else if (filter == ObjectFilter::kTransparent)
+		ProfilingString = RenderTransparentObjectsString;
+	else if (filter == ObjectFilter::kAll)
+		ProfilingString = RenderAllObjectsString;
+
+	ProfilingScope profilingScope(ProfilingString, gfxContext);
+
 	VSConstants vsConstants;
 	vsConstants._ModelToProjection = Math::Transpose(viewProjMat);	// HLSL - 对应 mul(float4(pos), mat)
 	// vsConstants._ModelToProjection = (viewProjMat);	// HLSL - 对应 mul(mat, float4(pos))
@@ -844,11 +960,11 @@ void ModelViewer::RaytraceBarycentrics(CommandContext& context)
 	pRaytracingCmdList->SetDescriptorHeaps(ARRAYSIZE(pDescHeaps), pDescHeaps);
 
 	pCmdList->SetComputeRootSignature(m_GlobalRaytracingRS.GetSignature());
-	pCmdList->SetComputeRootDescriptorTable(0, m_SceneSrvs);
-	pCmdList->SetComputeRootConstantBufferView(1, m_HitConstantBuffer.GetGpuVirtualAddress());
-	pCmdList->SetComputeRootConstantBufferView(2, m_DynamicConstantBuffer.GetGpuVirtualAddress());
-	pCmdList->SetComputeRootDescriptorTable(4, m_OutColorUAV);
-	pCmdList->SetComputeRootShaderResourceView(7, m_TLAS->GetGPUVirtualAddress());
+	pCmdList->SetComputeRootDescriptorTable((uint32_t)RTGlobalRSId::SceneBuffers, m_SceneSrvs);
+	pCmdList->SetComputeRootConstantBufferView((uint32_t)RTGlobalRSId::HitConstants, m_HitConstantBuffer.GetGpuVirtualAddress());
+	pCmdList->SetComputeRootConstantBufferView((uint32_t)RTGlobalRSId::DynamicCB, m_DynamicConstantBuffer.GetGpuVirtualAddress());
+	pCmdList->SetComputeRootDescriptorTable((uint32_t)RTGlobalRSId::Outputs, m_OutColorUAV);
+	pCmdList->SetComputeRootShaderResourceView((uint32_t)RTGlobalRSId::AccelerationStructure, m_TLAS->GetGPUVirtualAddress());
 
 	D3D12_DISPATCH_RAYS_DESC dispathRaysDesc = m_RaytracingInputs[(int)RaytracingType::Primarybarycentric].GetDispatchRayDesc(W, H);
 	pRaytracingCmdList->SetPipelineState1(m_RaytracingInputs[(int)RaytracingType::Primarybarycentric].m_pPSO);
@@ -885,11 +1001,11 @@ void ModelViewer::RaytraceBarycentricsSSR(CommandContext& context)
 	pRaytracingCmdList->SetDescriptorHeaps(ARRAYSIZE(pDescHeaps), pDescHeaps);
 
 	pCmdList->SetComputeRootSignature(m_GlobalRaytracingRS.GetSignature());
-	pCmdList->SetComputeRootConstantBufferView(1, m_HitConstantBuffer.GetGpuVirtualAddress());
-	pCmdList->SetComputeRootConstantBufferView(2, m_DynamicConstantBuffer.GetGpuVirtualAddress());
-	pCmdList->SetComputeRootDescriptorTable(3, m_DepthAndNormalsTable);
-	pCmdList->SetComputeRootDescriptorTable(4, m_OutColorUAV);
-	pCmdList->SetComputeRootShaderResourceView(7, m_TLAS->GetGPUVirtualAddress());
+	pCmdList->SetComputeRootConstantBufferView((uint32_t)RTGlobalRSId::HitConstants, m_HitConstantBuffer.GetGpuVirtualAddress());
+	pCmdList->SetComputeRootConstantBufferView((uint32_t)RTGlobalRSId::DynamicCB, m_DynamicConstantBuffer.GetGpuVirtualAddress());
+	pCmdList->SetComputeRootDescriptorTable((uint32_t)RTGlobalRSId::InputTextures, m_DepthAndNormalsTable);
+	pCmdList->SetComputeRootDescriptorTable((uint32_t)RTGlobalRSId::Outputs, m_OutColorUAV);
+	pCmdList->SetComputeRootShaderResourceView((uint32_t)RTGlobalRSId::AccelerationStructure, m_TLAS->GetGPUVirtualAddress());
 
 	D3D12_DISPATCH_RAYS_DESC dispathRaysDesc = m_RaytracingInputs[(int)RaytracingType::Reflectionbarycentric].GetDispatchRayDesc(W, H);
 	pRaytracingCmdList->SetPipelineState1(m_RaytracingInputs[(int)RaytracingType::Reflectionbarycentric].m_pPSO);
@@ -928,12 +1044,12 @@ void ModelViewer::RaytraceDiffuse(GraphicsContext& gfxContext)
 	pRaytracingCmdList->SetDescriptorHeaps(ARRAYSIZE(pDescHeaps), pDescHeaps);
 
 	pCmdList->SetComputeRootSignature(m_GlobalRaytracingRS.GetSignature());
-	pCmdList->SetComputeRootDescriptorTable(0, m_SceneSrvs);
-	pCmdList->SetComputeRootConstantBufferView(1, m_HitConstantBuffer.GetGpuVirtualAddress());
-	pCmdList->SetComputeRootConstantBufferView(2, m_DynamicConstantBuffer.GetGpuVirtualAddress());
-	pCmdList->SetComputeRootDescriptorTable(3, m_DepthAndNormalsTable);
-	pCmdList->SetComputeRootDescriptorTable(4, m_OutColorUAV);
-	pCmdList->SetComputeRootShaderResourceView(7, m_TLAS->GetGPUVirtualAddress());
+	pCmdList->SetComputeRootDescriptorTable((uint32_t)RTGlobalRSId::SceneBuffers, m_SceneSrvs);
+	pCmdList->SetComputeRootConstantBufferView((uint32_t)RTGlobalRSId::HitConstants, m_HitConstantBuffer.GetGpuVirtualAddress());
+	pCmdList->SetComputeRootConstantBufferView((uint32_t)RTGlobalRSId::DynamicCB, m_DynamicConstantBuffer.GetGpuVirtualAddress());
+	pCmdList->SetComputeRootDescriptorTable((uint32_t)RTGlobalRSId::InputTextures, m_DepthAndNormalsTable);
+	pCmdList->SetComputeRootDescriptorTable((uint32_t)RTGlobalRSId::Outputs, m_OutColorUAV);
+	pCmdList->SetComputeRootShaderResourceView((uint32_t)RTGlobalRSId::AccelerationStructure, m_TLAS->GetGPUVirtualAddress());
 
 	D3D12_DISPATCH_RAYS_DESC dispathRaysDesc = m_RaytracingInputs[(int)RaytracingType::DiffuseHitShader].GetDispatchRayDesc(W, H);
 	pRaytracingCmdList->SetPipelineState1(m_RaytracingInputs[(int)RaytracingType::DiffuseHitShader].m_pPSO);
@@ -972,11 +1088,11 @@ void ModelViewer::RaytraceShadows(GraphicsContext& gfxContext)
 	pRaytracingCmdList->SetDescriptorHeaps(ARRAYSIZE(pDescHeaps), pDescHeaps);
 
 	pCmdList->SetComputeRootSignature(m_GlobalRaytracingRS.GetSignature());
-	pCmdList->SetComputeRootConstantBufferView(1, m_HitConstantBuffer.GetGpuVirtualAddress());
-	pCmdList->SetComputeRootConstantBufferView(2, m_DynamicConstantBuffer.GetGpuVirtualAddress());
-	pCmdList->SetComputeRootDescriptorTable(3, m_DepthAndNormalsTable);
-	pCmdList->SetComputeRootDescriptorTable(4, m_OutColorUAV);
-	pCmdList->SetComputeRootShaderResourceView(7, m_TLAS->GetGPUVirtualAddress());
+	pCmdList->SetComputeRootConstantBufferView((uint32_t)RTGlobalRSId::HitConstants, m_HitConstantBuffer.GetGpuVirtualAddress());
+	pCmdList->SetComputeRootConstantBufferView((uint32_t)RTGlobalRSId::DynamicCB, m_DynamicConstantBuffer.GetGpuVirtualAddress());
+	pCmdList->SetComputeRootDescriptorTable((uint32_t)RTGlobalRSId::InputTextures, m_DepthAndNormalsTable);
+	pCmdList->SetComputeRootDescriptorTable((uint32_t)RTGlobalRSId::Outputs, m_OutColorUAV);
+	pCmdList->SetComputeRootShaderResourceView((uint32_t)RTGlobalRSId::AccelerationStructure, m_TLAS->GetGPUVirtualAddress());
 
 	D3D12_DISPATCH_RAYS_DESC dispathRaysDesc = m_RaytracingInputs[(int)RaytracingType::Shadows].GetDispatchRayDesc(W, H);
 	pRaytracingCmdList->SetPipelineState1(m_RaytracingInputs[(int)RaytracingType::Shadows].m_pPSO);
@@ -1029,12 +1145,13 @@ void ModelViewer::ReferencePathTracing(GraphicsContext& gfxContext)
 	pRaytracingCmdList->SetDescriptorHeaps(ARRAYSIZE(pDescHeaps), pDescHeaps);
 
 	pCmdList->SetComputeRootSignature(m_GlobalRaytracingRS.GetSignature());
-	pCmdList->SetComputeRootDescriptorTable(0, m_SceneSrvs);
-	pCmdList->SetComputeRootConstantBufferView(1, m_HitConstantBuffer.GetGpuVirtualAddress());
-	pCmdList->SetComputeRootConstantBufferView(2, m_DynamicConstantBuffer.GetGpuVirtualAddress());
-	pCmdList->SetComputeRootDescriptorTable(3, m_DepthAndNormalsTable);
-	pCmdList->SetComputeRootDescriptorTable(4, m_OutColorUAV);
-	pCmdList->SetComputeRootShaderResourceView(7, m_TLAS->GetGPUVirtualAddress());
+	pCmdList->SetComputeRootConstantBufferView((uint32_t)RTGlobalRSId::ViewUniforms, g_ViewUniformBuffer.GetGpuPointer());
+	pCmdList->SetComputeRootDescriptorTable((uint32_t)RTGlobalRSId::SceneBuffers, m_SceneSrvs);
+	pCmdList->SetComputeRootConstantBufferView((uint32_t)RTGlobalRSId::HitConstants, m_HitConstantBuffer.GetGpuVirtualAddress());
+	pCmdList->SetComputeRootConstantBufferView((uint32_t)RTGlobalRSId::DynamicCB, m_DynamicConstantBuffer.GetGpuVirtualAddress());
+	pCmdList->SetComputeRootDescriptorTable((uint32_t)RTGlobalRSId::InputTextures, m_DepthAndNormalsTable);
+	pCmdList->SetComputeRootDescriptorTable((uint32_t)RTGlobalRSId::Outputs, m_OutColorUAV);
+	pCmdList->SetComputeRootShaderResourceView((uint32_t)RTGlobalRSId::AccelerationStructure, m_TLAS->GetGPUVirtualAddress());
 
 	D3D12_DISPATCH_RAYS_DESC dispathRaysDesc = m_RaytracingInputs[(int)RaytracingType::ReferencePathTracing].GetDispatchRayDesc(W, H);
 	pRaytracingCmdList->SetPipelineState1(m_RaytracingInputs[(int)RaytracingType::ReferencePathTracing].m_pPSO);
@@ -1047,8 +1164,8 @@ void ModelViewer::ReferencePathTracing(GraphicsContext& gfxContext)
 		pCmdList->SetPipelineState(m_BufferCopyPSO.GetPipelineStateObject());
 
 		pCmdList->SetDescriptorHeaps(ARRAYSIZE(pDescHeaps), pDescHeaps);
-		pCmdList->SetComputeRootDescriptorTable(3, m_AccumulationBufferSRV.GetGpuHandle());
-		pCmdList->SetComputeRootDescriptorTable(4, m_OutColorUAV);
+		pCmdList->SetComputeRootDescriptorTable((uint32_t)RTGlobalRSId::InputTextures, m_AccumulationBufferSRV.GetGpuHandle());
+		pCmdList->SetComputeRootDescriptorTable((uint32_t)RTGlobalRSId::Outputs, m_OutColorUAV);
 
 		pCmdList->Dispatch(Math::DivideByMultiple(W, s_GroupSize), Math::DivideByMultiple(H, s_GroupSize), 1);
 	}
@@ -1089,7 +1206,7 @@ void ModelViewer::ReSTIRWithDirectLights(GraphicsContext& gfxContext)
 		computeContext.TransitionResource(*pPrevReservoirBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		computeContext.SetPipelineState(m_ClearReservoirPSO);
-		computeContext.SetDynamicDescriptor(4, 2, pPrevReservoirBuffer->GetUAV());
+		computeContext.SetDynamicDescriptor((uint32_t)RTGlobalRSId::Outputs, 2, pPrevReservoirBuffer->GetUAV());
 
 		computeContext.Dispatch2D(N, 1, s_GroupSizeX, 1);
 
@@ -1118,13 +1235,14 @@ void ModelViewer::ReSTIRWithDirectLights(GraphicsContext& gfxContext)
 
 	pDevice->CopyDescriptorsSimple(1, m_ReservoirBufferSRV.GetCpuHandle(), pPrevReservoirBuffer->GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	pDevice->CopyDescriptorsSimple(1, m_ReservoirBufferUAV.GetCpuHandle(), pCurrReservoirBuffer->GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	
-	computeContext.SetDescriptorTable(0, m_SceneSrvs);
-	computeContext.SetConstantBuffer(1, m_HitConstantBuffer.GetGpuVirtualAddress());
-	computeContext.SetConstantBuffer(2, m_DynamicConstantBuffer.GetGpuVirtualAddress());
-	computeContext.SetDescriptorTable(3, m_DepthAndNormalsTable);
-	computeContext.SetDescriptorTable(4, m_OutColorUAV);
-	computeContext.SetShaderResourceView(7, m_TLAS->GetGPUVirtualAddress());
+
+	computeContext.SetConstantBuffer((uint32_t)RTGlobalRSId::ViewUniforms, g_ViewUniformBuffer.GetGpuPointer());
+	computeContext.SetDescriptorTable((uint32_t)RTGlobalRSId::SceneBuffers, m_SceneSrvs);
+	computeContext.SetConstantBuffer((uint32_t)RTGlobalRSId::HitConstants, m_HitConstantBuffer.GetGpuVirtualAddress());
+	computeContext.SetConstantBuffer((uint32_t)RTGlobalRSId::DynamicCB, m_DynamicConstantBuffer.GetGpuVirtualAddress());
+	computeContext.SetDescriptorTable((uint32_t)RTGlobalRSId::InputTextures, m_DepthAndNormalsTable);
+	computeContext.SetDescriptorTable((uint32_t)RTGlobalRSId::Outputs, m_OutColorUAV);
+	computeContext.SetShaderResourceView((uint32_t)RTGlobalRSId::AccelerationStructure, m_TLAS->GetGPUVirtualAddress());
 
 #if 0
 	// WRONG::Overlapped views!
@@ -1542,15 +1660,16 @@ void ModelViewer::InitRaytracingStateObjects(ID3D12Device *pDevice)
 
 	/// Root signature
 	// Gloal Raytracing RS
-	m_GlobalRaytracingRS.Reset(8, 2);
-	m_GlobalRaytracingRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,  1,  8); // SceneBuffers: MeshInfo+IB+VB+LightBuffer+...
-	m_GlobalRaytracingRS[1].InitAsConstantBuffer(0); // HitConstants
-	m_GlobalRaytracingRS[2].InitAsConstantBuffer(1); // DynamicCB
-	m_GlobalRaytracingRS[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 12, 10); // DepthTexture, NormalTexture, ...
-	m_GlobalRaytracingRS[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV,  2, 10); // u2->ColorOutput
-	m_GlobalRaytracingRS[5].InitAsBufferUAV(0);
-	m_GlobalRaytracingRS[6].InitAsBufferUAV(1);
-	m_GlobalRaytracingRS[7].InitAsBufferSRV(0); // TLAS
+	m_GlobalRaytracingRS.Reset((uint32_t)RTGlobalRSId::Num, 2);
+	m_GlobalRaytracingRS[(uint32_t)RTGlobalRSId::ViewUniforms].InitAsConstantBuffer(g_ViewUniformBufferParamsRegister, g_UniformBufferParamsSpace);
+	m_GlobalRaytracingRS[(uint32_t)RTGlobalRSId::SceneBuffers].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,  1,  8); // SceneBuffers: MeshInfo+IB+VB+LightBuffer+...
+	m_GlobalRaytracingRS[(uint32_t)RTGlobalRSId::HitConstants].InitAsConstantBuffer(0); // HitConstants
+	m_GlobalRaytracingRS[(uint32_t)RTGlobalRSId::DynamicCB].InitAsConstantBuffer(1); // DynamicCB
+	m_GlobalRaytracingRS[(uint32_t)RTGlobalRSId::InputTextures].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 12, 10); // DepthTexture, NormalTexture, ...
+	m_GlobalRaytracingRS[(uint32_t)RTGlobalRSId::Outputs].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV,  2, 10); // u2->ColorOutput
+	m_GlobalRaytracingRS[(uint32_t)RTGlobalRSId::U0].InitAsBufferUAV(0);
+	m_GlobalRaytracingRS[(uint32_t)RTGlobalRSId::U1].InitAsBufferUAV(1);
+	m_GlobalRaytracingRS[(uint32_t)RTGlobalRSId::AccelerationStructure].InitAsBufferSRV(0); // TLAS
 	m_GlobalRaytracingRS.InitStaticSampler(0, DefaultSamplerDesc);
 	m_GlobalRaytracingRS.InitStaticSampler(1, Graphics::s_CommonStates.SamplerShadowDesc);
 	m_GlobalRaytracingRS.Finalize(Graphics::s_Device, L"Global RaytracingRS");

@@ -4,6 +4,7 @@
 #include "GfxCommon.h"
 #include "Math/Random.h"
 #include "Camera.h"
+#include "ProfilingScope.h"
 
 // compiled CS
 #include "FillLightGridCS_8.h"
@@ -193,6 +194,8 @@ namespace MyDirectX
 
 	void ForwardPlusLighting::FillLightGrid(GraphicsContext& gfxContext, const Math::Camera& camera, uint64_t frameIndex)
 	{
+		ProfilingScope profilingScope(L"Fill Light Grid", gfxContext);
+
 		ComputeContext& context = gfxContext.GetComputeContext();
 
 		context.SetRootSignature(m_FillLightRS);

@@ -3,6 +3,7 @@
 #include "MyBasicGeometry.h"
 #include "TextureManager.h"
 #include "CommandContext.h"
+#include "ProfilingScope.h"
 
 // compiled shader bytecode
 #include "SkyboxVS.h"
@@ -136,6 +137,8 @@ void Skybox::Init(ID3D12Device* pDevice, const std::wstring& fileName)
 
 void Skybox::Render(GraphicsContext& gfx, const Math::Camera& camera)
 {
+	ProfilingScope profilingScope(L"Render Skybox", gfx);
+
 	auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 	auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
 

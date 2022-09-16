@@ -3,9 +3,10 @@
 #include "GfxCommon.h"
 #include "CommandContext.h"
 #include "TextureManager.h"
+#include "ProfilingScope.h"
 
-// compiled shader byte code
-// bloom
+// Compiled shader byte code
+// Bloom
 #include "BloomExtractAndDownsampleHdrCS.h"
 #include "BloomExtractAndDownsampleLdrCS.h"
 #include "DownsampleBloomCS.h"
@@ -15,13 +16,13 @@
 #include "ApplyBloomCS.h"
 #include "ApplyBloom2CS.h"		// SUPPORT_TYPED_UAV_LOADS
 
-// tone map
+// Tone map
 #include "ToneMapCS.h"
 #include "ToneMap2CS.h"
 #include "ToneMapHDRCS.h"
 #include "ToneMapHDR2CS.h"
 
-// adaptation
+// Adaptation
 #include "ExtractLumaCS.h"
 #include "GenerateHistogramCS.h"
 #include "AdaptExposureCS.h"
@@ -410,28 +411,32 @@ namespace MyDirectX
 	{
 		ComputeContext& context = ComputeContext::Begin(L"Post Effects");
 
-		context.SetRootSignature(m_PostEffectsRS);
+		{
+			ProfilingScope profilingScope(L"Render PostEffects", context);
 
-		auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
-		context.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			context.SetRootSignature(m_PostEffectsRS);
 
-		if (m_CommonStates.EnableHDR)
-			ProcessHDR(context);
-		else
-			ProcessLDR(context);
+			auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
+			context.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-		bool bGeneratedLumaBuffer = m_CommonStates.EnableHDR || m_CommonStates.EnableBloom;
+			if (m_CommonStates.EnableHDR)
+				ProcessHDR(context);
+			else
+				ProcessLDR(context);
 
-		/**
-			in the case where we've been doing post processing in a separate buffer, we need to copy it
-		back to the original buffer. It is possible to skip this step if the next shader knows to do
-		the manual format decode from UINT, but there are several code paths that need to be changed,
-		and some of them rely on texture filtering, which won't work with UINT. Since this is only to 
-		support legacy hardware and a single buffer copy isn't that big of a deal, this is the most 
-		economical solution.
-		*/
-		if (!GfxStates::s_bTypedUAVLoadSupport_R11G11B10_FLOAT)
-			CopyBackPostBuffer(context);
+			bool bGeneratedLumaBuffer = m_CommonStates.EnableHDR || m_CommonStates.EnableBloom;
+
+			/**
+				in the case where we've been doing post processing in a separate buffer, we need to copy it
+			back to the original buffer. It is possible to skip this step if the next shader knows to do
+			the manual format decode from UINT, but there are several code paths that need to be changed,
+			and some of them rely on texture filtering, which won't work with UINT. Since this is only to
+			support legacy hardware and a single buffer copy isn't that big of a deal, this is the most
+			economical solution.
+			*/
+			if (!GfxStates::s_bTypedUAVLoadSupport_R11G11B10_FLOAT)
+				CopyBackPostBuffer(context);
+		}
 
 		context.Finish();
 	}

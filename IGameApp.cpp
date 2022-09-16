@@ -70,7 +70,8 @@ bool IGameApp::Init()
 void IGameApp::OnResize(UINT width, UINT height, bool minimized)
 {
 	m_Gfx->Resize(width, height);
-	Effects::Resize(width, height);
+	// No need to resize, display resolution != native resolution
+	// Effects::Resize(width, height);
 }
 
 void IGameApp::Update(float deltaTime)

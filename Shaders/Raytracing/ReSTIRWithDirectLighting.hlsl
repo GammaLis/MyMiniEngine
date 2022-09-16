@@ -110,10 +110,17 @@ void RayGen()
      * settings stored in the projection matrix cause numerical precision issues when the transformation 
      * is reversed.
      */
+#if 0
 	float4 unprojected = mul(float4(pixel, 0, 1), _Dynamics.cameraToWorld);
     float3 world = unprojected.xyz / unprojected.w;
-	float3 origin = origin = _Dynamics.worldCameraPosition.xyz;
+	float3 origin = _Dynamics.worldCameraPosition.xyz;
     float3 direction = normalize(world - origin);
+
+#else
+	float3 world = mul(float4(pixel, -1.0, 1.0), _View.ScreenToWorldMatrix).xyz;
+	float3 origin = _View.CamPos.xyz;
+	float3 direction = normalize(world - origin);
+#endif
 
     RayDesc ray;
     ray.Origin = _Dynamics.worldCameraPosition.xyz;

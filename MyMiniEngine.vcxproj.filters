@@ -101,6 +101,9 @@
     <Filter Include="Shaders\ModelViewer\Raytracing">
       <UniqueIdentifier>{f6fe4c37-b77e-453d-9888-920b18558b91}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\Denoising">
+      <UniqueIdentifier>{b08c29ca-9fe4-4284-be88-8eb04d2fadbb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\GpuResource.h">
@@ -421,6 +424,12 @@
     <ClInclude Include="Effects\TemporalEffects.h">
       <Filter>Effects</Filter>
     </ClInclude>
+    <ClInclude Include="Effects\Denoiser.h">
+      <Filter>Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\UniformBuffers.h">
+      <Filter>Game</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -651,6 +660,12 @@
     <ClCompile Include="Effects\TemporalEffects.cpp">
       <Filter>Effects</Filter>
     </ClCompile>
+    <ClCompile Include="Effects\Denoiser.cpp">
+      <Filter>Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="Game\UniformBuffers.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Core\Math\Functions.inl">
@@ -814,6 +829,12 @@
       <Filter>Shaders\ModelViewer\Raytracing</Filter>
     </None>
     <None Include="Shaders\ProceduralTextures.hlsl">
+      <Filter>Shaders\Common</Filter>
+    </None>
+    <None Include="Shaders\Denoising\DenoisingCommon.hlsl">
+      <Filter>Shaders\Denoising</Filter>
+    </None>
+    <None Include="Shaders\UniformBuffers.hlsl">
       <Filter>Shaders\Common</Filter>
     </None>
   </ItemGroup>
@@ -1168,6 +1189,21 @@
     </FxCompile>
     <FxCompile Include="Shaders\Raytracing\ReSTIRWithDirectLighting.hlsl">
       <Filter>Shaders\ModelViewer\Raytracing</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Denoising\TemporalReverseReprojectCS.hlsl">
+      <Filter>Shaders\Denoising</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Denoising\TemporalBlendFrameCS.hlsl">
+      <Filter>Shaders\Denoising</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Denoising\CalculateMeanVarianceCS.hlsl">
+      <Filter>Shaders\Denoising</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Denoising\DepthAwareGaussianFilterCS.hlsl">
+      <Filter>Shaders\Denoising</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Denoising\AtrousWaveletBilateralFilterCS.hlsl">
+      <Filter>Shaders\Denoising</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

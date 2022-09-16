@@ -10,6 +10,8 @@ namespace MyDirectX
 	TemporalAA Effects::s_TemporalAA;
 	// Temporal effects
 	TemporalEffects Effects::s_TemporalEffects;
+	// Denoiser
+	Denoiser Effects::s_Denoier;
 	// Post effects
 	PostEffects Effects::s_PostEffects;
 
@@ -27,6 +29,10 @@ namespace MyDirectX
 		s_MotionBlur.Init(pDevice);
 		s_TemporalAA.Init(pDevice);
 		s_PostEffects.Init(pDevice);
+		if (GfxStates::s_bEnableTemporalEffects)
+			s_TemporalEffects.Init(pDevice);
+		if (Denoiser::s_bEnabled)
+			s_Denoier.Init(pDevice);
 
 		s_TextRenderer.Init(pDevice);
 		s_ForwardPlusLighting.Init(pDevice);
@@ -43,16 +49,12 @@ namespace MyDirectX
 		s_MotionBlur.Shutdown();
 		s_TemporalAA.Shutdown();
 		s_TemporalEffects.Shutdown();
+		s_Denoier.Shutdown();
 		s_PostEffects.Shutdown();
 
 		s_TextRenderer.Shutdown();
 		s_ForwardPlusLighting.Shutdown();
 
 		s_ParticleEffectManager.Shutdown();
-	}
-
-	void Effects::Resize(UINT width, UINT height)
-	{
-		s_TemporalEffects.Resize(width, height);
 	}
 }

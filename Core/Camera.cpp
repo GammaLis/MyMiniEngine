@@ -78,3 +78,73 @@ void Camera::UpdateProjMatrix( void )
         Vector4( 0.0f, 0.0f, Q2, 0.0f )
         ) );
 }
+
+Vector4 Math::CreateInvDeviceZToWorldZTransform(const Matrix4 &ProjMatrix)
+{
+    // The perspective depth projection comes from the the following projection matrix:
+    //
+    // | 1  0  0  0 |
+    // | 0  1  0  0 |
+    // | 0  0  A  1 |
+    // | 0  0  B  0 |
+    //
+    // Z' = (Z * A + B) / Z
+    // Z' = A + B / Z
+    //
+    // So to get Z from Z' is just:
+    // Z = B / (Z' - A)
+    //
+    // Note a reversed Z projection matrix will have A=0.
+    //
+    // Done in shader as:
+    // Z = 1 / (Z' * C1 - C2)   --- Where C1 = 1/B, C2 = A/B
+    //
+    // -Z ==> Z' = (Z * A + B) / -Z; Z' = -A - B/Z
+    // ==> -Z = B / (Z'+ A)
+    // ==> -Z = 1 / (Z' * 1/B + A/B)
+
+    float depthMul = ProjMatrix.GetZ().GetZ();
+    float depthAdd = ProjMatrix.GetW().GetZ();
+    if (depthAdd == 0.0f)
+    {
+	    // Avoid dividing by 0 in this case
+        depthAdd = 0.00000001f;
+    }
+
+    // perspective
+    // SceneDepth = 1.0f / (DeviceZ / ProjMatrix.M[3][2] - ProjMatrix.M[2][2] / ProjMatrix.M[3][2])
+
+    // ortho
+    // SceneDepth = DeviceZ / ProjMatrix.M[2][2] - ProjMatrix.M[3][2] / ProjMatrix.M[2][2];
+
+    // combined equation in shader to handle either
+    // SceneDepth = DeviceZ * View.InvDeviceZToWorldZTransform[0] + View.InvDeviceZToWorldZTransform[1] + 1.0f / (DeviceZ * View.InvDeviceZToWorldZTransform[2] - View.InvDeviceZToWorldZTransform[3]);
+
+    // therefore perspective needs
+    // View.InvDeviceZToWorldZTransform[0] = 0.0f
+    // View.InvDeviceZToWorldZTransform[1] = 0.0f
+    // View.InvDeviceZToWorldZTransform[2] = 1.0f / ProjMatrix.M[3][2]
+    // View.InvDeviceZToWorldZTransform[3] = ProjMatrix.M[2][2] / ProjMatrix.M[3][2]
+
+    // and ortho needs
+    // View.InvDeviceZToWorldZTransform[0] = 1.0f / ProjMatrix.M[2][2]
+    // View.InvDeviceZToWorldZTransform[1] = -ProjMatrix.M[3][2] / ProjMatrix.M[2][2] + 1.0f
+    // View.InvDeviceZToWorldZTransform[2] = 0.0f
+    // View.InvDeviceZToWorldZTransform[3] = 1.0f
+
+    bool bIsPerspectiveProjection = ProjMatrix.GetW().GetW() < 1.0f;
+    if(bIsPerspectiveProjection)
+    {
+        float subtractValue = depthMul / depthAdd;
+
+        // Subtract a tiny number to avoid divide by 0 errors in the shader when a very far distance is decided from the depth buffer.
+        // This fixes fog not being applied to the black background in the editor.
+        subtractValue -= 0.00000001f;
+
+        return Vector4(0.0f, 0.0f, 1.0f / depthAdd, subtractValue);
+    }
+    else
+    {
+        return Vector4(1.0f / depthMul, -depthAdd / depthMul + 1.0f, 0.0f, 1.0f);
+    }
+}

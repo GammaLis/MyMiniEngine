@@ -1,4 +1,4 @@
-﻿#ifndef COMMON_INCLUDED
+#ifndef COMMON_INCLUDED
 #define COMMON_INCLUDED
 
 // Ref: UE - Common.ush
@@ -60,6 +60,7 @@ const static float2 g_PixelOffsets16[] =
 	#define FORCED_TEXTURE_MIP 0.0f
 #endif
 
+#include "UniformBuffers.hlsl"
 
 // In HLSL, fmod is implemented as 'Lhs - trunc(Lhs / Rhs) * Rhs'
 // In some cases, using floor rather than trunc is better
@@ -341,6 +342,46 @@ float AtanFast( float x )
 	// Minimax 3 approximation
 	float3 A = x < 1 ? float3( x, 0, 1 ) : float3( 1/x, 0.5 * PI, -1 );
 	return A.y + A.z * ( ( ( -0.130234 * A.x - 0.0954105 ) * A.x + 1.00712 ) * A.x - 0.00001203333 );
+}
+
+// DeviceZ - value that is stored in the depth buffer (Z/W)
+// SceneDepth - linear in world units, W
+float ConvertFromDeviceZ(float DeviceZ)
+{
+	// Supports ortho and perspective, see CreateInvDeviceZToWorldZTransform() in Camera.cpp
+	// FIXME: array index not work float4[2] ???
+	return DeviceZ * _View.InvDeviceZToWorldZTransform.x + _View.InvDeviceZToWorldZTransform.y +
+		1.0f / (DeviceZ * _View.InvDeviceZToWorldZTransform.z + _View.InvDeviceZToWorldZTransform.w); // original `-`, here Z axis is out
+}
+
+// Inverse operation of ConvertFromDeviceZ()
+float ConvertToDeviceZ(float SceneDepth)
+{
+	SceneDepth = -abs(SceneDepth); // Z axis is out
+	[flatten]
+	if (_View.ProjMatrix[3][3] < 1.0f)
+	{
+		// Perpective
+		// 1.0f / ((SceneDepth + _View.InvDeviceZToWorldZTransform.w) * _View.InvDeviceZToWorldZTransform.z);
+		return (1.0f / SceneDepth - _View.InvDeviceZToWorldZTransform.w) / _View.InvDeviceZToWorldZTransform.z;
+	}
+	else
+	{
+		// 
+		return SceneDepth * _View.ProjMatrix[2][2] + _View.ProjMatrix[3][2];
+	}
+}
+
+// ZMagic = (zFar - zNear) / zNear
+// N*F / (N + (F-N)*z')
+float LinearEyeDepth01(float DeviceZ)
+{
+	return 1.0f / (1.0f + DeviceZ * _View.ZMagic);
+}
+
+float LinearEyeDepth(float DeviceZ)
+{
+	return _View.ZFar / (1.0f + DeviceZ * _View.ZMagic);
 }
 
 #endif // COMMON_INCLUDED

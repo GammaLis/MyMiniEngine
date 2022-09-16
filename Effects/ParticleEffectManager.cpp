@@ -5,15 +5,16 @@
 #include "TextureManager.h"
 
 #include "Camera.h"
+#include "ProfilingScope.h"
 
-// compiled shader bytecode
+// Compiled shader bytecode
 #include "ParticleSpawnCS.h"
 #include "ParticleUpdateCS.h"
 #include "ParticleDispatchIndirectArgsCS.h"
 
 #include "ParticleFinalDispatchIndirectArgsCS.h"
 
-// non tiled rendering
+// Non tiled rendering
 #include "ParticleVS.h"
 #include "ParticleNoSortVS.h"
 #include "ParticlePS.h"
@@ -294,6 +295,8 @@ void ParticleEffectManager::Update(ComputeContext& context, float deltaTime)
 
 void ParticleEffectManager::Render(CommandContext& context, const Math::Camera& camera, ColorBuffer& colorTarget, DepthBuffer& depthBuffer, ColorBuffer& linearDepth)
 {
+	ProfilingScope profilingScope(L"Render Particles", context);
+
 	if (!m_Enabled || !m_InitCompleted || m_ActiveParticleEffects.empty())
 		return;
 
@@ -333,7 +336,7 @@ void ParticleEffectManager::Render(CommandContext& context, const Math::Camera& 
 
 	if (m_EnableTiledRendering)
 	{
-
+		// TODO...
 	}
 	else
 	{

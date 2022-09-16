@@ -4,14 +4,10 @@
 #include "CommandContext.h"
 #include <d3dcompiler.h>
 
-#include "Effects.h"
-#include "TemporalAA.h"
-
 #include "ScreenQuadVS.h"
 
-/**
-	present
-*/
+/// Present
+
 #include "PresentHDRPS.h"
 #include "PresentSDRPS.h"
 #include "MagnifyPixelsPS.h"
@@ -35,20 +31,16 @@
 #include "LanczosCS.h"
 #include "BicubicUpsampleCS.h"
 
-/**
-	generate mips
-*/
+/// Generate mips
 #include "GenerateMips.h"
 #include "Generate3DTexMips.h"
 
-/**
-	text
-*/
+/// Text
 #include "TextVS.h"
 #include "TextAntialiasingPS.h"
 #include "TextShadowPS.h"
 
-// test
+/// Test
 #include "BasicTriangleVS.h"
 #include "BasicTrianglePS.h"
 
@@ -86,7 +78,7 @@ DXGI_FORMAT GfxStates::s_DefaultHdrColorFormat = DXGI_FORMAT_R11G11B10_FLOAT;
 DXGI_FORMAT GfxStates::s_DefaultDSVFormat = DXGI_FORMAT_D32_FLOAT;
 
 // Common settings
-bool GfxStates::s_bEnableTemporalEffects = false;
+bool GfxStates::s_bEnableTemporalEffects = true;
 
 void GfxStates::SetNativeResolution(ID3D12Device* pDevice, Resolutions nativeRes)
 {

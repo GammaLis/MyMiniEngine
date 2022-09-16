@@ -2,7 +2,7 @@
 #include "CommandListManager.h"
 #include "CommandContext.h"
 #include "TextureManager.h"
-#include "Effects.h"
+// #include "Effects.h"
 
 
 namespace MyDirectX
@@ -243,9 +243,6 @@ namespace MyDirectX
         s_CommonStates.DestroyCommonStates();
         s_BufferManager.DestroyRenderingBuffers();
         s_TextureManager.Shutdown();
-
-        // Effects
-        Effects::Shutdown();
 
         // Back buffers
         for (UINT i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)

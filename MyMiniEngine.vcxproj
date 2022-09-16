@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\ProfilingScope.h" />
+    <ClInclude Include="Effects\Denoiser.h" />
     <ClInclude Include="Effects\TemporalEffects.h" />
     <ClInclude Include="Game\Accelerations.h" />
     <ClInclude Include="Game\BindlessDeferred.h" />
@@ -29,6 +30,7 @@
     <ClInclude Include="Core\RayTracing\RayTracingHlslCompat.h" />
     <ClInclude Include="Core\UploadBuffer.h" />
     <ClInclude Include="Game\ReservoirSampling.h" />
+    <ClInclude Include="Game\UniformBuffers.h" />
     <ClInclude Include="ModelViewerRaytracing.h" />
     <ClInclude Include="Game\OceanViewer.h" />
     <ClInclude Include="Scenes\AssimpImporter.h" />
@@ -128,6 +130,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Core\ProfilingScope.cpp" />
+    <ClCompile Include="Effects\Denoiser.cpp" />
     <ClCompile Include="Effects\TemporalEffects.cpp" />
     <ClCompile Include="Game\Accelerations.cpp" />
     <ClCompile Include="Game\BindlessDeferred.cpp" />
@@ -135,6 +138,7 @@
     <ClCompile Include="Game\ClusteredLighting.cpp" />
     <ClCompile Include="Core\UploadBuffer.cpp" />
     <ClCompile Include="Game\OceanViewer.cpp" />
+    <ClCompile Include="Game\UniformBuffers.cpp" />
     <ClCompile Include="Scenes\AssimpImporter.cpp" />
     <ClCompile Include="CameraController.cpp" />
     <ClCompile Include="CommonCompute.cpp" />
@@ -748,6 +752,40 @@
       </AllResourcesBound>
       <EnableUnboundedDescriptorTables Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</EnableUnboundedDescriptorTables>
     </FxCompile>
+    <None Include="Shaders\Denoising\DenoisingCommon.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <FxCompile Include="Shaders\Denoising\AtrousWaveletBilateralFilterCS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Shaders\Denoising\CalculateMeanVarianceCS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Shaders\Denoising\DepthAwareGaussianFilterCS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Shaders\Denoising\TemporalBlendFrameCS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Shaders\Denoising\TemporalReverseReprojectCS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)Core\Shaders;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)Core\Shaders;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+    </FxCompile>
     <FxCompile Include="Shaders\DepthOnlyClipPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
@@ -1052,6 +1090,9 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
     </FxCompile>
+    <None Include="Shaders\UniformBuffers.hlsl">
+      <FileType>Document</FileType>
+    </None>
     <FxCompile Include="Shaders\WaterWave\CombineIFFTOutputsCS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>

@@ -2,6 +2,7 @@
 #include "Graphics.h"
 #include "GfxCommon.h"
 #include "CommandContext.h"
+#include "ProfilingScope.h"
 
 // Compiled shaders
 #include "TemporalBlendCS.h"
@@ -148,6 +149,8 @@ void TemporalAA::ClearHistory(CommandContext& context)
 // Temporal resolve
 void TemporalAA::ResolveImage(CommandContext& context)
 {
+	ProfilingScope profilingScope(L"Resolve TAA Image", context);
+
 	auto& computeContext = context.GetComputeContext();
 
 	static bool s_EnableTAA = false;
@@ -180,6 +183,8 @@ void TemporalAA::ResolveImage(CommandContext& context)
 // Resolve Image
 void TemporalAA::ApplyTemporalAA(ComputeContext& context)
 {
+	ProfilingScope profilingScope(L"Apply TemporalAA", context);
+
 	struct alignas(16) CSConstants
 	{
 		float _RcpBufferDim[2];		// 1/width, 1/height
@@ -228,6 +233,8 @@ void TemporalAA::ApplyTemporalAA(ComputeContext& context)
 
 void TemporalAA::ApplyTemporalIntelAA(ComputeContext& context/*, const Math::Matrix4& currProjMat, const Math::Matrix4& prevProjMat*/)
 {
+	ProfilingScope profilingScope(L"Apply TemporalAA", context);
+
 	struct alignas(16) CSConstants
 	{
 		Math::Vector4 _Resolution;	// width, height, 1/width, 1/height
@@ -298,6 +305,8 @@ void TemporalAA::ApplyTemporalIntelAA(ComputeContext& context/*, const Math::Mat
 // Sharpen or copy image
 void TemporalAA::SharpenImage(ComputeContext& context, ColorBuffer& temporalColor)
 {
+	ProfilingScope profilingScope(L"Sharpen Image", context);
+
 	auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 
 	context.TransitionResource(temporalColor, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);

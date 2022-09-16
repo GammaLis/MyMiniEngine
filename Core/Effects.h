@@ -3,6 +3,7 @@
 #include "MotionBlur.h"
 #include "TemporalAA.h"
 #include "TemporalEffects.h"
+#include "Denoiser.h"
 #include "PostEffects.h"
 #include "TextRenderer.h"
 #include "ForwardPlusLighting.h"
@@ -15,23 +16,22 @@ namespace MyDirectX
 	public:
 		static void Init(ID3D12Device* pDevice);
 		static void Shutdown();
-		static void Resize(UINT width, UINT height);
 
-		// effects
+		// Effects
 		static MotionBlur s_MotionBlur;
 		static TemporalAA s_TemporalAA;
 		static TemporalEffects s_TemporalEffects;
-		// post effects
+		static Denoiser s_Denoier;
+		// Post effects
 		static PostEffects s_PostEffects;
 
-		// text
+		// Text
 		static TextRenderer s_TextRenderer;
 
-		// light
+		// Light
 		static ForwardPlusLighting s_ForwardPlusLighting;
 
-		// particle effects
+		// Particle effects
 		static ParticleEffects::ParticleEffectManager s_ParticleEffectManager;
 	};
-
 }

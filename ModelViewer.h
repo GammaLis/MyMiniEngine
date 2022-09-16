@@ -5,8 +5,10 @@
 #include "CameraController.h"
 #include "DescriptorHeap.h"
 #include "ColorBuffer.h"
+#include "DynamicUploadBuffer.h"
 #include "GameInput.h"
 #include "Skybox.h"
+#include "Scenes/DebugPass.h"
 
 /// Raytracing
 #include "ReservoirSampling.h"
@@ -58,6 +60,21 @@ namespace MyDirectX
 		ReSTIRWithDirectLights
 	};
 
+	enum class RTGlobalRSId
+	{
+		ViewUniforms = 0,
+		SceneBuffers,
+		HitConstants,
+		DynamicCB,
+		InputTextures,
+		Outputs,
+		U0,
+		U1,
+		AccelerationStructure,
+
+		Num
+	};
+
 	struct RaytracingDispatchRayInputs
 	{
 		RaytracingDispatchRayInputs() {  }
@@ -81,8 +98,6 @@ namespace MyDirectX
 	{
 	public:
 		ModelViewer(HINSTANCE hInstance, const char *modelName, const wchar_t* title = L"Hello, World!", UINT width = SCR_WIDTH, UINT height = SCR_HEIGHT);
-
-		virtual void OnResize(UINT width, UINT height, bool minimized) override;
 
 		virtual void Update(float deltaTime) override;
 		virtual void Render() override;
@@ -196,6 +211,10 @@ namespace MyDirectX
 		
 		// Skybox
 		Skybox m_Skybox;
+
+		// DEBUG
+		DebugPass m_DebugPass;
+		bool m_bEnableDebug = false;
 
 		const char* m_ModelName = nullptr;
 	};
