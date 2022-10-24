@@ -1,4 +1,4 @@
-﻿#ifndef BSDF_INCLUDED
+#ifndef BSDF_INCLUDED
 #define BSDF_INCLUDED
 
 #include "Common.hlsl"

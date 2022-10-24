@@ -376,7 +376,7 @@ void IGameApp::RenderTriangle()
 		the debug layer will issue an error if the subresources referenced by the view are not in the appropriate state.
 	For ClearRenderTargetView the state must be D3D12_RESOURCE_STATE_RENDER_TARGET.
 	*/
-	gfxContext.ClearColor(colorBuffer);		// 这里 就开始需要 colorBuffer 处于D3D12_RESOURCE_STATE_RENDER_TARGET状态了
+	gfxContext.ClearColor(colorBuffer);		// colorBuffer's state needs to be D3D12_RESOURCE_STATE_RENDER_TARGET
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[] =
 	{
 		colorBuffer.GetRTV()

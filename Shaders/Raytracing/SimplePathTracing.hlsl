@@ -13,6 +13,7 @@
 // Enable this to cast shadow rays for each candidate during resampling. This is expensive but increases quality
 #define SHADOW_RAY_IN_RIS 0
 
+#include "ModelViewerRTInputs.hlsl"
 #include "RayTracingCommon.hlsl"
 #include "RayTracingIntersection.hlsl"
 #include "PathTracingCommon.hlsl"
@@ -166,7 +167,7 @@ void RayGen()
 
         // Evalute sun light
 #if 0
-		LightData sunLight = GetSunLight();
+		LightData sunLight = GetSunLight(float2(Rand(rngState), Rand(rngState)));
 		float3 LSun = -sunLight.pos;
 		if (CastShadowRay(hitPosition, geometryNormal, LSun, FLT_MAX))
         {

@@ -1,6 +1,7 @@
 #define HLSL
 #include "../../ModelViewerRaytracing.h"
 
+RaytracingAccelerationStructure g_Accel : register(t0);
 Texture2D<float> _DepthTex :	register(t12);
 
 [shader("raygeneration")]

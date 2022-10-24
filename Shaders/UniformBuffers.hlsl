@@ -15,10 +15,11 @@ struct FViewUniformBufferParameters
 	float4 BufferSizeAndInvSize;
 	float4 InvDeviceZToWorldZTransform;
 	float4 DebugColor;
-	float3 CamPos;
+	float4 CamPos; // .w unused
 	float ZMagic; // (zFar - zNear) / zNear
 	float ZNear;
 	float ZFar;
+	uint FrameIndex;
 };
 
 ConstantBuffer<FViewUniformBufferParameters> _View 	: register(b0, space1);

@@ -3,6 +3,7 @@
 
 #define VALIDATE_NORMAL 1
 
+RaytracingAccelerationStructure g_Accel : register(t0);
 Texture2D<float>  _DepthTex	: register(t12);
 Texture2D<float4> _NormalTex: register(t13);
 

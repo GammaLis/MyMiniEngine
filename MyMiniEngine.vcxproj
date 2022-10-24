@@ -33,6 +33,7 @@
     <ClInclude Include="Game\UniformBuffers.h" />
     <ClInclude Include="ModelViewerRaytracing.h" />
     <ClInclude Include="Game\OceanViewer.h" />
+    <ClInclude Include="Effects\ReSTIRGI.h" />
     <ClInclude Include="Scenes\AssimpImporter.h" />
     <ClInclude Include="CameraController.h" />
     <ClInclude Include="CommonCompute.h" />
@@ -139,6 +140,7 @@
     <ClCompile Include="Core\UploadBuffer.cpp" />
     <ClCompile Include="Game\OceanViewer.cpp" />
     <ClCompile Include="Game\UniformBuffers.cpp" />
+    <ClCompile Include="Effects\ReSTIRGI.cpp" />
     <ClCompile Include="Scenes\AssimpImporter.cpp" />
     <ClCompile Include="CameraController.cpp" />
     <ClCompile Include="CommonCompute.cpp" />
@@ -1021,6 +1023,9 @@
     <None Include="Shaders\OctahedralCommon.hlsl">
       <FileType>Document</FileType>
     </None>
+    <None Include="Shaders\Raytracing\ModelViewerRTInputs.hlsl">
+      <FileType>Document</FileType>
+    </None>
     <FxCompile Include="Shaders\Raytracing\RayGenShaderLib.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
@@ -1075,9 +1080,30 @@
     <None Include="Shaders\Raytracing\Reservoir.hlsl">
       <FileType>Document</FileType>
     </None>
+    <None Include="Shaders\Raytracing\ReSTIRGICommon.hlsl">
+      <FileType>Document</FileType>
+    </None>
     <FxCompile Include="Shaders\Raytracing\ReSTIRWithDirectLighting.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Shaders\Raytracing\ReSTIR_Resolve.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Shaders\Raytracing\ReSTIR_Temporal.hlsl">
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\Raytracing\ReSTIR_TraceDiffuse.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
     </FxCompile>
     <FxCompile Include="Shaders\Raytracing\SimplePathTracing.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>

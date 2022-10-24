@@ -1,4 +1,4 @@
-﻿#ifndef MONTE_CARLO_INCLUDED
+#ifndef MONTE_CARLO_INCLUDED
 #define MONTE_CARLO_INCLUDED
 
 // Ref: UE - MonteCarlo.ush

@@ -19,6 +19,7 @@ cbuffer CBMaterial : register(b3, space1)
 	uint _MaterialID;
 }
 
+RaytracingAccelerationStructure g_Accel	: register(t0);
 StructuredBuffer<RayTraceMeshInfo> _MeshInfo : register(t1);
 ByteAddressBuffer _Indices		: register(t2);
 ByteAddressBuffer _Attributes	: register(t3);
@@ -32,6 +33,8 @@ Texture2D<float4> _LocalNormal	: register(t7, space1);
 Texture2D<float4> _TexNormal	: register(t13);
 
 SamplerState _S0 : register(s0);
+SamplerState SamplerLinearClamp : register(s1);
+SamplerState SamplerPointClamp	: register(s2);
 SamplerComparisonState SamplerShadow : register(s1);
 
 uint3 Load3x16BitIndices(uint offsetBytes)

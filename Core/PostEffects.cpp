@@ -34,22 +34,24 @@ namespace MyDirectX
 	const float kInitialMinLog = -12.0f;
 	const float kInitialMaxLog = 4.0f;
 
-	//template <int N>
-	//void CreatePSO(ID3D12Device* pDevice, ComputePSO& pso, const RootSignature &rs, const BYTE(&shaderByteCode)[N])
-	//{
-	//	pso.SetRootSignature(rs);
-	//	pso.SetComputeShader(shaderByteCode, sizeof(shaderByteCode));
-	//	pso.Finalize(pDevice);
-	//}
+#if 0
+	template <int N>
+	void CreatePSO(ID3D12Device* pDevice, ComputePSO& pso, const RootSignature &rs, const BYTE(&shaderByteCode)[N])
+	{
+		pso.SetRootSignature(rs);
+		pso.SetComputeShader(shaderByteCode, sizeof(shaderByteCode));
+		pso.Finalize(pDevice);
+	}
+#endif
 
 	///
 	/// bloom
 	///
 	void BloomEffect::Init(ID3D12Device* pDevice, const RootSignature* postEffectRS)
 	{
-		//template function
-		//CreatePSO(pDevice, m_BloomExtractAndDownsampleHdrCS, *postEffectRS, BloomExtractAndDownsampleHdrCS);
-		//CreatePSO(pDevice, m_BloomExtractAndDownsampleLdrCS, *postEffectRS, BloomExtractAndDownsampleLdrCS);
+		// Template function
+		// CreatePSO(pDevice, m_BloomExtractAndDownsampleHdrCS, *postEffectRS, BloomExtractAndDownsampleHdrCS);
+		// CreatePSO(pDevice, m_BloomExtractAndDownsampleLdrCS, *postEffectRS, BloomExtractAndDownsampleLdrCS);
 
 #define CreatePSO(pso, shaderByteCode) \
 	pso.SetRootSignature(*postEffectRS); \

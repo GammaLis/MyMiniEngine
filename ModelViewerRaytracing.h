@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #ifndef HLSL
 #include "Core/HlslCompat.h"
@@ -84,7 +84,7 @@ cbuffer CB1 : register(b1)
 	DynamicCB _Dynamics;
 }
 
-RaytracingAccelerationStructure g_Accel		: register(t0);
+// RaytracingAccelerationStructure g_Accel		: register(t0);
 
 // Output buffer with accumulated and tonemapped image
 RWTexture2D<float4> g_ScreenOutput			: register(u2);

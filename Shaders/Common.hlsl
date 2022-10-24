@@ -8,8 +8,11 @@
 
 const static float PI = 3.1415926535897932f;
 const static float TWO_PI = 2.0f * PI;
+const static float TAU = 2.0f * PI;
 const static float ONE_OVER_PI = 1.0f / PI;
 const static float ONE_OVER_TWO_PI = 1.0f / TWO_PI;
+
+const static float GOLDEN_ANGLE = 2.39996323f;
 
 const static float MaxHalfFloat = 65504.0f;
 const static float Max11BitsFloat = 65024.0f;

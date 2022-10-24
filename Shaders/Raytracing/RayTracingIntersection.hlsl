@@ -1,9 +1,10 @@
-﻿#ifndef RAYTRACING_INTERSECTION_INCLUDED
+#ifndef RAYTRACING_INTERSECTION_INCLUDED
 #define RAYTRACING_INTERSECTION_INCLUDED
 
 // Ref: HDRP - RaytracingIntersection.hlsl
 
 #include "RayTracingCommon.hlsl"
+#include "ModelViewerRTInputs.hlsl"
 
 #ifndef ATTRIBUTES_NEED_TANGENT 
 #define ATTRIBUTES_NEED_TANGENT 1

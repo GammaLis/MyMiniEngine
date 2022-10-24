@@ -1,4 +1,4 @@
-#include "DynamicDescriptorHeap.h"
+ï»¿#include "DynamicDescriptorHeap.h"
 #include "Graphics.h"
 #include "CommandListManager.h"
 #include "CommandContext.h"
@@ -225,7 +225,7 @@ namespace MyDirectX
 			destHandle += tableSize[i] * descriptorSize;
 
 			unsigned long skipCount;
-			// ±ÈÈç 0b...10 0011 1000
+			// æ¯”å¦‚ 0b...10 0011 1000
 			while (_BitScanForward64(&skipCount, setHandles))	// skipCount = 3
 			{
 				// skip over unset descriptor handles
@@ -335,5 +335,5 @@ namespace MyDirectX
 	}
 }
 
-// _BitScanReverse - ´Ó¸ßÎ»µ½µÍÎ»£¬µÚÒ»¸ö1³öÏÖÎ»ÖÃ£¨×ó±ß¿ªÊ¼¼ÆÊı...3210£©
-// _BitScanForward - ´ÓµÍÎ»µ½¸ßÎ»£¬µÚÒ»¸ö1³öÏÖÎ»ÖÃ
+// _BitScanReverse - ä»é«˜ä½åˆ°ä½ä½ï¼Œç¬¬ä¸€ä¸ª1å‡ºç°ä½ç½®ï¼ˆå·¦è¾¹å¼€å§‹è®¡æ•°...3210ï¼‰
+// _BitScanForward - ä»ä½ä½åˆ°é«˜ä½ï¼Œç¬¬ä¸€ä¸ª1å‡ºç°ä½ç½®

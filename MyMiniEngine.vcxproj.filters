@@ -104,6 +104,9 @@
     <Filter Include="Shaders\Denoising">
       <UniqueIdentifier>{b08c29ca-9fe4-4284-be88-8eb04d2fadbb}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\GI">
+      <UniqueIdentifier>{7082af8a-97f9-49db-a727-b2d26baa2a4e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\GpuResource.h">
@@ -430,6 +433,9 @@
     <ClInclude Include="Game\UniformBuffers.h">
       <Filter>Game</Filter>
     </ClInclude>
+    <ClInclude Include="Effects\ReSTIRGI.h">
+      <Filter>Effects</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -666,6 +672,9 @@
     <ClCompile Include="Game\UniformBuffers.cpp">
       <Filter>Game</Filter>
     </ClCompile>
+    <ClCompile Include="Effects\ReSTIRGI.cpp">
+      <Filter>Effects</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Core\Math\Functions.inl">
@@ -836,6 +845,12 @@
     </None>
     <None Include="Shaders\UniformBuffers.hlsl">
       <Filter>Shaders\Common</Filter>
+    </None>
+    <None Include="Shaders\Raytracing\ModelViewerRTInputs.hlsl">
+      <Filter>Shaders\ModelViewer\Raytracing</Filter>
+    </None>
+    <None Include="Shaders\Raytracing\ReSTIRGICommon.hlsl">
+      <Filter>Shaders\GI</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -1204,6 +1219,15 @@
     </FxCompile>
     <FxCompile Include="Shaders\Denoising\AtrousWaveletBilateralFilterCS.hlsl">
       <Filter>Shaders\Denoising</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Raytracing\ReSTIR_TraceDiffuse.hlsl">
+      <Filter>Shaders\GI</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Raytracing\ReSTIR_Temporal.hlsl">
+      <Filter>Shaders\GI</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Raytracing\ReSTIR_Resolve.hlsl">
+      <Filter>Shaders\GI</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

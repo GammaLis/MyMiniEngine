@@ -10,6 +10,7 @@
 
 #define COMBINE_SPATIOTEMPORAL 1
 
+#include "ModelViewerRTInputs.hlsl"
 #include "RayTracingCommon.hlsl"
 #include "RayTracingIntersection.hlsl"
 #include "Reservoir.hlsl"
@@ -149,7 +150,7 @@ void RayGen()
         STANDARD_RAY_INDEX,
         ray,  
         payload);
-    // On a smiss, load the sky value and break out of the ray tracing loop
+    // On a miss, load the sky value and break out of the ray tracing loop
     if (!payload.HasHit())
     {
         radiance += throughput * _Dynamics.backgroundColor.rgb;
@@ -174,7 +175,7 @@ void RayGen()
 
     // Evalute sun light
 #if 0
-    LightData sunLight = GetSunLight();
+    LightData sunLight = GetSunLight(float2(Rand(rngState), Rand(rngState)));
     float3 LSun = -sunLight.pos;
     if (CastShadowRay(hitPosition, geometryNormal, LSun, FLT_MAX))
     {

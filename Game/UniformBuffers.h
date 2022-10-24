@@ -25,6 +25,7 @@ namespace MyDirectX
 			float ZMagic;
 			float ZNear;
 			float ZFar;
+			uint32_t FrameIndex;
 		};
 		extern FViewUniformBufferParameters g_ViewUniformBufferParameters;
 		extern DynamicUploadBuffer g_ViewUniformBuffer;

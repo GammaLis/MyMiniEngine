@@ -8,10 +8,12 @@
 #include "DynamicUploadBuffer.h"
 #include "GameInput.h"
 #include "Skybox.h"
+#include "ModelViewerRayInputs.h"
 #include "Scenes/DebugPass.h"
 
 /// Raytracing
 #include "ReservoirSampling.h"
+#include "ReSTIRGI.h"
 
 #include <atlbase.h>
 
@@ -57,7 +59,8 @@ namespace MyDirectX
 		DiffuseWithShadowRays,
 		Reflections,
 		ReferencePathTracing,
-		ReSTIRWithDirectLights
+		ReSTIRWithDirectLights,
+		ReSTIRGI
 	};
 
 	enum class RTGlobalRSId
@@ -72,26 +75,11 @@ namespace MyDirectX
 		U1,
 		AccelerationStructure,
 
+		ReSTIRGINewSamples,
+		ReSTIRGISPSamples,
+		ReSTIRGIOutputs,
+
 		Num
-	};
-
-	struct RaytracingDispatchRayInputs
-	{
-		RaytracingDispatchRayInputs() {  }
-		RaytracingDispatchRayInputs(ID3D12Device* pDevice, ID3D12StateObject* pPSO,
-			void* pHitGroupShaderTable, UINT HitGroupStride, UINT HitGroupTableSize,
-			LPCWSTR rayGenExportName, LPCWSTR missExportName);
-
-		void Cleanup();
-
-		D3D12_DISPATCH_RAYS_DESC GetDispatchRayDesc(UINT DispatchWidth, UINT DispatchHeight);
-
-		UINT m_HitGroupStride = 0;
-		CComPtr<ID3D12StateObject> m_pPSO;
-		ByteAddressBuffer m_RayGenShaderTable;
-		ByteAddressBuffer m_MissShaderTable;
-		ByteAddressBuffer m_HitShaderTable;
-
 	};
 
 	class ModelViewer final : public IGameApp
@@ -167,6 +155,7 @@ namespace MyDirectX
 		void RaytraceReflections(GraphicsContext& gfxContext);
 		void ReferencePathTracing(GraphicsContext& gfxContext);
 		void ReSTIRWithDirectLights(GraphicsContext& gfxContext);
+		void RaytraceReSTIRGI(GraphicsContext& gfxContext);
 
 		CComPtr<ID3D12Device5> m_RaytracingDevice;
 		std::vector<CComPtr<ID3D12Resource>> m_BLAS;
@@ -198,6 +187,7 @@ namespace MyDirectX
 		DescriptorHandle m_AccumulationBufferUAV;
 		DescriptorHandle m_AccumulationBufferSRV;
 		int m_AccumulationIndex = -1;
+		bool m_bEnablePathTracing = true;
 
 		// Reservoir sampling
 		ComputePSO m_ClearReservoirPSO{ L"Clear Reservoir PSO" };
@@ -208,6 +198,11 @@ namespace MyDirectX
 		DescriptorHandle m_ReservoirBufferUAV;
 		DescriptorHandle m_ReservoirBufferSRV;
 		bool m_bNeedClearReservoirs = true;
+		bool m_bEnableReSTIRDI = true;
+
+		// ReSTIR GI
+		ReSTIRGI m_ReSTIRGI;
+		bool m_bEnableReSTIRGI = true;
 		
 		// Skybox
 		Skybox m_Skybox;

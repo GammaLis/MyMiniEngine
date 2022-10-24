@@ -1,15 +1,22 @@
-﻿#ifndef RAYTRACING_LIGHTING_COMMON
+#ifndef RAYTRACING_LIGHTING_COMMON
 #define RAYTRACING_LIGHTING_COMMON
 
 // Ref: UE - RayTracingLightingCommon.ush
 
 #include "RayTracingCommon.hlsl"
+#include "ModelViewerRTInputs.hlsl"
 #include "Reservoir.hlsl"
 
 #define LIGHT_TYPE_DIRECTIONAL (-1)
 #define LIGHT_TYPE_POINT 0
 #define LIGHT_TYPE_SPOT 1
 #define LIGHT_TYPE_MAX 2
+
+// Sun light
+#define SUN_ANGULAR_RADIUS 0.53
+// Radians(SUN_ANGULAR_RADIUS) / 2
+#define SUN_HALF_RADIANS 0.004625
+#define SUN_SIZE_MULTIPLIER 5.0
 
 #define MAX_LIGHTS 64
 
@@ -21,11 +28,22 @@
 #define SHADOW_RAY_IN_RIS 0
 #endif
 
-LightData GetSunLight()
+float3 GetSunDirection(float2 random, bool bSoft = false)
+{
+	float3 direction = _SunDirection;
+	if (bSoft)
+	{
+		const float cosThetaMax = cos(SUN_SIZE_MULTIPLIER * SUN_HALF_RADIANS);
+		direction = SafeNormalize(direction + UniformSampleCone(random, cosThetaMax).xyz);
+	}
+	return direction;
+}
+
+LightData GetSunLight(float2 random, bool bSoft = false)
 {
 	LightData sunLight = (LightData) 0;
 	sunLight.color = _SunColor;
-	sunLight.pos = -_SunDirection; // direction from sun
+	sunLight.pos = -GetSunDirection(random, bSoft); // direction from sun
 	sunLight.type = LIGHT_TYPE_MAX;
 	return sunLight;
 }
