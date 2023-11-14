@@ -6,11 +6,15 @@ cbuffer CBConstants	: register(b0)
 	uint _LightNum;
 	float3 _Constants;
 };
+#if !USE_VIEW_UNIFORMS
 cbuffer CBPerCamera	: register(b1)
 {
 	matrix _ViewProjMat;
 	float3 _CamPos;
 };
+#else
+ConstantBuffer<ViewUniformParameters> _View : register(b1);
+#endif
 cbuffer CBLights	: register(b2)
 {
 	float3 _SunDirection;

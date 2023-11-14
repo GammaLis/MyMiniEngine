@@ -53,8 +53,10 @@ namespace MyDirectX
 		BindlessDeferred();
 
 		void Init(ID3D12Device *pDevice, MFalcor::Scene *pScene);
-
 		void Clean();
+
+		const D3D12_CPU_DESCRIPTOR_HANDLE* DecalSRVs() const { return m_DecalSRVs; }
+		uint32_t NumDecalTextures() const { return m_NumDecalTextures; }
 
 	private:
 
@@ -63,12 +65,11 @@ namespace MyDirectX
 
 		static const uint32_t s_NumDecals = 3;
 		static const uint32_t s_NumDecalTextures = 2 * 2 + 1;
-
 		static const uint32_t s_DeferredTileSize = 16;
 
 		// decals
 		UserDescriptorHeap m_DecalTextureHeap;
-		D3D12_CPU_DESCRIPTOR_HANDLE m_DecalSRVs[s_NumDecalTextures];
+		D3D12_CPU_DESCRIPTOR_HANDLE m_DecalSRVs[s_NumDecalTextures] = {};
 		uint32_t m_NumDecalTextures = 0;
 		std::vector<DecalData> m_Decals;
 		uint32_t m_NumDecal = 0;

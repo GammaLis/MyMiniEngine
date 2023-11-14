@@ -25,6 +25,20 @@ struct Frustum
 {
 	float4 frustumPlanes[6];
 };
+
+struct ViewUniformParameters
+{
+	float4x4 viewProjMat;
+	float4x4 invViewProjMat;
+	float4x4 viewMat;
+	float4x4 projMat;
+	float4 bufferSizeAndInvSize;
+	float4 camPos;
+	float4 cascadeSplits;
+	float nearClip, farClip;
+};
+#define USE_VIEW_UNIFORMS 1
+
 // D3D12_DRAW_INDEXED_ARGUMENTS
 struct DrawIndexedArgs
 {

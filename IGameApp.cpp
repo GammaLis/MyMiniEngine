@@ -261,14 +261,7 @@ void IGameApp::PostProcess()
 
 void IGameApp::CustomUI(GraphicsContext &context)
 {
-	TextContext textContext(context);
-	textContext.Begin();
-	textContext.SetTextSize(48.f);
-	textContext.SetColor(Color(1.0f, 0.0f, 0.0f));
-	textContext.ResetCursor(100.f, 100.f);
-	textContext.DrawString("Hello, World!");
-
-	textContext.End();
+	
 }
 
 void IGameApp::CleanCustom()

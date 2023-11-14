@@ -499,6 +499,11 @@ void CommandContext::PIXSetMarker(const wchar_t* label)
 	D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER，
 	2种
 	一般很少设置D3D12_DESCRIPTOR_HEAP_TYPE_RTV和D3D12_DESCRIPTOR_HEAP_TYPE_DSV（大概），-2020-2-7
+
+	Ref: https://learn.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12graphicscommandlist-setdescriptorheaps
+	You can only bind descriptor heaps of type D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV and D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLES.
+	Only one descriptor heap of each type can be set at one time, which means a maximum of 2 heaps (one sampler, one CBV/SRV/UAV) can 
+	be set at one time.
 */
 void CommandContext::BindDescriptorHeaps()
 {
@@ -591,15 +596,19 @@ void GraphicsContext::ResolveQueryData(ID3D12QueryHeap* pQueryHeap, D3D12_QUERY_
 	m_CommandList->ResolveQueryData(pQueryHeap, type, startIndex, numQueries, pDestBuffer, destBufferOffset);
 }
 
-void GraphicsContext::SetRootSignature(const RootSignature& rootSig)
+void GraphicsContext::SetRootSignature(const RootSignature& rootSig, bool bParseSignature)
 {
 	if (rootSig.GetSignature() == m_CurGraphicsRootSignature)
 		return;
 
 	m_CommandList->SetGraphicsRootSignature(m_CurGraphicsRootSignature = rootSig.GetSignature());
 
-	m_DynamicViewDescriptorHeap.ParseGraphicsRootSignature(rootSig);
-	m_DynamicSamplerDescriptorHeap.ParseGraphicsRootSignature(rootSig);
+	// Sometimes i know i don't use DynamicDescriptorHeap, so no need to parse them!
+	if (bParseSignature)
+	{
+		m_DynamicViewDescriptorHeap.ParseGraphicsRootSignature(rootSig);
+		m_DynamicSamplerDescriptorHeap.ParseGraphicsRootSignature(rootSig);
+	}
 }
 
 void GraphicsContext::SetRenderTargets(UINT numRTVs, const D3D12_CPU_DESCRIPTOR_HANDLE rtvs[])
@@ -900,15 +909,18 @@ void ComputeContext::ClearUAV(ColorBuffer& target)
 	m_CommandList->ClearUnorderedAccessViewFloat(gpuVisibleHandle, target.GetUAV(), target.GetResource(), clearColor, 1, &clearRect);
 }
 
-void ComputeContext::SetRootSignature(const RootSignature& rootSig)
+void ComputeContext::SetRootSignature(const RootSignature& rootSig, bool bParseSignature)
 {
 	if (m_CurComputeRootSignature == rootSig.GetSignature())
 		return;
 
 	m_CommandList->SetComputeRootSignature(m_CurComputeRootSignature = rootSig.GetSignature());
 
-	m_DynamicViewDescriptorHeap.ParseComputeRootSignature(rootSig);
-	m_DynamicSamplerDescriptorHeap.ParseComputeRootSignature(rootSig);
+	if (bParseSignature)
+	{
+		m_DynamicViewDescriptorHeap.ParseComputeRootSignature(rootSig);
+		m_DynamicSamplerDescriptorHeap.ParseComputeRootSignature(rootSig);
+	}
 }
 
 void ComputeContext::SetConstantArray(UINT rootIndex, UINT numConstants, const void* pConstants)

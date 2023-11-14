@@ -1,5 +1,6 @@
 #include "IndirectGBufferRS.hlsli"
 #include "Quaternion.hlsli"
+#include "../Scenes/MaterialDefines.h"
 
 struct VSOutput
 {
@@ -23,6 +24,8 @@ struct PSOutput
 	uint MaterialID 	: SV_TARGET3;
 };
 
+Texture2D _MaterialTextures[] : register(t4, space1);
+
 [RootSignature(IndirectGBuffer_RootSig)]
 PSOutput main(VSOutput i)
 {
@@ -38,6 +41,33 @@ PSOutput main(VSOutput i)
 	bitangent *= handedness;
 
 	Quaternion tangentFrame = QuatFrom3x3(float3x3(tangent, bitangent, normal));
+
+	// Alpha clip
+#ifdef ALPHA_CLIP
+	MeshInstanceData meshInstance = _MeshInstanceBuffer[i.drawId];
+	uint materialId = meshInstance.materialID;
+	MaterialData material = _MaterialBuffer[materialId];
+	float4 _BaseColorFactor = material.baseColor;
+	float _AlphaCutout = material.alphaCutout;
+	uint _Flags = material.flags;
+
+	uint texbase = MATERIAL_TEXTURE_NUM * materialId;
+	Texture2D _TexBaseColor = _MaterialTextures[texbase + 0];
+
+	float4 baseColor = _BaseColorFactor;
+
+	uint diffuseType = EXTRACT_DIFFUSE_TYPE(_Flags);
+	uint alphaMode = EXTRACT_ALPHA_MODE(_Flags);
+	if (diffuseType == ChannelTypeTexture)
+		baseColor = _TexBaseColor.Sample(s_LinearRSampler, i.uv0);
+
+	// alpha test
+	if (alphaMode == AlphaModeMask)
+	{
+		if (baseColor.a < _AlphaCutout)
+			discard;
+	}
+#endif
 
 	o.TangentFrame = PackQuaternion(tangentFrame);
 	o.UV.xy = frac(i.uv0 / DeferredUVScale);

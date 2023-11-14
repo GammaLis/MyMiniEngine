@@ -29,6 +29,7 @@
     <ClInclude Include="Core\HlslCompat.h" />
     <ClInclude Include="Core\RayTracing\RayTracingHlslCompat.h" />
     <ClInclude Include="Core\UploadBuffer.h" />
+    <ClInclude Include="Game\FrameDescriptorHeap.h" />
     <ClInclude Include="Game\ReservoirSampling.h" />
     <ClInclude Include="Game\UniformBuffers.h" />
     <ClInclude Include="ModelViewerRaytracing.h" />
@@ -138,6 +139,7 @@
     <ClCompile Include="Game\BVHApp.cpp" />
     <ClCompile Include="Game\ClusteredLighting.cpp" />
     <ClCompile Include="Core\UploadBuffer.cpp" />
+    <ClCompile Include="Game\FrameDescriptorHeap.cpp" />
     <ClCompile Include="Game\OceanViewer.cpp" />
     <ClCompile Include="Game\UniformBuffers.cpp" />
     <ClCompile Include="Effects\ReSTIRGI.cpp" />
@@ -829,6 +831,13 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
       <FileType>Document</FileType>
     </None>
+    <FxCompile Include="Shaders\IndirectGBufferCutoutPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <EnableUnboundedDescriptorTables Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</EnableUnboundedDescriptorTables>
+    </FxCompile>
     <FxCompile Include="Shaders\Raytracing\ClearReservoirs.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
@@ -942,6 +951,7 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
     </FxCompile>
     <FxCompile Include="Shaders\IndirectGBufferPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>

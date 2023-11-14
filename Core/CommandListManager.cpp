@@ -72,7 +72,7 @@ bool CommandQueue::IsFenceComplete(uint64_t fenceValue)
 {
 	// avoid querying the fence value by testing against the last one seen.
 	// the max() is to protect against an unlikely race condition that could cause the last
-	// completed fence value to regress£¨»Ø¹é£¬ÍË²½£©
+	// completed fence value to regress
 	if (fenceValue > m_LastCompletedFenceValue)
 		m_LastCompletedFenceValue = std::max(m_LastCompletedFenceValue, m_pFence->GetCompletedValue());
 

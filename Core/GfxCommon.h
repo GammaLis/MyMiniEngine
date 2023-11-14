@@ -59,7 +59,7 @@ namespace MyDirectX
 		static bool s_bTypedUAVLoadSupport_R16G16B16A16_FLOAT;
 
 		static void SetNativeResolution(ID3D12Device *pDevice, Resolutions nativeRes);
-		static void GetWHFromResolution(Resolutions res, uint32_t& width, uint32_t &height);
+		static void GetSizeFromResolution(Resolutions res, uint32_t& width, uint32_t &height);
 
 		static float s_HDRPaperWhite;				// 100.0 - 500.0	stepSize - 50.0		Paper White (nits)
 		static float s_MaxDisplayLuminance;			// 500.0 - 10000.0	stepSize - 100.0	Peak Brightness (nits)
@@ -215,6 +215,7 @@ namespace MyDirectX
 		D3D12_DEPTH_STENCIL_DESC DepthStateReadOnly;
 		D3D12_DEPTH_STENCIL_DESC DepthStateReadOnlyReversed;
 		D3D12_DEPTH_STENCIL_DESC DepthStateTestEqual;
+		D3D12_DEPTH_STENCIL_DESC DepthStateTestGreaterEqual;
 
 		// Indirect args - command signature
 		CommandSignature DispatchIndirectCommandSignature{ 1 };

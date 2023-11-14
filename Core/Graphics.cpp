@@ -163,7 +163,7 @@ namespace MyDirectX
         s_ShaderManager.CreateFromByteCode();
         s_CommonStates.InitCommonStates(m_Device.Get());
         GfxStates::SetNativeResolution(m_Device.Get(), m_CurNativeRes);
-        CustomInit();
+        InitCustom();
     }
 
     void Graphics::Resize(uint32_t newWidth, uint32_t newHeight)
@@ -198,17 +198,21 @@ namespace MyDirectX
 
         UpdateSwapChain();
         //==>
-        //ASSERT_SUCCEEDED(m_SwapChain->ResizeBuffers(SWAP_CHAIN_BUFFER_COUNT, newWidth, newHeight,
-        //    m_SwapChainFormat, (m_Options & c_AllowTearing) ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0u));
+    #if 0
+        ASSERT_SUCCEEDED(m_SwapChain->ResizeBuffers(SWAP_CHAIN_BUFFER_COUNT, newWidth, newHeight,
+            m_SwapChainFormat, (m_Options & c_AllowTearing) ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0u));
+    #endif
 
         UpdateBackBuffers();
         //==>
-        //for (uint32_t i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
-        //{
-        //    ComPtr<ID3D12Resource> displayPlane;
-        //    ASSERT_SUCCEEDED(m_SwapChain->GetBuffer(i, IID_PPV_ARGS(displayPlane.ReleaseAndGetAddressOf())));
-        //    m_BackBuffer[i].CreateFromSwapChain(m_Device.Get(), L"Primary SwapChain Buffer", displayPlane.Detach());
-        //}
+    #if 0
+        for (uint32_t i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
+        {
+            ComPtr<ID3D12Resource> displayPlane;
+            ASSERT_SUCCEEDED(m_SwapChain->GetBuffer(i, IID_PPV_ARGS(displayPlane.ReleaseAndGetAddressOf())));
+            m_BackBuffer[i].CreateFromSwapChain(m_Device.Get(), L"Primary SwapChain Buffer", displayPlane.Detach());
+        }
+    #endif
 
         // m_BackBufferIndex = 0;
         m_BackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
@@ -269,28 +273,44 @@ namespace MyDirectX
 
     void Graphics::Present()
     {
-        // 默认开启HDR
+        // Default HDR
         // m_bEnableHDROutput = true;
         if (m_bEnableHDROutput)
             PreparePresentHDR();
         else
             PreparePresentLDR();
 
-        m_BackBufferIndex = (m_BackBufferIndex + 1) % SWAP_CHAIN_BUFFER_COUNT;
-
         m_SwapChain->Present(0, 0);
 
+        m_BackBufferIndex = (m_BackBufferIndex + 1) % SWAP_CHAIN_BUFFER_COUNT;
         ++m_FrameIndex;
 
-        // 强制每帧同步CPU    -2020-4-25
-        // GPU延迟较大时，CPU不断分配内存，造成内存耗尽    目前仅在计算CascadedShadowMap时开启 -2020-4-29
-        // s_CommandManager.IdleGPU();
+        // FIXME: Why MiniEngine doesn't do this ???
+    #if 0
+        // 强制每帧同步CPU
+        // GPU延迟较大时，CPU不断分配内存，造成内存耗尽    目前仅在计算CascadedShadowMap时开启
+        s_CommandManager.IdleGPU();
+    #else
+        MoveToNextFrame();
+    #endif
 
-        // 这是MS MiniEinge做法，移到ModelViewer::Update -20-2-22
+        // 这是MS MiniEinge做法，移到ModelViewer::Update
         // Effects::s_TemporalAA.Update(m_FrameIndex);
 
         // 可以动态改变 NativeResolution
         GfxStates::SetNativeResolution(m_Device.Get(), m_CurNativeRes);
+    }
+
+    void Graphics::MoveToNextFrame()
+    {
+        auto &graphicsQueue = s_CommandManager.GetGraphicsQueue();
+
+        auto fenceVlaue = graphicsQueue.IncrementFence();
+
+        uint32_t prevBackBufferIndex = (m_BackBufferIndex + SWAP_CHAIN_BUFFER_COUNT-1) % SWAP_CHAIN_BUFFER_COUNT;
+        m_FenceValues[prevBackBufferIndex] = fenceVlaue;
+
+        graphicsQueue.WaitForFence(m_FenceValues[m_BackBufferIndex]);
     }
 
     void Graphics::Clear(Color clearColor)
@@ -778,7 +798,7 @@ namespace MyDirectX
     }
 
     // init
-    void Graphics::CustomInit()
+    void Graphics::InitCustom()
     {
         InitRootSignatures();
         InitPSOs();
@@ -915,7 +935,7 @@ namespace MyDirectX
         context.SetRenderTarget(destBuffer.GetRTV());
 
         // Debug
-        /**
+    #if 0
         {
             static bool b = true;
             if (b == false)
@@ -925,7 +945,7 @@ namespace MyDirectX
                 b = true;
             }
         }
-        */
+    #endif
         // Debug end
         
         // context.SetViewportAndScissor(0, 0, GfxStates::s_NativeWidth, GfxStates::s_NativeHeight);
@@ -983,6 +1003,7 @@ namespace MyDirectX
         context.SetDynamicDescriptor(0, 0, overlayBuffer.GetSRV());
 
         // >>> Debug
+    #if 0
         // 显示 Default字体纹理 （调试使用） -20-1-28
         // auto& textRenderer = Effect::s_TextRenderer;
         // context.SetDynamicDescriptor(0, 0, textRenderer.GetDefaultFontTexture());
@@ -992,10 +1013,10 @@ namespace MyDirectX
         // context.SetDynamicDescriptor(0, 0, linearDepth.GetSRV());
 
         // 显示 BloomBuffer   -20-2-24
-        //auto& bloomBuffer = s_BufferManager.m_aBloomUAV1[1];
-        //context.TransitionResource(bloomBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        //context.SetDynamicDescriptor(0, 0, bloomBuffer.GetSRV());
-
+        // auto& bloomBuffer = s_BufferManager.m_aBloomUAV1[1];
+        // context.TransitionResource(bloomBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        // context.SetDynamicDescriptor(0, 0, bloomBuffer.GetSRV());
+    #endif
         // <<< Debug end
 
         context.SetPipelineState(GfxStates::s_bEnableHDROutput ? m_BlendUIHDRPSO : m_BlendUIPSO);

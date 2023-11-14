@@ -946,7 +946,7 @@ namespace glTF
 
 	void glTFImporter::BuildNodeTree()
 	{
-		for (size_t i = 0, imax = m_Nodes.size(); i < imax; ++i)
+		for (int i = 0, imax = (uint32_t)m_Nodes.size(); i < imax; ++i)
 		{
 			auto& curNode = m_Nodes[i];
 			curNode.bDirty = true;
@@ -956,7 +956,7 @@ namespace glTF
 				});
 		}
 		// 缓存根节点
-		for (int i = 0, imax = m_Nodes.size(); i < imax; ++i)
+		for (int i = 0, imax = (uint32_t)m_Nodes.size(); i < imax; ++i)
 		{
 			auto& curNode = m_Nodes[i];
 			if (curNode.parentIdx == -1)
@@ -1180,7 +1180,7 @@ namespace glTF
 			}
 			else if (!curNode.children.empty())
 			{
-				for (int i = curNode.children.size() - 1; i >= 0; --i)	// 逆序添加(其实没有意义，只是符合以前习惯，先左后右)
+				for (int i = (uint32_t)curNode.children.size() - 1; i >= 0; --i)	// 逆序添加(其实没有意义，只是符合以前习惯，先左后右)
 					nodeStack.push(curNode.children[i]);
 			}
 		}
@@ -1316,7 +1316,7 @@ namespace glTF
 	{
 		m_ActiveImages.clear();
 
-		int activeMatNum = m_ActiveMaterials.size();
+		int activeMatNum = (int)m_ActiveMaterials.size();
 		if (activeMatNum > 0)
 			m_oMaterials.resize(activeMatNum);
 		else

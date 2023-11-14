@@ -41,7 +41,11 @@ VSOutput main(VSInput v)
 
 	float4 wPos = mul(float4(v.position, 1.0), globalMatrix.worldMat);
 	// wPos = float4(v.position, 1.0);
+#if USE_VIEW_UNIFORMS
+	float4 cPos = mul(wPos, _View.viewProjMat);
+#else
 	float4 cPos = mul(wPos, _ViewProjMat);
+#endif
 
 	float depthVS = cPos.w;
 

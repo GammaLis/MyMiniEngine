@@ -580,8 +580,7 @@ void ModelViewer::InitPipelineStates()
 	m_CutoutModelPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerTwoSided);
 	m_CutoutModelPSO.Finalize(Graphics::s_Device);
 
-	// ****************************************
-	// 临时设置，后面需要放到别处 -20-2-21
+	// FIXME: 临时设置，后面需要放到别处 -20-2-21
 	// Linear depth
 	m_LinearDepthRS.Reset(3, 0);
 	m_LinearDepthRS[0].InitAsConstants(0, 1);
@@ -592,7 +591,6 @@ void ModelViewer::InitPipelineStates()
 	m_LinearDepthCS.SetRootSignature(m_LinearDepthRS);
 	m_LinearDepthCS.SetComputeShader(LinearizeDepthCS, sizeof(LinearizeDepthCS));
 	m_LinearDepthCS.Finalize(Graphics::s_Device);
-	// ****************************************
 }
 
 void ModelViewer::InitGeometryBuffers()
@@ -677,6 +675,19 @@ void ModelViewer::CleanCustom()
 void ModelViewer::PostProcess()
 {
 	Effects::s_PostEffects.Render();
+}
+
+void ModelViewer::CustomUI(GraphicsContext &context) 
+{
+	TextContext textContext(context);
+	textContext.Begin();
+
+	textContext.SetTextSize(48.f);
+	textContext.SetColor(Color(1.0f, 0.0f, 0.0f));
+	textContext.ResetCursor(100.f, 100.f);
+	textContext.DrawString("Hello, World!");
+
+	textContext.End();
 }
 
 // Render light shadows

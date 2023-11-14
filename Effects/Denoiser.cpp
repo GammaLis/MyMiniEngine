@@ -57,7 +57,7 @@ static bool s_bUseSmoothedVariance = false;
 static uint32_t s_LocalVarianceKernelWidth = 9; // [3: 2: 9]
 static uint32_t s_MinTsppForTemporalVariance = 4; // [1: 40]
 
-bool Denoiser::s_bEnabled = true;
+bool Denoiser::s_bEnabled = false;
 
 void Denoiser::Init(ID3D12Device* pDevice)
 {

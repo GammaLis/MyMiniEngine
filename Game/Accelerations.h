@@ -1,6 +1,5 @@
 ﻿#pragma once
-#include "Accelerations.h"
-#include "Accelerations.h"
+
 #include "pch.h"
 #include "Math/GLMath.h"
 

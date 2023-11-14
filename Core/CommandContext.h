@@ -13,7 +13,6 @@
 namespace MyDirectX
 {
 	class CommandSignature;
-
 	class CommandListManager;
 
 	class GraphicsContext;
@@ -209,7 +208,7 @@ namespace MyDirectX
 		void ResolveQueryData(ID3D12QueryHeap* pQueryHeap, D3D12_QUERY_TYPE type, UINT startIndex, UINT numQueries,
 			ID3D12Resource* pDestBuffer, UINT64 destBufferOffset);
 
-		void SetRootSignature(const RootSignature& rootSig);
+		void SetRootSignature(const RootSignature& rootSig, bool bParseSignature = true);
 
 		void SetRenderTargets(UINT numRTVs, const D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]);
 		void SetRenderTargets(UINT numRTVs, const D3D12_CPU_DESCRIPTOR_HANDLE rtvs[], D3D12_CPU_DESCRIPTOR_HANDLE dsv);
@@ -274,7 +273,7 @@ namespace MyDirectX
 		void ClearUAV(GpuBuffer& target);
 		void ClearUAV(ColorBuffer& target);
 
-		void SetRootSignature(const RootSignature& rootSig);
+		void SetRootSignature(const RootSignature& rootSig, bool bParseSignature = true);
 
 		void SetConstantArray(UINT rootIndex, UINT numConstants, const void* pConstants);
 		void SetConstant(UINT rootIndex, DWParam val, UINT offset = 0);

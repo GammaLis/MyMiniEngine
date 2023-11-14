@@ -238,7 +238,7 @@ void AssimpImporter::ProcessMaterials(const aiScene* scene, ImporterData& import
 			curMat->Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_ROUGHNESS_FACTOR, roughness);
 			newMat->GetMaterialData().metallicRoughness.z = roughness;
 
-			// 暂不支持 specular glossiness	-2020-4-1
+			// TODO: specular glossiness	-2020-4-1
 			bool isSpecularGlossiness = false;
 			if (curMat->Get(AI_MATKEY_GLTF_PBRSPECULARGLOSSINESS, isSpecularGlossiness) == AI_SUCCESS)
 			{
@@ -292,8 +292,7 @@ void AssimpImporter::ProcessMaterials(const aiScene* scene, ImporterData& import
 			{
 				if (m_ImportMode == ImportMode::OBJ)
 				{
-					float roughness = ConvertSpecPowerToRoughness(shininess);
-					shininess = 1.0f - roughness;
+					shininess = 1.0f - ConvertSpecPowerToRoughness(shininess);
 				}
 			}
 			float4 specGloss = float4(1.0f, 1.0f, 1.0f, shininess);
@@ -316,6 +315,8 @@ void AssimpImporter::ProcessMaterials(const aiScene* scene, ImporterData& import
 
 bool AssimpImporter::Load(ID3D12Device* pDevice, const std::string& filePath, const InstanceMatrices& instances, uint32_t indexStride)
 {
+	Clear();
+
 	Assimp::Importer importer;
 
 	// and have it read the given file with some example postprocessing
@@ -334,7 +335,7 @@ bool AssimpImporter::Load(ID3D12Device* pDevice, const std::string& filePath, co
 		return false;
 	}
 
-	// caced d3d device
+	// cached d3d device
 	m_Device = pDevice;
 
 	// path root
@@ -352,7 +353,7 @@ bool AssimpImporter::Load(ID3D12Device* pDevice, const std::string& filePath, co
 	return true;
 }
 
-bool AssimpImporter::Init(ID3D12Device* pDevice, Scene* pScene, GameInput* pInput)
+bool AssimpImporter::AddToScene(ID3D12Device* pDevice, Scene* pScene)
 {
 	if (pDevice == nullptr || pScene == nullptr)
 		return false;
@@ -363,14 +364,24 @@ bool AssimpImporter::Init(ID3D12Device* pDevice, Scene* pScene, GameInput* pInpu
 		return false;
 	}
 
-	if (m_Camera == nullptr) m_Camera = std::make_shared<Math::Camera>();
-	pScene->m_Camera = m_Camera;
-	pScene->m_pInput = pInput;
-	// pScene->m_Lights
-	pScene->m_Materials = m_Materials;
+	if (pScene->GetCamera() == nullptr && m_Camera != nullptr)
+	{
+		pScene->m_Camera = m_Camera;
+	}
+
+	m_SceneMaterialOffset = (uint32_t)pScene->m_Materials.size();
+	m_SceneMeshOffset = (uint32_t)pScene->m_MeshDescs.size();
+	
 	pScene->m_Name = m_FileName;
 
+	// Lights
+	// pScene->m_Lights
+	
+	// Materials
+	pScene->m_Materials.insert(pScene->m_Materials.end(), m_Materials.begin(), m_Materials.end());
+
 	CreateGlobalMatricesBuffer(pScene);
+	// Meshes
 	uint32_t drawCount = CreateMeshData(pScene);
 	CreateVertexBuffer(pDevice, pScene);
 	CreateIndexBuffer(pDevice, pScene);
@@ -382,30 +393,30 @@ bool AssimpImporter::Init(ID3D12Device* pDevice, Scene* pScene, GameInput* pInpu
 	return true;
 }
 
+void AssimpImporter::Clear() 
+{
+	m_Dirty = true;
+	m_Scene = nullptr;
+	m_Camera = nullptr;
+
+	m_SceneMaterialOffset = 0;
+	m_SceneMeshOffset = 0;
+
+	m_SceneGraph.clear();
+	m_Meshes.clear();
+	m_Materials.clear();
+	m_MaterialToId.clear();
+
+	m_BuffersData.Clear();
+}
+
 Scene::SharedPtr AssimpImporter::GetScene(ID3D12Device* pDevice)
 {
 	// we cache the scene because creating it is not cheap
 	if (m_Scene && !m_Dirty) return m_Scene;
 
-	if (m_Meshes.empty())
-	{
-		Utility::Print("Can't build scene. No meshes were loaded");
-		return nullptr;
-	}
-
 	m_Scene = Scene::Create();
-	if (m_Camera == nullptr) m_Camera = std::make_shared<Math::Camera>();
-	// m_Scend->m_Lights
-	m_Scene->m_Materials = m_Materials;
-	m_Scene->m_Name = m_FileName;
-
-	CreateGlobalMatricesBuffer(m_Scene.get());
-	uint32_t drawCount = CreateMeshData(m_Scene.get());
-	CreateVertexBuffer(pDevice, m_Scene.get());
-	CreateIndexBuffer(pDevice, m_Scene.get());
-	CalculateMeshBoundingBoxes(m_Scene.get());
-	m_Scene->Finalize(pDevice);
-	m_Dirty = false;
+	AddToScene(pDevice, m_Scene.get());
 
 	return m_Scene;
 }
@@ -498,7 +509,7 @@ size_t AssimpImporter::AddMesh(const Mesh& mesh)
 
 void AssimpImporter::SetCamera(const std::shared_ptr<Math::Camera>& pCamera, size_t nodeId)
 {
-	// TO DO
+	// TODO..
 }
 
 bool AssimpImporter::IsBone(ImporterData& data, const std::string& nodeName)
@@ -621,13 +632,15 @@ bool AssimpImporter::CreateMeshes(ImporterData& data)
 		newMesh.pTangents = (Vector3*)curMesh->mTangents;
 		newMesh.pBitangents = (Vector3*)curMesh->mBitangents;
 		// texCoords已被销毁！
-		//if (curMesh->HasTextureCoords(0))
-		//{
-		//	const auto& texCoords = CreateTexCoordList(curMesh->mTextureCoords[0], newMesh.vertexCount);
-		//	newMesh.pUVs = texCoords.data();
-		//}
-		//else
-		//	newMesh.pUVs = nullptr;
+	#if 0
+		if (curMesh->HasTextureCoords(0))
+		{
+			const auto& texCoords = CreateTexCoordList(curMesh->mTextureCoords[0], newMesh.vertexCount);
+			newMesh.pUVs = texCoords.data();
+		}
+		else
+	#endif
+			newMesh.pUVs = nullptr;
 		const auto& texCoords = curMesh->HasTextureCoords(0) ?
 			CreateTexCoordList(curMesh->mTextureCoords[0], newMesh.vertexCount) : std::vector<Vector2>();
 		newMesh.pUVs = !texCoords.empty() ? texCoords.data() : nullptr;
@@ -846,13 +859,13 @@ bool AssimpImporter::CreateLights(ImporterData& data)
 
 bool AssimpImporter::CreateDirLight(ImporterData& data, const aiLight* pAiLight)
 {
-	// TO DO
+	// TODO
 	return true;
 }
 
 bool AssimpImporter::CreatePointLight(ImporterData& data, const aiLight* pAiLight)
 {
-	// TO DO
+	// TODO
 	return true;
 }
 
@@ -970,27 +983,37 @@ std::shared_ptr<StructuredBuffer> AssimpImporter::CreateInstanceBuffer(ID3D12Dev
 
 uint32_t AssimpImporter::CreateMeshData(Scene* pScene)
 {
+	// Meshes
+
 	auto& meshData = pScene->m_MeshDescs;
 	auto& instanceData = pScene->m_MeshInstanceData;
-	meshData.resize(m_Meshes.size());
-	pScene->m_MeshHasDynamicData.resize(m_Meshes.size());
+
+	uint32_t meshOffset = m_SceneMeshOffset, materialOffset = m_SceneMaterialOffset;
+	auto newSize = meshOffset + m_Meshes.size();
+
+	meshData.resize(newSize);
+	pScene->m_MeshHasDynamicData.resize(newSize);
 
 	size_t drawCount = 0;
 	for (uint32_t meshIdx = 0, maxIdx = (uint32_t)m_Meshes.size(); meshIdx < maxIdx; ++meshIdx)
 	{
 		// mesh data
 		const auto& curMesh = m_Meshes[meshIdx];
-		meshData[meshIdx].vertexOffset = curMesh.staticVertexOffset;
-		meshData[meshIdx].vertexCount = curMesh.vertexCount;
-		meshData[meshIdx].vertexStrideSize = sizeof(StaticVertexData);
-		meshData[meshIdx].vertexByteSize = curMesh.vertexCount * sizeof(StaticVertexData);
 
-		meshData[meshIdx].indexByteOffset = curMesh.indexOffset;
-		meshData[meshIdx].indexCount = curMesh.indexCount;
-		meshData[meshIdx].indexStrideSize = m_IndexStride;
-		meshData[meshIdx].indexByteSize = curMesh.indexCount * m_IndexStride;
+		auto meshId = (meshIdx + meshOffset);
+		auto materialId = (curMesh.materialId + materialOffset);
 
-		meshData[meshIdx].materialID = curMesh.materialId;
+		meshData[meshId].vertexOffset = curMesh.staticVertexOffset;
+		meshData[meshId].vertexCount = curMesh.vertexCount;
+		meshData[meshId].vertexStrideSize = sizeof(StaticVertexData);
+		meshData[meshId].vertexByteSize = curMesh.vertexCount * sizeof(StaticVertexData);
+
+		meshData[meshId].indexByteOffset = curMesh.indexOffset;
+		meshData[meshId].indexCount = curMesh.indexCount;
+		meshData[meshId].indexStrideSize = m_IndexStride;
+		meshData[meshId].indexByteSize = curMesh.indexCount * m_IndexStride;
+
+		meshData[meshId].materialID = materialId;
 
 		drawCount += curMesh.instances.size();
 
@@ -1000,8 +1023,8 @@ uint32_t AssimpImporter::CreateMeshData(Scene* pScene)
 			instanceData.push_back(MeshInstanceData());
 			auto& meshInstance = instanceData.back();
 			meshInstance.globalMatrixID = instance;
-			meshInstance.materialID = curMesh.materialId;
-			meshInstance.meshID = meshIdx;
+			meshInstance.materialID = materialId;
+			meshInstance.meshID = meshId;
 		}
 
 		if (curMesh.hasDynamicData)
@@ -1019,24 +1042,26 @@ uint32_t AssimpImporter::CreateMeshData(Scene* pScene)
 
 void AssimpImporter::CreateGlobalMatricesBuffer(Scene* pScene)
 {
-	pScene->m_SceneGraph.resize(m_SceneGraph.size());
-	for (uint32_t i = 0, imax = (uint32_t)m_SceneGraph.size(); i < imax; ++i)
+	auto offset = pScene->m_SceneGraph.size();
+	pScene->m_SceneGraph.resize(offset + m_SceneGraph.size());
+
+	for (decltype(offset) i = 0, imax = m_SceneGraph.size(); i < imax; ++i)
 	{
-		pScene->m_SceneGraph[i] = Node{
-			m_SceneGraph[i].name,
-			m_SceneGraph[i].parentIndex,
-			m_SceneGraph[i].transform,
-			m_SceneGraph[i].localToBindSpace
-		};
+		auto &node = pScene->m_SceneGraph[i+offset];
+		node.name = m_SceneGraph[i].name;
+		node.parentIndex = m_SceneGraph[i].parentIndex;
+		node.transform = m_SceneGraph[i].transform;
+		node.localToBindSpace = m_SceneGraph[i].localToBindSpace;
 	}
 }
 
+// calculate mesh bounding boxes
 void AssimpImporter::CalculateMeshBoundingBoxes(Scene* pScene)
 {
-	// calculate mesh bounding boxes
-	pScene->m_MeshBBs.resize(m_Meshes.size());
+	auto offset = pScene->m_MeshBBs.size();
+	pScene->m_MeshBBs.resize(m_Meshes.size() + offset);
+
 	const float3 *vertex = nullptr;
-	Vector3 pos;
 	for (uint32_t i = 0, imax = (uint32_t)m_Meshes.size(); i < imax; ++i)
 	{
 		const auto& curMesh = m_Meshes[i];
@@ -1046,11 +1071,16 @@ void AssimpImporter::CalculateMeshBoundingBoxes(Scene* pScene)
 		for (uint32_t v = 0; v < curMesh.vertexCount; ++v)
 		{
 			vertex = &(pStaticData[v].position);
-			pos = Vector3(vertex->x, vertex->y, vertex->z);
-			boxMin = MMATH::min(boxMin, pos);
-			boxMax = MMATH::max(boxMax, pos);
+
+			boxMin.x = MMATH::min(vertex->x, boxMin.x);
+			boxMin.y = MMATH::min(vertex->y, boxMin.y);
+			boxMin.z = MMATH::min(vertex->z, boxMin.z);
+
+			boxMax.x = MMATH::max(vertex->x, boxMax.x);
+			boxMax.y = MMATH::max(vertex->y, boxMax.y);
+			boxMax.z = MMATH::max(vertex->z, boxMax.z);
 		}
-		pScene->m_MeshBBs[i] = BoundingBox(boxMin, boxMax);
+		pScene->m_MeshBBs[i+offset] = BoundingBox(boxMin, boxMax);
 	}
 }
 

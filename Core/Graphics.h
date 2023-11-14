@@ -104,7 +104,7 @@ namespace MyDirectX
 
 		void HandleDeviceLost();
 
-		void CustomInit();
+		void InitCustom();
 
 		// init RootSignatures
 		void InitRootSignatures();
@@ -116,6 +116,7 @@ namespace MyDirectX
 		void PreparePresentHDR();
 		void PreparePresentLDR();
 		void CompositeOverlays(GraphicsContext& context);
+		void MoveToNextFrame();
 
 		// class members
 		
@@ -164,6 +165,8 @@ namespace MyDirectX
 
 		uint64_t m_FrameIndex = 0;
 		int64_t m_FrameStartTick = 0;	// TODO
+
+		uint64_t m_FenceValues[SWAP_CHAIN_BUFFER_COUNT] = {};
 
 		// features
 		D3D_FEATURE_LEVEL m_D3DMinFeatureLevel;

@@ -115,6 +115,7 @@ namespace MyDirectX
 		virtual void CleanCustom() override;
 
 		virtual void PostProcess() override;
+		virtual void CustomUI(GraphicsContext &context) override;
 
 		void RenderLightShadows(GraphicsContext& gfxContext);
 		void RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4 viewProjMat, ObjectFilter filter = ObjectFilter::kAll);

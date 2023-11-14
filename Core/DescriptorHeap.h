@@ -110,29 +110,20 @@ namespace MyDirectX
 		const DescriptorHandle &operator[] (uint32_t arrayIdx) const { return m_FirstHandle + arrayIdx * m_DescriptorSize; }
 		DescriptorHandle &operator[] (uint32_t arrayIdx) { return m_FirstHandle + arrayIdx * m_DescriptorSize; }
 
-		DescriptorHandle GetHandleAtOffset(uint32_t offset) const { return m_FirstHandle + offset * m_DescriptorSize; }
-
-		uint32_t GetOffsetOfHandle(const DescriptorHandle& handle) 
-		{
-			return (uint32_t)(handle.GetCpuPtr() - m_FirstHandle.GetCpuPtr()) / m_DescriptorSize;
-		}
-
-		uint32_t GetAllocedCount() 
-		{ 
-			// (uint32_t)(m_NextFreeHandle.GetCpuPtr() - m_FirstHandle.GetCpuPtr()) / m_DescriptorSize;
-			return m_HeapDesc.NumDescriptors - m_NumFreeDescriptors;
-		}
-
-		bool ValidateHandle(const DescriptorHandle& descHandle) const;
-
+		uint32_t GetCapacity() const { return m_HeapDesc.NumDescriptors; }
+		D3D12_DESCRIPTOR_HEAP_TYPE GetType() const { return m_HeapDesc.Type; }
 		ID3D12DescriptorHeap* GetHeapPointer() const { return m_DescriptorHeap.Get(); }
-
 		uint32_t GetDescriptorSize() const { return m_DescriptorSize; }
+		DescriptorHandle GetHandleAtOffset(uint32_t offset) const { return m_FirstHandle + offset * m_DescriptorSize; }
+		uint32_t GetOffsetOfHandle(const DescriptorHandle& handle) { return (uint32_t)(handle.GetCpuPtr() - m_FirstHandle.GetCpuPtr()) / m_DescriptorSize; }
+		uint32_t GetAllocedCount() const { return m_HeapDesc.NumDescriptors - m_NumFreeDescriptors; }
+		bool ValidateHandle(const DescriptorHandle& descHandle) const;
 
 	private:
 		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_DescriptorHeap;
 		D3D12_DESCRIPTOR_HEAP_DESC m_HeapDesc;
 		uint32_t m_DescriptorSize = 0;
+		uint32_t m_Capacity = 0;
 		uint32_t m_NumFreeDescriptors = 0;
 		DescriptorHandle m_FirstHandle;
 		DescriptorHandle m_NextFreeHandle;

@@ -232,7 +232,9 @@ namespace MFalcor
 
 		// import a scene/model file
 		bool Load(ID3D12Device* pDevice, const std::string& fileName, const InstanceMatrices& instances = InstanceMatrices(), uint32_t indexStride = 2);
-		bool Init(ID3D12Device* pDevice, Scene* pScene, GameInput *pInput = nullptr);
+		bool AddToScene(ID3D12Device* pDevice, Scene* pScene);
+
+		void Clear();
 
 		// get the scene. Make sure to add all the objects before calling this function
 		Scene::SharedPtr GetScene(ID3D12Device *pDevice);
@@ -309,7 +311,7 @@ namespace MFalcor
 		// cached D3D device
 		ID3D12Device* m_Device = nullptr;
 
-		// ************************************************************
+		
 		struct InternalNode : public Node
 		{
 			InternalNode() = default;
@@ -337,6 +339,13 @@ namespace MFalcor
 			std::vector<uint8_t> indices;		// uint32_t uint16_t
 			std::vector<StaticVertexData> staticData;
 			std::vector<DynamicVertexData> dynamicData;
+
+			void Clear()
+			{
+				indices.clear();
+				staticData.clear();
+				dynamicData.clear();
+			}
 		} m_BuffersData;
 
 		using SceneGraph = std::vector<InternalNode>;
@@ -345,6 +354,8 @@ namespace MFalcor
 		bool m_Dirty = true;
 		// cached scene
 		Scene::SharedPtr m_Scene;
+		uint32_t m_SceneMaterialOffset = 0;
+		uint32_t m_SceneMeshOffset = 0;
 
 		SceneGraph m_SceneGraph;
 		MeshList m_Meshes;

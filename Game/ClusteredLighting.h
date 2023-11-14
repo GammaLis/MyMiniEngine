@@ -36,7 +36,7 @@ namespace MyDirectX
 			DirectX::XMFLOAT2 coneAngles;
 			DirectX::XMFLOAT4X4 shadowTextureMatrix;
 		};
-		LightData m_LightData[MaxLights];
+		LightData m_LightData[MaxLights]{};
 
 		uint32_t m_LightGridDim = 16;
 		uint32_t m_NumDepthSlice = 16;

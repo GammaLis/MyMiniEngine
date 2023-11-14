@@ -12,12 +12,24 @@
  * 	2 - [in] 1 AABB buffers + 1 CommandBuffer
  * 	3 - [out]1 CommandBuffer 
  */
-cbuffer CSConstants	: register(b0)
+#if 0
+cbuffer CSConstants : register(b0)
 {
 	uint2 _OpaqueOffsetCount;
 	uint _InstanceCount;
 	uint _GridDimensions;
 };
+#else
+cbuffer CSConstants : register(b0)
+{
+	uint2 _ReadStartCount;
+	uint _WriteStart;
+	uint _InstanceCount;
+	uint _GridDimensions;
+};
+#endif
+
+#if !USE_VIEW_UNIFORMS
 cbuffer CSCamera	: register(b1)
 {
 	float3 _CamPos;
@@ -26,6 +38,9 @@ cbuffer CSCamera	: register(b1)
 	matrix _ViewMat;
 	matrix _ProjMat;
 };
+#else
+ConstantBuffer<ViewUniformParameters> _View : register(b1);
+#endif
 
 StructuredBuffer<AABB> _WorldBounds	: register(t0);
 StructuredBuffer<IndirectArgs> _CommandBuffer	: register(t1);
@@ -37,38 +52,73 @@ RWByteAddressBuffer CullValues	: register(u1);
 RWByteAddressBuffer SummedIndex	: register(u2);
 #endif
 
-bool CalcFrustumBoundingBoxIntersection(const Frustum frustum, const AABB bound)
+Frustum GetFrustum(matrix mat)
 {
-	bool bIntersect = false;
+	float4 FrustumPlanes[6];
+	
+#if 0
+	// 6 clip planes in NDC
+	FrustumPlanes[0] = float4(1.0f, 0.0f, 0.0f, 1.0f); // left
+	FrustumPlanes[1] = float4(-1.0f, 0.0f, 0.0f, 1.0f); // right
+	FrustumPlanes[2] = float4(0.0f, 1.0f, 0.0f, 1.0f); // up
+	FrustumPlanes[3] = float4(0.0f, -1.0f, 0.0f, 1.0f); // down
+		
+	// normal Z
+	// FrustumPlanes[4] = float4( 0.0f,  0.0f,  1.0f, 0.0f);	// front
+	// FrustumPlanes[5] = float4( 0.0f,  0.0f, -1.0f, 1.0f);	// back
 
-	float3 boxMin = bound.vMin;
-	float3 boxMax = bound.vMax;
-	float3 boxSize = boxMax - boxMin;
-	float3 boxCorners[8] = 
-	{
-		boxMin,
-		float3(boxMax.x, boxMin.yz),
-		float3(boxMax.xy, boxMin.z),
-		float3(boxMin.x, boxMax.y, boxMin.z),
+	// reversed Z
+	FrustumPlanes[4] = float4(0.0f, 0.0f, -1.0f, 1.0f); // front
+	FrustumPlanes[5] = float4(0.0f, 0.0f, 1.0f, 0.0f); // back
+#endif
 
-		float3(boxMin.x, boxMax.y, boxMax.z),
-		float3(boxMin.xy, boxMax.z),
-		float3(boxMax.x, boxMax.yz),
-		boxMax
-	};
+	matrix viewProjTranspose = transpose(mat);
+	FrustumPlanes[0] =  viewProjTranspose[0] + viewProjTranspose[3];
+	FrustumPlanes[1] = -viewProjTranspose[0] + viewProjTranspose[3];
+	FrustumPlanes[2] =  viewProjTranspose[1] + viewProjTranspose[3];
+	FrustumPlanes[3] = -viewProjTranspose[1] + viewProjTranspose[3];
+
+	// normal Z
+	// FrustumPlanes[4] =  viewProjTranspose[2] /*+ viewProjTranspose[3]*/;
+	// FrustumPlanes[5] = -viewProjTranspose[2] + viewProjTranspose[3];
+
+	// reversed Z
+	FrustumPlanes[4] = -viewProjTranspose[2] + viewProjTranspose[3];
+	FrustumPlanes[5] = viewProjTranspose[2] /*+ viewProjTranspose[3]*/;
+
+	// normalize planes
 	for (uint i = 0; i < 6; ++i)
 	{
-		uint count = 0;
-		float4 frustumPlane = frustum.frustumPlanes[i];
-		for (uint j = 0; j < 8; ++j)
-		{
-			float d = dot(frustumPlane.xyz, boxCorners[j].xyz) + frustumPlane.w;
-			count += d < 0 ? 1 : 0;
-		}
-		if (count == 8)		// 8 corners outside one plane
+		float rLen = rsqrt((dot(FrustumPlanes[i].xyz, FrustumPlanes[i].xyz)));
+		FrustumPlanes[i] *= rLen;
+	}
+	
+	Frustum frustum;
+	frustum.frustumPlanes[0] = FrustumPlanes[0];
+	frustum.frustumPlanes[1] = FrustumPlanes[1];
+	frustum.frustumPlanes[2] = FrustumPlanes[2];
+	frustum.frustumPlanes[3] = FrustumPlanes[3];
+	frustum.frustumPlanes[4] = FrustumPlanes[4];
+	frustum.frustumPlanes[5] = FrustumPlanes[5];
+	
+	return frustum;
+}
+
+bool CalcFrustumBoundingBoxIntersection(const Frustum frustum, const AABB bound)
+{
+	float3 boxMin = bound.vMin;
+	float3 boxMax = bound.vMax;
+	float3 center = (boxMin + boxMax) * 0.5;
+	float3 extent = (boxMax - boxMin) * 0.5;
+	
+	[unroll]
+	for (uint i = 0; i < 6; ++i)
+	{
+		float4 frustumPlane = frustum.frustumPlanes[i];		
+		float d = dot(frustumPlane.xyz, center.xyz) + frustumPlane.w + dot(abs(frustumPlane.xyz), extent.xyz);
+		if (d < 0.0)
 			return false;
 	}
-
 	return true;
 }
 
@@ -85,58 +135,21 @@ void main(
 {
 	sh_CullValues[gtid.x] = 0;
 	sh_SummedIndex[gtid.x] = 0;
+	
 	GroupMemoryBarrierWithGroupSync();
 	
 	// if (dtid.x < _InstanceCount)
-	// 某些原因，现在只处理Opaques	-2020-4-30
-	// 注：Frustum可以放到LDS里，不必每个Thread都去创建
-	if (dtid.x >= _OpaqueOffsetCount.x && dtid.x < _OpaqueOffsetCount.x + _OpaqueOffsetCount.y)
+	// TODO: Frustum可以放到LDS里，不必每个Thread都去创建
+	if (dtid.x < _ReadStartCount.y)
 	{
-		float4 FrustumPlanes[6];
-		// 6 clip planes in NDC
-		FrustumPlanes[0] = float4( 1.0f,  0.0f,  0.0f, 1.0f);	// left
-		FrustumPlanes[1] = float4(-1.0f,  0.0f,  0.0f, 1.0f);	// right
-		FrustumPlanes[2] = float4( 0.0f,  1.0f,  0.0f, 1.0f);	// up
-		FrustumPlanes[3] = float4( 0.0f, -1.0f,  0.0f, 1.0f);	// down
+	#if USE_VIEW_UNIFORMS
+		Frustum frustum = GetFrustum(_View.viewProjMat);
+	#else
+		Frustum frustum = GetFrustum(_ViewProjMat);
+	#endif
 		
-		// normal Z
-		// FrustumPlanes[4] = float4( 0.0f,  0.0f,  1.0f, 0.0f);	// front
-		// FrustumPlanes[5] = float4( 0.0f,  0.0f, -1.0f, 1.0f);	// back
-
-		// reversed Z
-		FrustumPlanes[4] = float4( 0.0f,  0.0f, -1.0f, 1.0f);	// front
-		FrustumPlanes[5] = float4( 0.0f,  0.0f,  1.0f, 0.0f);	// back
-
-		matrix viewProjTranspose = transpose(_ViewProjMat);
-		FrustumPlanes[0] =  viewProjTranspose[0] + viewProjTranspose[3];
-		FrustumPlanes[1] = -viewProjTranspose[0] + viewProjTranspose[3];
-		FrustumPlanes[2] =  viewProjTranspose[1] + viewProjTranspose[3];
-		FrustumPlanes[3] = -viewProjTranspose[1] + viewProjTranspose[3];
-
-		// normal Z
-		//FrustumPlanes[4] =  viewProjTranspose[2] /*+ viewProjTranspose[3]*/;
-		//FrustumPlanes[5] = -viewProjTranspose[2] + viewProjTranspose[3];
-
-		// reversed Z
-		FrustumPlanes[4] = -viewProjTranspose[2] + viewProjTranspose[3];
-		FrustumPlanes[5] =  viewProjTranspose[2] /*+ viewProjTranspose[3]*/;
-
-		// normalize planes
-		for (uint i = 0; i < 6; ++i)
-		{
-			float rLen = rsqrt( (dot(FrustumPlanes[i].xyz, FrustumPlanes[i].xyz)) );
-			FrustumPlanes[i] *= rLen;
-		}
-		Frustum frustum;
-		frustum.frustumPlanes[0] = FrustumPlanes[0];
-		frustum.frustumPlanes[1] = FrustumPlanes[1];
-		frustum.frustumPlanes[2] = FrustumPlanes[2];
-		frustum.frustumPlanes[3] = FrustumPlanes[3];
-		frustum.frustumPlanes[4] = FrustumPlanes[4];
-		frustum.frustumPlanes[5] = FrustumPlanes[5];
-
 		// frustum culling
-		AABB worldBound = _WorldBounds[dtid.x];
+		AABB worldBound = _WorldBounds[_ReadStartCount.x + dtid.x];
 		bool bIntersect = CalcFrustumBoundingBoxIntersection(frustum, worldBound);
 		uint val = bIntersect ? 1 : 0;
 		sh_CullValues[gtid.x] = val;
@@ -177,21 +190,21 @@ void main(
 	
 	// debug
 #if DEBUG_CULLING
-	CullValues.Store(4 * dtid.x, sh_CullValues[gtid.x]);
-	SummedIndex.Store(4 * dtid.x, sh_SummedIndex[gtid.x]);
+	CullValues.Store(4 * (_WriteStart + dtid.x), sh_CullValues[gtid.x]);
+	SummedIndex.Store(4 * (_WriteStart + dtid.x), sh_SummedIndex[gtid.x]);
 	GroupMemoryBarrierWithGroupSync();
 #endif
 
 	// 
 	// if (dtid.x < _InstanceCount)
-	if (dtid.x >= _OpaqueOffsetCount.x && dtid.x < _OpaqueOffsetCount.x + _OpaqueOffsetCount.y)
+	if (dtid.x < _ReadStartCount.y)
 	{
-		IndirectArgs commandArgs = _CommandBuffer[dtid.x];
+		IndirectArgs commandArgs = _CommandBuffer[_ReadStartCount.x + dtid.x];
 		uint perInstanceCount = 1;	// 假定 每个Command只有一个Instance，否则不好区分PerDraw or PerInstance
 		uint instanceId = commandArgs.drawArgs.startInstanceLocation + perInstanceCount - 1;
 		if (sh_CullValues[gtid.x] > 0)
 		{
-			OutputBuffer[sh_SummedIndex[gtid.x]] = commandArgs;
+			OutputBuffer[_WriteStart + sh_SummedIndex[gtid.x]] = commandArgs;
 			OutputBuffer.IncrementCounter();
 		}
 	}

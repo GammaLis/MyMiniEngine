@@ -28,8 +28,8 @@ namespace MyDirectX
 		GpuResource& buffer;	// the D3D buffer associated with this memory
 		size_t offset;			// offset from start of buffer resource
 		size_t size;			// reserved size of this allocation
-		void* dataPtr;			// the CPU-writeable address
-		D3D12_GPU_VIRTUAL_ADDRESS GpuAddress;	// the GPU-visible address
+		void* dataPtr{nullptr};			// the CPU-writeable address
+		D3D12_GPU_VIRTUAL_ADDRESS GpuAddress{D3D12_GPU_VIRTUAL_ADDRESS_NULL};	// the GPU-visible address
 	};
 
 	class LinearAllocationPage : public GpuResource

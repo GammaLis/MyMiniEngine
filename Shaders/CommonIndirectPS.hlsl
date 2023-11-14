@@ -11,11 +11,15 @@ cbuffer CBConstants	: register(b0)
 	uint _LightNum;
 	float3 _Constants;
 };
+#if !USE_VIEW_UNIFORMS
 cbuffer CBPerCamera	: register(b1)
 {
 	matrix _ViewProjMat;
 	float3 _CamPos;
 };
+#else
+ConstantBuffer<ViewUniformParameters> _View : register(b1);
+#endif
 cbuffer CBLights	: register(b2)
 {
 	float3 _SunDirection;
@@ -152,28 +156,36 @@ float4 main(VSOutput i, bool bFront : SV_IsFrontFace) : SV_TARGET
 
 	mat.baseColor = baseColor;
 
-	// #if defined(SHADING_MODEL_METALLIC_ROUGHNESS)
-	// 	mat.metallic = metallic;	// _Metallic
-	// 	mat.perceptualRoughness = perceptualRoughness;	// _Roughness
-	// 	mat.f0 = _F0;
-	// #elif defined(SHADING_MODEL_SPECULAR_GLOSSINESS)
-	// 	mat.specularColor = _SpecularColor;
-	// 	mat.glossiness = _Glossiness;
-	// #endif
+#if 0
+	 #if defined(SHADING_MODEL_METALLIC_ROUGHNESS)
+	 	mat.metallic = metallic;	// _Metallic
+	 	mat.perceptualRoughness = perceptualRoughness;	// _Roughness
+	 	mat.f0 = _F0;
+	 #elif defined(SHADING_MODEL_SPECULAR_GLOSSINESS)
+	 	mat.specularColor = _SpecularColor;
+	 	mat.glossiness = _Glossiness;
+	 #endif
+#endif
 
 	float3 worldPos = i.worldPos;
 
 	// view direction
-	float3 viewDir = normalize(worldPos - _CamPos);		// world-space vector from eye to point
+#if USE_VIEW_UNIFORMS
+	float3 viewDir = normalize(worldPos - _View.camPos.xyz);		// world-space vector from eye to point
+#else
+	float3 viewDir = normalize(worldPos - _CamPos.xyz);
+#endif
 
 	float3 lighting = 0;
 	// direct lighting
-	// [unroll]	// _LightNum不是常量，无法展开
-	// for (uint i = 0; i < _LightNum; ++i)
-	// {
-	// 	TLight curLight = _Lights[i];
-	// 	lighting += DirectLighting(curLight, mat, worldPos, normal, viewDir);
-	// }
+#if 0
+	[unroll]	// _LightNum不是常量，无法展开
+	for (uint i = 0; i < _LightNum; ++i)
+	{
+		TLight curLight = _Lights[i];
+		lighting += DirectLighting(curLight, mat, worldPos, normal, viewDir);
+	}
+#endif
 
 	// specular
 	// ...

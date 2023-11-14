@@ -8,10 +8,10 @@
 	"CBV(b2)," \
 	"CBV(b3)," \
 	"SRV(t0, space = 1)," \
-    "SRV(t1, space = 1)," \
-    "SRV(t2, space = 1)," \
-    "SRV(t3, space = 1)," \
-    "DescriptorTable(SRV(t4, space = 1, numDescriptors = unbounded), visibility = SHADER_VISIBILITY_PIXEL)," \
+	"SRV(t1, space = 1)," \
+	"SRV(t2, space = 1)," \
+	"SRV(t3, space = 1)," \
+	"DescriptorTable(SRV(t4, space = 1, numDescriptors = unbounded), visibility = SHADER_VISIBILITY_PIXEL)," \
 	"DescriptorTable(SRV(t0, numDescriptors = 8), visibility = SHADER_VISIBILITY_PIXEL)," \
 	"DescriptorTable(UAV(u0, numDescriptors = 2))," \
 	"StaticSampler(s0, " \
@@ -27,20 +27,37 @@
 
 #define MATERIAL_TEXTURE_NUM 5
 
-// cbuffer CBConstants	: register(b0)
-// {
-// 	float4 _X;
-// };
-// cbuffer CBPerObject	: register(b1)
-// {
-// 	matrix _ObjectToClip;
-// };
+#if 0
 
-// Texture2D<float4> _BaseColor	: register(t0);
-// Texture2D<float4> _NormalMap	: register(t1);
+cbuffer CBConstants : register(b0)
+{
+	float4 _X;
+};
+cbuffer CBPerObject : register(b1)
+{
+	matrix _ObjectToClip;
+};
 
-// SamplerState s_LinearRSampler: register(s0);
-// SamplerState s_PointCSampler	: register(s1);
+Texture2D<float4> _BaseColor	: register(t0);
+Texture2D<float4> _NormalMap	: register(t1);
+
+SamplerState s_LinearRSampler	: register(s0);
+SamplerState s_PointCSampler	: register(s1);
+
+#endif
+
+struct ViewUniformParameters
+{
+	float4x4 viewProjMat;
+	float4x4 invViewProjMat;
+	float4x4 viewMat;
+	float4x4 projMat;
+	float4 bufferSizeAndInvSize;
+	float4 camPos;
+	float4 cascadeSplits;
+	float nearClip, farClip;
+};
+#define USE_VIEW_UNIFORMS 1
 
 /**
  * https://docs.microsoft.com/zh-cn/windows/win32/direct3d12/specifying-root-signatures-in-hlsl

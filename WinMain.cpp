@@ -9,7 +9,7 @@
 
 #define IMPLEMENTED_BVH 6
 
-#define IMPLEMENTED IMPLEMENTED_MODELVIEWER
+#define IMPLEMENTED IMPLEMENTED_SCENEVIEWER
 
 #include "MyBaseApp.h"
 #include "Utility.h"
@@ -31,6 +31,8 @@
 
 #include "CubemapIBLApp.h"
 
+namespace DX12 = MyDirectX;
+
 /**
 *	TODO:
 *	ERROR C2102: “&”要求左值	==>	https://stackoverflow.com/questions/65315241/how-can-i-fix-requires-l-value
@@ -42,21 +44,23 @@
 */
 
 // I. windows程序 预处理定义-_WINDOWS,连接器子系统SubSystem:WINDOWS
-//int WINAPI WinMain(_In_ HINSTANCE hInstance,
-//	_In_opt_ HINSTANCE hPrevInstance,
-//	_In_ LPSTR lpCmdLine,
-//	_In_ int nCmdShow)
-//{
-//	MyDirectX::MyBaseApp myApp(hInstance, L"Hello, World!");
-//
-//	int ret = 0;
-//	if (myApp.Init())
-//	{
-//		ret = myApp.Run();
-//	}
-//
-//	return ret;
-//}
+#if 0
+int WINAPI WinMain(_In_ HINSTANCE hInstance,
+	_In_opt_ HINSTANCE hPrevInstance,
+	_In_ LPSTR lpCmdLine,
+	_In_ int nCmdShow)
+{
+	MyDirectX::MyBaseApp myApp(hInstance, L"Hello, World!");
+
+	int ret = 0;
+	if (myApp.Init())
+	{
+		ret = myApp.Run();
+	}
+
+	return ret;
+}
+#endif
 
 // II.console程序 预处理定义-_CONSOLE,连接器子系统SubSystem:CONSOLE
 // 还需链接 runtimeobject.lib
@@ -74,33 +78,36 @@ int main(int argc, const char* argv[])
 	constexpr int SceneWidth = 1280, SceneHeight = 720;
 
 #if IMPLEMENTED == IMPLEMENTED_MODELVIEWER
-	MyDirectX::ModelViewer gApp(hInst, "Models/sponza.obj", L"ModelViewer", SceneWidth, SceneHeight);
+	std::unique_ptr<DX12::ModelViewer> gApp(new DX12::ModelViewer(hInst, "Models/sponza.obj", L"ModelViewer", SceneWidth, SceneHeight));
 
 #elif IMPLEMENTED == IMPLEMENTED_GLTFVIEWER
-	MyDirectX::glTFViewer gApp(hInst, "Models/buster_drone.gltf", L"glTFViewer", SceneWidth, SceneHeight);
+	std::unique_ptr<DX12::glTFViewer> gApp(new DX12::glTFViewer(hInst, "Models/buster_drone.gltf", L"glTFViewer", SceneWidth, SceneHeight));
 
 #elif IMPLEMENTED == IMPLEMENTED_SCENEVIEWER
-	MyDirectX::SceneViewer gApp(hInst, L"SceneViewer", SceneWidth, SceneHeight);
+	std::unique_ptr<DX12::SceneViewer> gApp(new DX12::SceneViewer(hInst, L"SceneViewer", SceneWidth, SceneHeight));
 
 #elif IMPLEMENTED == IMPLEMENTED_OCEANVIEWER
-	MyDirectX::OceanViewer gApp(hInst, L"OceanViewer", SceneWidth, SceneHeight);
+	std::unique_ptr<DX12::OceanViewer> gApp(new DX12::OceanViewer(hInst, L"OceanViewer", SceneWidth, SceneHeight));
 
 #elif IMPLEMENTED == IMPLEMENTED_VORONOITEXTURE
-	MyDirectX::VoronoiTextureGenerator gApp(hInst, L"VoronoiTextureGenerator", SceneWidth, SceneHeight);
+	std::unique_ptr<DX12::VoronoiTextureGenerator> gApp(new DX12::VoronoiTextureGenerator(hInst, L"VoronoiTextureGenerator", SceneWidth, SceneHeight));
+
 #elif IMPLEMENTED == IMPLEMENTED_BVH
-	MyDirectX::BVHApp gApp(hInst, L"BVH App", MyDirectX::SCR_WIDTH, MyDirectX::SCR_HEIGHT);
+	std::unique_ptr<DX12::BVHApp> gApp(new DX12::BVHApp(hInst, L"BVH App", MyDirectX::SCR_WIDTH, MyDirectX::SCR_HEIGHT));
+
 #else
 	// 0. IGameApp
 	MyDirectX::IGameApp gApp(hInst);
 #endif	// IMPLEMENTED
 
 	int ret = 0;
-	if (gApp.Init())
+
+	if (gApp->Init())
 	{
-		ret = gApp.Run();
+		ret = gApp->Run();
 	}
 
-	gApp.Cleanup();
+	gApp->Cleanup();
 	
 #elif defined(COMMON_COMPUTE)
 	int ret = 0;

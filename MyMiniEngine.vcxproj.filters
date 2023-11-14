@@ -436,6 +436,9 @@
     <ClInclude Include="Effects\ReSTIRGI.h">
       <Filter>Effects</Filter>
     </ClInclude>
+    <ClInclude Include="Game\FrameDescriptorHeap.h">
+      <Filter>Game</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -674,6 +677,9 @@
     </ClCompile>
     <ClCompile Include="Effects\ReSTIRGI.cpp">
       <Filter>Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="Game\FrameDescriptorHeap.cpp">
+      <Filter>Game</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1228,6 +1234,9 @@
     </FxCompile>
     <FxCompile Include="Shaders\Raytracing\ReSTIR_Resolve.hlsl">
       <Filter>Shaders\GI</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\IndirectGBufferCutoutPS.hlsl">
+      <Filter>Shaders\IndirectRendering</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

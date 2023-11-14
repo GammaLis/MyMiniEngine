@@ -17,9 +17,7 @@
 #define AS_FLAG 2
 #endif
 
-#if AS_FLAG == 2
 #include "Accelerations.h"
-#endif
 
 namespace MyDirectX
 {

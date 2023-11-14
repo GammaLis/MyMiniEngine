@@ -1,6 +1,7 @@
 #pragma once
 #include "pch.h"
 #define GLM_FORCE_CTOR_INIT
+#define GLM_FORCE_XYZW_ONLY
 #include <glm/glm.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/transform.hpp>

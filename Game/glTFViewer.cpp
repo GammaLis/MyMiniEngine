@@ -248,7 +248,7 @@ void glTFViewer::InitAssets()
 			const auto texture = Graphics::s_TextureManager.LoadFromFile(Graphics::s_Device, filePath);
 			m_SHsrv = texture->GetSRV();
 			auto desc = const_cast<ID3D12Resource*>(texture->GetResource())->GetDesc();
-			picWidth = desc.Width;
+			picWidth = (UINT)desc.Width;
 			picHeight = desc.Height;
 
 			UINT numGroupX = Math::DivideByMultiple(picWidth, GroupSizeX);

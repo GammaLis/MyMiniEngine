@@ -20,8 +20,8 @@ namespace MyDirectX
 		void EndRendering(GraphicsContext& context);
 
 	private:
-		D3D12_VIEWPORT m_Viewport;
-		D3D12_RECT m_Scissor;
+		D3D12_VIEWPORT m_Viewport{};
+		D3D12_RECT m_Scissor{};
 	};
 }
 

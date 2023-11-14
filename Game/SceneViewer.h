@@ -4,6 +4,8 @@
 
 namespace MyDirectX
 {
+	class GraphicsContext;
+
 	class SceneViewer : public IGameApp
 	{
 	public:
@@ -12,18 +14,19 @@ namespace MyDirectX
 		virtual void Update(float deltaTime) override;
 		virtual void Render() override;
 
+		Graphics* GetGraphics() const { return m_Gfx.get(); }
+		GameInput* GetInput() const { return m_Input.get(); }
+
 	private:
 		virtual void InitPipelineStates() override;
 		virtual void InitGeometryBuffers() override;
 		virtual void InitCustom() override;
-
-		void RenderForward();
-		void RenderDeferred();
-		void Voxelization();
-
-		virtual void PostProcess() override;
-
 		virtual void CleanCustom() override;
+
+		void RenderForward(GraphicsContext &commandContext);
+		void RenderDeferred(GraphicsContext &commandContext);
+		void Voxelization();
+		virtual void PostProcess() override;
 
 		MFalcor::Scene::SharedPtr m_MainScene;
 
@@ -35,7 +38,7 @@ namespace MyDirectX
 		GraphicsPSO m_ShadowPSO;
 
 		bool m_IndirectRendering = true;
-		bool m_DeferredRendering = false;
+		bool m_DeferredRendering = true;
 	};
 
 }

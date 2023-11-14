@@ -8,7 +8,7 @@ namespace MyDirectX
 	class PSO
 	{
 	public:
-		PSO(const wchar_t* name) : m_Name(name), m_RootSignature(nullptr) {  }
+		PSO(const wchar_t* name) : m_Name(name), m_RootSignature(nullptr), m_PSO(nullptr) {  }
 
 		static void DestroyAll();
 
@@ -27,9 +27,7 @@ namespace MyDirectX
 		
 	protected:
 		const wchar_t *m_Name;
-
 		const RootSignature* m_RootSignature;
-
 		ID3D12PipelineState* m_PSO;		// 这里并不管理生命周期
 	};
 

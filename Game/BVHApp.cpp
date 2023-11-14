@@ -652,6 +652,8 @@ void Surface::LoadTexture(const char* file)
 	if (data)
 	{
 		pixels = (uint*)MALLOC64(width * height * sizeof(uint));
+		assert(pixels != nullptr);
+
 		ownBuffer = true;
 		const int s = width * height;
 		if (n == 1) // Greyscale

@@ -38,7 +38,7 @@ namespace MyDirectX
 		s_ForwardPlusLighting.Init(pDevice);
 
 		uint32_t maxWidth, maxHeight;
-		GfxStates::GetWHFromResolution(Resolutions::k2160p, maxWidth, maxHeight);
+		GfxStates::GetSizeFromResolution(Resolutions::k2160p, maxWidth, maxHeight);
 		s_ParticleEffectManager.Init(pDevice, maxWidth, maxHeight);
 
 		s_TemporalAA.SetTAAMethod(TemporalAA::ETAAMethod::MSTAA); // INTELTAA

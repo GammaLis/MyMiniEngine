@@ -8,7 +8,7 @@
 	"CBV(b0)," \
 	"CBV(b1)," \
 	"CBV(b2)," \
-	"DescriptorTable(SRV(t0, numDescriptors = 5))," \
+	"DescriptorTable(SRV(t1, numDescriptors = 5))," \
 	"DescriptorTable(SRV(t10, numDescriptors = 1))," \
 	"SRV(t1, space = 1)," \
 	"DescriptorTable(SRV(t4, space = 1, numDescriptors = unbounded))," \
@@ -78,15 +78,16 @@ cbuffer CascadedShadowConstants	: register(b2)
 	matrix _LightViewProjMat[NumCascades];
 };
 
-Texture2D<uint> _TexMaterialID	: register(t0);
-Texture2D _GBuffer[4]	: register(t1);
+Texture2D<float> _DepthTexture 	: register(t1);
+Texture2D _GBuffer[3]			: register(t2);
+Texture2D<uint> _TexMaterialID	: register(t5);
 
 Texture2DArray _CascadedShadowMap	: register(t10);
 
 // Texture2D _GBuffer[4]	: register(t0);
 // Texture2D<uint> _TexMaterialID	: register(t4);
 /**
- * 这种顺序总是提示出错，_Tex未绑定	-2020-4-21
+ * _TexArr is unbound,
  * 	Texture2D _TexArr[]	: register(t0);
  * 	Texture2D _Tex 	: register(t4);
  */
@@ -192,7 +193,7 @@ void ShadeSample(in uint2 pixelPos, in uint sampleIdx, in uint numMSAASamples)
 	Texture2D tangentFrameMap = _GBuffer[0];
 	Texture2D uvMap = _GBuffer[1];
 	Texture2D uvGradientMap = _GBuffer[2];
-	Texture2D depthMap = _GBuffer[3];
+	Texture2D<float> depthMap = _DepthTexture;
 	Texture2D<uint> materialIDMap = _TexMaterialID;
 	// Texture2D materialIDMap = _GBuffer[4];
 
@@ -480,11 +481,13 @@ void ShadeSample(in uint2 pixelPos, in uint sampleIdx, in uint numMSAASamples)
 	lighting += shadow * ApplyDirectionalLight(baseColor.rgb, specularAlbedo, specularMask, gloss, normal, viewDir,
 		_SunDirection, _SunColor, float3(0.0f, 0.0f, 0.0f));
 
-	color = baseColor;
 	color.rgb = lighting;
+	
+	// debug baseColor
+	// color = baseColor;
 
 	// debug normal
-	// color.rgb = normal;
+	// color.rgb = normal * 0.5 + 0.5;
 
 	// debug materialID
 	// color = (float)materialID / 16;

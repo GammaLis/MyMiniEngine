@@ -4,11 +4,15 @@ cbuffer CBConstants	: register(b0)
 {
 	float4 _Constants;
 };
+#if !USE_VIEW_UNIFORMS
 cbuffer CBPerCamera	: register(b1)
 {
 	matrix _ViewProjMat;
 	float3 _CamPos;
 };
+#else
+ConstantBuffer<ViewUniformParameters> _View : register(b1);
+#endif
 
 StructuredBuffer<GlobalMatrix> _MatrixBuffer            : register(t0, space1);
 StructuredBuffer<MaterialData> _MaterialBuffer          : register(t1, space1);
@@ -52,7 +56,11 @@ VSOutput main(VSInput v)
 
 	float4 wPos = mul(float4(v.position, 1.0), globalMatrix.worldMat);
 	// wPos = float4(v.position, 1.0);
+#if USE_VIEW_UNIFORMS
+	float4 cPos = mul(wPos, _View.viewProjMat);
+#else
 	float4 cPos = mul(wPos, _ViewProjMat);
+#endif
 
 	float3 wNormal = normalize(mul((float3x3)_InvWorldMat, v.normal));
 	float3 wTangent = normalize(mul(v.tangent.xyz, (float3x3)_WorldMat));

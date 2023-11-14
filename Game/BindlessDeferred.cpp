@@ -47,21 +47,7 @@ BindlessDeferred::BindlessDeferred()
 
 void BindlessDeferred::Init(ID3D12Device* pDevice, MFalcor::Scene* pScene)
 {
-	// ÒÆµ½MFalcor::SceneÀï
-	//// root signature
-	//{
-	//	m_GBufferRS.Reset(6);
-	//	m_GBufferRS[0].InitAsConstantBuffer(0);
-	//	m_GBufferRS[1].InitAsConstantBuffer(1);
-	//	m_GBufferRS[2].InitAsBufferSRV(0, 1);
-	//	m_GBufferRS[3].InitAsBufferSRV(1, 1);
-	//	m_GBufferRS[4].InitAsBufferSRV(2, 1);
-	//	m_GBufferRS[5].InitAsBufferSRV(3, 1);
-	//	m_GBufferRS.Finalize(pDevice, L"GBufferRS", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-	//}
-
 	CreateRenderTargets(pDevice);
-
 	CreateDecals(pDevice);
 }
 
@@ -128,17 +114,17 @@ void BindlessDeferred::CreateDecals(ID3D12Device* pDevice)
 				pSrcDescriptorRangeStarts[numSrcDescriptorRanges] = m_DecalSRVs[m_NumDecalTextures];
 				pSrcDescriptorRangeSizes[numSrcDescriptorRanges] = 1;
 				++numSrcDescriptorRanges;
-
 				++pDestDescriptorRangeSizes[0];
-
 				++m_NumDecalTextures;
 			}
 		}
 
+	#if 0
 		numDestDescriptorRanges = 1;
 		pDestDescriptorRangeStarts[0] = m_DecalTextureHeap.GetHandleAtOffset(0).GetCpuHandle();
 		pDevice->CopyDescriptors(numDestDescriptorRanges, pDestDescriptorRangeStarts, pDestDescriptorRangeSizes,
 			numSrcDescriptorRanges, pSrcDescriptorRangeStarts, pSrcDescriptorRangeSizes, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	#endif
 	}
 
 	// decal data

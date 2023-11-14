@@ -44,8 +44,8 @@ namespace MyDirectX
 		void WaitForIdle() { WaitForFence(IncrementFence()); }
 
 		ID3D12CommandQueue* GetCommandQueue() { return m_CommandQueue; }
-
 		uint64_t GetNextFenceValue() { return m_NextFenceValue; }
+		uint64_t GetLastCompletedFenceValue() { return m_LastCompletedFenceValue; }
 
 	private:
 		uint64_t ExecuteCommandList(ID3D12CommandList* list);

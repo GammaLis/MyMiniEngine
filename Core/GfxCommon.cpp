@@ -85,59 +85,16 @@ void GfxStates::SetNativeResolution(ID3D12Device* pDevice, Resolutions nativeRes
 	if (s_NativeRes == nativeRes)
 		return;
 
-	/**
-	switch (nativeRes)
-	{
-	default:
-	case Resolutions::k480p:
-		s_NativeWidth = 640;
-		s_NativeHeight = 480;
-		break;
-
-	case Resolutions::k720p:
-		s_NativeWidth = 1280;
-		s_NativeHeight = 720;
-		break;
-
-	case Resolutions::k900p:
-		s_NativeWidth = 1600;
-		s_NativeHeight = 900;
-		break;
-
-	case Resolutions::k1080p:
-		s_NativeWidth = 1920;
-		s_NativeHeight = 1080;
-		break;
-
-	case Resolutions::k1440p:
-		s_NativeWidth = 2560;
-		s_NativeHeight = 1440;
-		break;
-
-	case Resolutions::k1800p:
-		s_NativeWidth = 3200;
-		s_NativeHeight = 1800;
-		break;
-
-	case Resolutions::k2160p:
-		s_NativeWidth = 3840;
-		s_NativeHeight = 2160;
-		break;
-	}
-	*/
-	GetWHFromResolution(nativeRes, s_NativeWidth, s_NativeHeight);
+	GetSizeFromResolution(nativeRes, s_NativeWidth, s_NativeHeight);
 
 	DEBUGPRINT("Changing native resolution to %ux%u", s_NativeWidth, s_NativeHeight);
 
 	s_NativeRes = nativeRes;
-
 	Graphics::s_CommandManager.IdleGPU();
-
 	Graphics::s_BufferManager.InitRenderingBuffers(pDevice, s_NativeWidth, s_NativeHeight);
-
 }
 
-void GfxStates::GetWHFromResolution(Resolutions res, uint32_t& width, uint32_t &height)
+void GfxStates::GetSizeFromResolution(Resolutions res, uint32_t& width, uint32_t &height)
 {
 	switch (res)
 	{
@@ -185,15 +142,15 @@ void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferW
 {
 	// GraphicsContext& initContext = GraphicsContext::Begin();
 
-	const uint32_t bufferWidth1 = (bufferWidth + 1) / 2;
-	const uint32_t bufferWidth2 = (bufferWidth + 3) / 4;
-	const uint32_t bufferWidth3 = (bufferWidth + 7) / 8;
-	const uint32_t bufferWidth4 = (bufferWidth + 15) / 16;
-	const uint32_t bufferWidth5 = (bufferWidth + 31) / 32;
-	const uint32_t bufferWidth6 = (bufferWidth + 63) / 64;
-	const uint32_t bufferHeight1 = (bufferHeight + 1) / 2;
-	const uint32_t bufferHeight2 = (bufferHeight + 3) / 4;
-	const uint32_t bufferHeight3 = (bufferHeight + 7) / 8;
+	const uint32_t bufferWidth1  = (bufferWidth +  1) / 2;
+	const uint32_t bufferWidth2  = (bufferWidth +  3) / 4;
+	const uint32_t bufferWidth3  = (bufferWidth +  7) / 8;
+	const uint32_t bufferWidth4  = (bufferWidth + 15) / 16;
+	const uint32_t bufferWidth5  = (bufferWidth + 31) / 32;
+	const uint32_t bufferWidth6  = (bufferWidth + 63) / 64;
+	const uint32_t bufferHeight1 = (bufferHeight +  1) / 2;
+	const uint32_t bufferHeight2 = (bufferHeight +  3) / 4;
+	const uint32_t bufferHeight3 = (bufferHeight +  7) / 8;
 	const uint32_t bufferHeight4 = (bufferHeight + 15) / 16;
 	const uint32_t bufferHeight5 = (bufferHeight + 31) / 32;
 	const uint32_t bufferHeight6 = (bufferHeight + 63) / 64;
@@ -327,9 +284,7 @@ void ShaderManager::CreateFromByteCode()
 {
 	m_ScreenQuadVS = CD3DX12_SHADER_BYTECODE(ScreenQuadVS, sizeof(ScreenQuadVS));
 
-	/**
-		present
-	*/
+	// present
 	m_PresentHDRPS = CD3DX12_SHADER_BYTECODE(PresentHDRPS, sizeof(PresentHDRPS));
 	m_PresentSDRPS = CD3DX12_SHADER_BYTECODE(PresentSDRPS, sizeof(PresentSDRPS));
 	m_MagnifyPixelsPS = CD3DX12_SHADER_BYTECODE(MagnifyPixelsPS, sizeof(MagnifyPixelsPS));
@@ -359,15 +314,11 @@ void ShaderManager::CreateFromByteCode()
 	m_BicubicUpsampleCS = CD3DX12_SHADER_BYTECODE(BicubicUpsampleCS, sizeof(BicubicUpsampleCS));
 	m_LanczosCS = CD3DX12_SHADER_BYTECODE(LanczosCS, sizeof(LanczosCS));
 
-	/**
-		generate mips
-	*/
+	// generate mips
 	m_GenerateMips = CD3DX12_SHADER_BYTECODE(GenerateMips, sizeof(GenerateMips));
 	m_Generete3DTexMips = CD3DX12_SHADER_BYTECODE(Generate3DTexMips, sizeof(Generate3DTexMips));
 	
-	/**
-		text
-	*/
+	// text
 	m_TextVS = CD3DX12_SHADER_BYTECODE(TextVS, sizeof(TextVS));
 	m_TextAntialiasPS = CD3DX12_SHADER_BYTECODE(TextAntialiasingPS, sizeof(TextAntialiasingPS));
 	m_TextShadowPS = CD3DX12_SHADER_BYTECODE(TextShadowPS, sizeof(TextShadowPS));
@@ -398,7 +349,7 @@ void ShaderManager::CompileShadersFromFile()
 	}
 
 	{
-		/**
+	#if 0
 		ComPtr<ID3DBlob> pScreenQuadVS, pVSError;
 		ComPtr<ID3DBlob> pPresentHDRPS, pPSError;
 		ASSERT_SUCCEEDED(D3DCompileFromFile(L"Shaders\\ScreenQuadVS.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
@@ -408,7 +359,7 @@ void ShaderManager::CompileShadersFromFile()
 
 		m_ScreenQuadVS = CD3DX12_SHADER_BYTECODE(pScreenQuadVS.Get());
 		m_PresentHDRPS = CD3DX12_SHADER_BYTECODE(pPresentHDRPS.Get());
-		*/
+	#endif
 	}
 }
 
@@ -594,6 +545,10 @@ void CommonStates::InitCommonStates(ID3D12Device* pDevice)
 		// DepthStateTestEqual
 		DepthStateTestEqual = DepthStateReadOnly;
 		DepthStateTestEqual.DepthFunc = D3D12_COMPARISON_FUNC_EQUAL;
+
+		// DepthStateTestGreaterEqual
+		DepthStateTestGreaterEqual = DepthStateReadOnly;
+		DepthStateTestGreaterEqual.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
 	}	
 
 	// Command Root Signatures

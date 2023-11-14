@@ -34,7 +34,7 @@ namespace MyDirectX
 
 		private:
 			StructuredBuffer m_StateBuffers[2];		// 前后 状态buffer（当前运动状态，更新运动状态）
-			uint32_t m_CurStateBuffer;
+			uint32_t m_CurStateBuffer{0};
 			StructuredBuffer m_RandomStateBuffer;	// 初始随机生成状态buffer
 			IndirectArgsBuffer m_DispatchIndirectArgs;
 			IndirectArgsBuffer m_DrawIndirectArgs;

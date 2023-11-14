@@ -83,14 +83,13 @@ namespace MyDirectX
 		void InitViewportAndScissor();
 		virtual void InitPipelineStates();
 		virtual void InitGeometryBuffers();
+		
 		virtual void InitCustom();
+		virtual void CleanCustom();
 
 		// 后处理，从Render当中分离，子类进行自定义
 		virtual void PostProcess();
-		
 		virtual void CustomUI(GraphicsContext &context);
-
-		virtual void CleanCustom();
 
 		void RenderTriangle();
 
