@@ -97,6 +97,25 @@ namespace MFalcor
 
 		Count
 	};
+	enum class VisibilityRSId
+	{
+		CBConstants = 0,
+		CBPerCamera,
+		CBVs,
+		MatrixBufferSRV,
+	#if 0
+		MaterialBufferSRV,
+		MeshBufferSRV,
+		MeshInstanceBufferSRV,
+	#endif
+		MaterialTextures,
+		RenderTextureSRVs,
+		BufferSRVs,
+		RenderTextureUAVs,
+		BufferUAVs,
+
+		Count,
+	};
 
 	struct Node
 	{
@@ -202,6 +221,7 @@ namespace MFalcor
 		void BeginRendering(GraphicsContext &gfx);
 		void EndRendering(GraphicsContext &gfx);
 		void BeginDrawing(GraphicsContext& gfx, bool bIndirectRendering = false);
+		void BeginIndexDrawing(GraphicsContext& gfx);
 		void SetRenderCamera(GraphicsContext& gfx, const Matrix4x4 &viewProjMat, const Vector3 &camPos, UINT rootIdx);
 		void RenderByAlphaMode(GraphicsContext& gfx, GraphicsPSO &pso, AlphaMode alphaMode = AlphaMode::kOPAQUE);
 
@@ -209,9 +229,13 @@ namespace MFalcor
 		void IndirectRender(GraphicsContext& gfx, GraphicsPSO& pso, AlphaMode alphaMode = AlphaMode::UNKNOWN);
 
 		// Deferred rendering
-		void PrepareGBuffer(GraphicsContext& gfx, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
+		void PrepareGBuffer(GraphicsContext& gfx);
 		void RenderToGBuffer(GraphicsContext& gfx, GraphicsPSO &pso, AlphaMode alphaMode = AlphaMode::UNKNOWN);
 		void DeferredRender(ComputeContext& computeContext, ComputePSO &pso);
+
+		void PrepareVisibilityBuffer(GraphicsContext &gfx);
+		void RenderVisibilityBuffer(GraphicsContext &gfx, AlphaMode alphaMode = AlphaMode::UNKNOWN);
+		void VisibilityCompute(ComputeContext &gfx, ComputePSO &pso);
 
 		// Sun shadows
 		void RenderSunShadows(GraphicsContext& gfx);
@@ -512,12 +536,11 @@ namespace MFalcor
 		};
 		std::vector<Viewport> m_Viewports;
 		uint32_t m_CurViewport = 0;
-		// -mf
+		
 		std::shared_ptr<Math::Camera> m_Camera;
 		std::shared_ptr<CameraController> m_CameraController;
 		Math::Matrix4 m_ViewProjMatrix;
 		GameInput* m_pInput = nullptr;
-
 		Graphics *m_Graphics = nullptr;
 
 		ViewUniformParameters m_ViewUniformParams;
@@ -571,6 +594,12 @@ namespace MFalcor
 		ComputePSO m_GenerateHiZMipsPSO;
 		ComputePSO m_OcclusionCullArgsPSO;
 		ComputePSO m_OcclusionCullingPSO;
+
+		// Visibility buffer
+		RootSignature m_VisibilityRS;
+		GraphicsPSO m_VisibilityBufferPSO;
+		GraphicsPSO m_VisibilityLightingPSO;
+		ComputePSO m_VisibilityComputePSO;
 
 		// Voxelization
 		GraphicsPSO m_VoxelizationPSO;

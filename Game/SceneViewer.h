@@ -25,7 +25,8 @@ namespace MyDirectX
 
 		void RenderForward(GraphicsContext &commandContext);
 		void RenderDeferred(GraphicsContext &commandContext);
-		void Voxelization();
+		void RenderVisibility(GraphicsContext &commandContext);
+
 		virtual void PostProcess() override;
 
 		MFalcor::Scene::SharedPtr m_MainScene;
@@ -39,6 +40,7 @@ namespace MyDirectX
 
 		bool m_IndirectRendering = true;
 		bool m_DeferredRendering = true;
+		bool m_VisibilityRendering = true;
 	};
 
 }

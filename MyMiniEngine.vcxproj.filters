@@ -107,6 +107,9 @@
     <Filter Include="Shaders\GI">
       <UniqueIdentifier>{7082af8a-97f9-49db-a727-b2d26baa2a4e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\VisibilityBuffer">
+      <UniqueIdentifier>{8e1aee44-3798-4a00-83f1-4a4c309a122d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\GpuResource.h">
@@ -858,6 +861,9 @@
     <None Include="Shaders\Raytracing\ReSTIRGICommon.hlsl">
       <Filter>Shaders\GI</Filter>
     </None>
+    <None Include="Shaders\VisibilityBuffer\VisibilityBufferCommon.hlsli">
+      <Filter>Shaders\VisibilityBuffer</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Core\Shaders\TextVS.hlsl">
@@ -1237,6 +1243,15 @@
     </FxCompile>
     <FxCompile Include="Shaders\IndirectGBufferCutoutPS.hlsl">
       <Filter>Shaders\IndirectRendering</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\VisibilityBuffer\VisibilityBufferVS.hlsl">
+      <Filter>Shaders\VisibilityBuffer</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\VisibilityBuffer\VisibilityBufferPS.hlsl">
+      <Filter>Shaders\VisibilityBuffer</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\VisibilityBuffer\VisibilityComputeCS.hlsl">
+      <Filter>Shaders\VisibilityBuffer</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

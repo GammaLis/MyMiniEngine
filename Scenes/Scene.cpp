@@ -31,6 +31,11 @@
 #include "OcclusionCullArgsCS.h"
 #include "OcclusionCullingCS.h"
 
+// visibility buffer
+#include "VisibilityBufferVS.h"
+#include "VisibilityBufferPS.h"
+#include "VisibilityComputeCS.h"
+
 // voxelization
 #include "VoxelizationVS.h"
 #include "VoxelizationGS.h"
@@ -52,6 +57,8 @@ namespace MFalcor
 			DecalTextures,
 			RenderTextureSRVs,
 			RenderTextureUAVs,
+			BufferSRVs,
+			BufferUAVs,
 
 			Count
 		};
@@ -71,6 +78,8 @@ namespace MFalcor
 			materialIDTarget,
 			ShadowMap,
 
+			VisibilityBuffer,
+
 			Count
 		};
 	}
@@ -79,6 +88,21 @@ namespace MFalcor
 		enum 
 		{
 			ColorBuffer = 0,
+
+			Count
+		};
+	}
+
+	namespace BufferSRVs
+	{
+		enum
+		{
+			MatrixBuffer = 0,
+			MaterialBuffer,
+			MeshBuffer,
+			MeshInstanceBuffer,
+			VertexBuffer,
+			IndexBuffer,
 
 			Count
 		};
@@ -234,8 +258,23 @@ namespace MFalcor
 			shadowSamplerDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
 			shadowSamplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 			m_DeferredCSRS.InitStaticSampler(2, shadowSamplerDesc); // Graphics::s_CommonStates.SamplerShadowDesc
-
 			m_DeferredCSRS.Finalize(pDevice, L"DeferredCSRS");
+
+			// visibility buffer
+			m_VisibilityRS.Reset((UINT)VisibilityRSId::Count, 3);
+			m_VisibilityRS[(UINT)VisibilityRSId::CBConstants].InitAsConstants(0, 16);
+			m_VisibilityRS[(UINT)VisibilityRSId::CBPerCamera].InitAsConstantBuffer(1);
+			m_VisibilityRS[(UINT)VisibilityRSId::CBVs].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 16);
+			m_VisibilityRS[(UINT)VisibilityRSId::MatrixBufferSRV].InitAsBufferSRV(0, 1);
+			m_VisibilityRS[(UINT)VisibilityRSId::MaterialTextures].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, -1, 2);
+			m_VisibilityRS[(UINT)VisibilityRSId::RenderTextureSRVs].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 32);
+			m_VisibilityRS[(UINT)VisibilityRSId::BufferSRVs].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 31, 1);
+			m_VisibilityRS[(UINT)VisibilityRSId::RenderTextureUAVs].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 16);
+			m_VisibilityRS[(UINT)VisibilityRSId::BufferUAVs].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 16, 1);
+			m_VisibilityRS.InitStaticSampler(0, Graphics::s_CommonStates.SamplerLinearClampDesc);
+			m_VisibilityRS.InitStaticSampler(1, Graphics::s_CommonStates.SamplerLinearWrapDesc);
+			m_VisibilityRS.InitStaticSampler(2, Graphics::s_CommonStates.SamplerPointClampDesc);
+			m_VisibilityRS.Finalize(pDevice, L"VisibilityRS", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 			// culling cs
 			m_CullingRS.Reset((UINT)IndirectCullingCSRSId::Count, 1);
@@ -256,20 +295,20 @@ namespace MFalcor
 
 		auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 		auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
-		// PSOs
-		{
-			// debug wireframe PSO
-			m_DebugWireframePSO.SetRootSignature(m_CommonRS);
-			// per vertex data
-			auto pVertexInputs = m_VertexLayout;
-			const uint32_t numVertexElements = pVertexInputs->GetElementCount();
-			// per instance data
-			auto pInstanceInputs = m_InstanceLayout;
-			const uint32_t numInstanceElements = pInstanceInputs ? pInstanceInputs->GetElementCount() : 0;
 
-			uint32_t numElements = numVertexElements + numInstanceElements;
-			std::vector<D3D12_INPUT_ELEMENT_DESC> inputElements(numElements);
+		// input layouts
+		// per vertex data
+		auto pVertexInputs = m_VertexLayout;
+		const uint32_t numVertexElements = pVertexInputs->GetElementCount();
+		// per instance data
+		auto pInstanceInputs = m_InstanceLayout;
+		const uint32_t numInstanceElements = pInstanceInputs ? pInstanceInputs->GetElementCount() : 0;
+
+		uint32_t numElements = numVertexElements + numInstanceElements;
+		std::vector<D3D12_INPUT_ELEMENT_DESC> inputElements(numElements);
+		{
 			uint32_t inputElementIdx = 0;
+
 			for (uint32_t i = 0, imax = numVertexElements; i < imax; ++i, ++inputElementIdx)
 			{
 				const auto& layout = pVertexInputs->GetBufferLayout(i);
@@ -282,7 +321,12 @@ namespace MFalcor
 				inputElements[inputElementIdx] =
 				{ layout.semanticName.c_str(), layout.semanticIndex, layout.format, layout.inputSlot, layout.alignedByteOffset, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, pInstanceInputs->GetInstanceStepRate() };
 			}
+		}
 
+		// PSOs
+		{
+			// debug wireframe PSO
+			m_DebugWireframePSO.SetRootSignature(m_CommonRS);
 			m_DebugWireframePSO.SetInputLayout(numElements, inputElements.data());
 			m_DebugWireframePSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 			m_DebugWireframePSO.SetVertexShader(WireframeVS, sizeof(WireframeVS));
@@ -431,6 +475,42 @@ namespace MFalcor
 			m_OcclusionCullingPSO.Finalize(pDevice);
 		}
 
+		// visibility buffer
+		{
+			// per instance data
+			auto pInstanceInputs = m_InstanceLayout;
+			const uint32_t numInstanceElements = pInstanceInputs ? pInstanceInputs->GetElementCount() : 0;
+			ASSERT(numInstanceElements > 0);
+
+			uint32_t numElements = numInstanceElements;
+			std::vector<D3D12_INPUT_ELEMENT_DESC> inputElements(numElements);
+			{
+				uint32_t inputElementIdx = 0;
+				for (uint32_t i = 0, imax = numInstanceElements; i < imax; ++i, ++inputElementIdx)
+				{
+					const auto& layout = pInstanceInputs->GetBufferLayout(i);
+					inputElements[inputElementIdx] =
+					{ layout.semanticName.c_str(), layout.semanticIndex, layout.format, layout.inputSlot, layout.alignedByteOffset, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, pInstanceInputs->GetInstanceStepRate() };
+				}
+			}
+
+			auto &visibilityBuffer = m_BindlessDeferred.m_VisibilityBuffer;
+			m_VisibilityBufferPSO.SetRootSignature(m_VisibilityRS);
+			m_VisibilityBufferPSO.SetInputLayout(numElements, inputElements.data());
+			m_VisibilityBufferPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+			m_VisibilityBufferPSO.SetVertexShader(VisibilityBufferVS, sizeof(VisibilityBufferVS));
+			m_VisibilityBufferPSO.SetPixelShader(VisibilityBufferPS, sizeof(VisibilityBufferPS));
+			m_VisibilityBufferPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerDefault);
+			m_VisibilityBufferPSO.SetBlendState(Graphics::s_CommonStates.BlendDisable);
+			m_VisibilityBufferPSO.SetDepthStencilState(Graphics::s_CommonStates.DepthStateReadWrite);
+			m_VisibilityBufferPSO.SetRenderTargetFormat(visibilityBuffer.GetFormat(), depthBuffer.GetFormat());
+			m_VisibilityBufferPSO.Finalize(pDevice);
+
+			m_VisibilityComputePSO.SetRootSignature(m_VisibilityRS);
+			m_VisibilityComputePSO.SetComputeShader(VisibilityComputeCS, sizeof(VisibilityComputeCS));
+			m_VisibilityComputePSO.Finalize(pDevice);
+		}
+
 		// voxelization
 		{
 			m_VoxelizationPSO = m_DepthIndirectPSO;
@@ -554,6 +634,13 @@ namespace MFalcor
 		gfx.SetIndexBuffer(m_IndexBuffer->IndexBufferView());
 		if (m_InstanceBuffer)
 			gfx.SetVertexBuffer(1, m_InstanceBuffer->VertexBufferView());
+		gfx.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	}
+
+	void Scene::BeginIndexDrawing(GraphicsContext& gfx)
+	{
+		gfx.SetIndexBuffer(m_IndexBuffer->IndexBufferView());
+		if (m_InstanceBuffer) gfx.SetVertexBuffer(1, m_InstanceBuffer->VertexBufferView());
 		gfx.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	}
 
@@ -710,7 +797,7 @@ namespace MFalcor
 	}
 
 	// deferred rendering
-	void Scene::PrepareGBuffer(GraphicsContext& gfx, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor)
+	void Scene::PrepareGBuffer(GraphicsContext& gfx)
 	{
 		auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
 		auto& tangentFrame = m_BindlessDeferred.m_TangentFrame;
@@ -738,7 +825,6 @@ namespace MFalcor
 		gfx.ClearColor(materialIDTarget);
 
 		gfx.SetRenderTargets(_countof(rtvHandles), rtvHandles, depthBuffer.GetDSV());
-		gfx.SetViewportAndScissor(viewport, scissor);
 	}
 
 	void Scene::RenderToGBuffer(GraphicsContext& gfx, GraphicsPSO& pso, AlphaMode alphaMode)
@@ -885,6 +971,129 @@ namespace MFalcor
 		computeContext.Dispatch(groupCountX, groupCountY);
 
 		computeContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	}
+
+	// visibility buffer
+	void Scene::PrepareVisibilityBuffer(GraphicsContext& gfx)
+	{
+		auto &visibilityBuffer = m_BindlessDeferred.m_VisibilityBuffer;
+		auto &depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
+
+		gfx.TransitionResource(visibilityBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		gfx.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
+
+		gfx.ClearColor(visibilityBuffer);
+		gfx.ClearDepth(depthBuffer);
+
+		gfx.SetRenderTarget(visibilityBuffer.GetRTV(), depthBuffer.GetDSV());
+	}
+
+	void Scene::RenderVisibilityBuffer(GraphicsContext& gfx, AlphaMode alphaMode)
+	{
+		uint32_t opaqueCommandsCount = (uint32_t)m_OpaqueInstances.size();
+		uint32_t maskCommandsCount = (uint32_t)m_MaskInstancs.size();
+		uint32_t transparentCommandsCount = (uint32_t)m_TransparentInstances.size();
+		uint32_t opaqueCommandsOffset = 0;
+		uint32_t maskCommandsOffset = opaqueCommandsOffset + opaqueCommandsCount;
+		uint32_t transparentCommandsOffset = maskCommandsOffset + maskCommandsCount;
+
+		auto* frustumCulledCommandBuffer = &m_FrustumCulledBuffer;
+		uint32_t commandOffset = opaqueCommandsOffset, commandCount = opaqueCommandsOffset;
+		if (alphaMode == AlphaMode::kMASK)
+		{
+			frustumCulledCommandBuffer = &m_FrustumCulledMaskBuffer;
+			commandOffset = maskCommandsOffset;
+			commandCount = maskCommandsCount;
+		}
+		else if (alphaMode == AlphaMode::kBLEND)
+		{
+			frustumCulledCommandBuffer = &m_FrustumCulledTransparentBuffer;
+			commandOffset = transparentCommandsOffset;
+			commandCount = transparentCommandsCount;
+		}
+
+		gfx.TransitionResource(m_CommandsBuffer, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+		gfx.TransitionResource(*frustumCulledCommandBuffer, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+		gfx.TransitionResource((*frustumCulledCommandBuffer).GetCounterBuffer(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+
+		gfx.SetConstants((UINT)VisibilityRSId::CBConstants, 0, 1, 2, 3);
+		gfx.SetConstantBuffer((UINT)VisibilityRSId::CBPerCamera, m_ViewUniformBuffer.GetInstanceGpuPointer(m_Graphics->GetCurrentFrameIndex()));
+		gfx.SetShaderResourceView((UINT)VisibilityRSId::MatrixBufferSRV, m_MatricesDynamicBuffer.GetGpuPointer());
+	#if 0
+		gfx.SetBufferSRV((UINT)VisibilityRSId::MaterialTable, m_MaterialsBuffer);
+		gfx.SetBufferSRV((UINT)VisibilityRSId::MeshTable, m_MeshesBuffer);
+		gfx.SetBufferSRV((UINT)VisibilityRSId::MeshInstanceTable, m_MeshInstancesBuffer);
+	#endif
+
+		gfx.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_FrameDescriptorHeap.CurrentHeap()->GetHeapPointer());
+		gfx.SetDescriptorTable((UINT)VisibilityRSId::BufferSRVs, m_FrameDescriptorHeap.HandleFromIndex(s_DescriptorRanges[DescriptorParams::BufferSRVs].start));
+		gfx.SetDescriptorTable((UINT)VisibilityRSId::MaterialTextures, m_FrameDescriptorHeap.HandleFromIndex(s_DescriptorRanges[DescriptorParams::MaterialTextures].start));
+
+		if (alphaMode == AlphaMode::UNKNOWN || alphaMode == AlphaMode::kOPAQUE)
+		{
+			gfx.SetPipelineState(m_VisibilityBufferPSO);
+
+			if (m_EnableFrustumCulling)
+				gfx.ExecuteIndirect(m_CommandSignature, m_FrustumCulledBuffer, 0, opaqueCommandsCount, &m_FrustumCulledBuffer.GetCounterBuffer());
+			else
+				gfx.ExecuteIndirect(m_CommandSignature, m_CommandsBuffer, opaqueCommandsOffset * sizeof(IndirectCommand), opaqueCommandsCount);
+		}
+
+	#if 0
+		if (alphaMode == AlphaMode::UNKNOWN || alphaMode == AlphaMode::kMASK)
+		{
+			gfx.SetPipelineState(m_VisibilityBufferPSO);
+
+			if (m_EnableFrustumCulling)
+				gfx.ExecuteIndirect(m_CommandSignature, m_FrustumCulledMaskBuffer, 0, maskCommandsCount, &m_FrustumCulledMaskBuffer.GetCounterBuffer());
+			else
+				gfx.ExecuteIndirect(m_CommandSignature, m_CommandsBuffer, maskCommandsOffset * sizeof(IndirectCommand), maskCommandsCount);
+		}
+	#endif
+	}
+
+	void Scene::VisibilityCompute(ComputeContext& computeContext, ComputePSO& pso)
+	{
+		auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
+		auto& visibilityBuffer = m_BindlessDeferred.m_VisibilityBuffer;
+
+		auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
+		uint32_t width = colorBuffer.GetWidth(), height = colorBuffer.GetHeight();
+
+		computeContext.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		computeContext.TransitionResource(visibilityBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		computeContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		
+		// clear
+		computeContext.ClearUAV(colorBuffer);
+		computeContext.InsertUAVBarrier(colorBuffer);
+
+		computeContext.SetPipelineState(pso);
+
+		computeContext.SetConstantBuffer((UINT)VisibilityRSId::CBPerCamera, m_ViewUniformBuffer.GetInstanceGpuPointer(m_Graphics->GetCurrentFrameIndex()));
+		computeContext.SetShaderResourceView((UINT)VisibilityRSId::MatrixBufferSRV, m_MatricesDynamicBuffer.GetGpuPointer());
+	#if 0
+		computeContext.SetBufferSRV((UINT)VisibilityRSId::MatrixBufferSRV, m_MaterialsBuffer);
+	#endif
+		computeContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_FrameDescriptorHeap.CurrentHeap()->GetHeapPointer());
+	#if 0
+		// material textures
+		computeContext.SetDescriptorTable((UINT)VisibilityRSId::TextureTable, m_FrameDescriptorHeap.HandleFromIndex(s_DescriptorRanges[DescriptorParams::MaterialTextures].start));
+		// decal textures
+		computeContext.SetDescriptorTable((UINT)VisibilityRSId::DecalTextures, m_FrameDescriptorHeap.HandleFromIndex(s_DescriptorRanges[DescriptorParams::DecalTextures].start));
+	#endif
+		computeContext.SetDescriptorTable((UINT)VisibilityRSId::MaterialTextures, m_FrameDescriptorHeap.HandleFromIndex(s_DescriptorRanges[DescriptorParams::MaterialTextures].start));
+		computeContext.SetDescriptorTable((UINT)VisibilityRSId::BufferSRVs, m_FrameDescriptorHeap.HandleFromIndex(s_DescriptorRanges[DescriptorParams::BufferSRVs].start));
+		computeContext.SetDescriptorTable((UINT)VisibilityRSId::RenderTextureSRVs, m_FrameDescriptorHeap.HandleFromIndex(s_DescriptorRanges[DescriptorParams::RenderTextureSRVs].start));
+		computeContext.SetDescriptorTable((UINT)VisibilityRSId::RenderTextureUAVs, m_FrameDescriptorHeap.HandleFromIndex(s_DescriptorRanges[DescriptorParams::RenderTextureUAVs].start + RenderTextureUAVs::ColorBuffer));
+
+		static const uint32_t GroupSize = 8;
+		uint32_t groupCountX = Math::DivideByMultiple(width, GroupSize);
+		uint32_t groupCountY = Math::DivideByMultiple(height, GroupSize);
+		computeContext.Dispatch(groupCountX, groupCountY);
+
+		// unnecessary
+		// computeContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	}
 
 	void Scene::RenderSunShadows(GraphicsContext& gfx)
@@ -1313,6 +1522,8 @@ namespace MFalcor
 			auto& materialIDTarget = m_BindlessDeferred.m_MaterialIDTarget;
 			auto& shadowMap = m_CascadedShadowMap.m_LightShadowArray;
 
+			auto &visibilityBuffer = m_BindlessDeferred.m_VisibilityBuffer;
+
 			auto& rtSRVRange = s_DescriptorRanges[DescriptorParams::RenderTextureSRVs];
 			rtSRVRange.start = m_FrameDescriptorHeap.PersistentAllocated();
 			rtSRVRange.count = RenderTextureSRVs::Count;
@@ -1324,12 +1535,33 @@ namespace MFalcor
 			m_FrameDescriptorHeap.AllocAndCopyPersistentDescriptor(pDevice, uvGradientsTarget.GetSRV());
 			m_FrameDescriptorHeap.AllocAndCopyPersistentDescriptor(pDevice, materialIDTarget.GetSRV());
 			m_FrameDescriptorHeap.AllocAndCopyPersistentDescriptor(pDevice, shadowMap.GetSRV());
-			
+			m_FrameDescriptorHeap.AllocAndCopyPersistentDescriptor(pDevice, visibilityBuffer.GetSRV());
+
 			auto &rtUAVRange = s_DescriptorRanges[DescriptorParams::RenderTextureUAVs];
 			rtUAVRange.start = m_FrameDescriptorHeap.PersistentAllocated();
 			rtUAVRange.count = RenderTextureUAVs::Count;
 
 			m_FrameDescriptorHeap.AllocAndCopyPersistentDescriptor(pDevice, colorBuffer.GetUAV());
+		}
+
+		// buffers
+		{
+			auto &materialBuffer = m_MaterialsBuffer;
+			auto &meshBuffer = m_MeshesBuffer;
+			auto &meshInstanceBuffer = m_MeshInstancesBuffer;
+			const auto *vertexBuffer = m_VertexBuffer.get();
+			const auto *indexBuffer = m_IndexBuffer.get();
+
+			auto& bufferSRVRange = s_DescriptorRanges[DescriptorParams::BufferSRVs];
+			bufferSRVRange.start = m_FrameDescriptorHeap.PersistentAllocated();
+			bufferSRVRange.count = BufferSRVs::Count-1;
+
+			// m_FrameDescriptorHeap.AllocAndCopyPersistentDescriptor(pDevice, matrixBuffer.Create);
+			m_FrameDescriptorHeap.AllocAndCopyPersistentDescriptor(pDevice, materialBuffer.GetSRV());
+			m_FrameDescriptorHeap.AllocAndCopyPersistentDescriptor(pDevice, meshBuffer.GetSRV());
+			m_FrameDescriptorHeap.AllocAndCopyPersistentDescriptor(pDevice, meshInstanceBuffer.GetSRV());
+			m_FrameDescriptorHeap.AllocAndCopyPersistentDescriptor(pDevice, vertexBuffer->GetSRV());
+			m_FrameDescriptorHeap.AllocAndCopyPersistentDescriptor(pDevice, indexBuffer->GetSRV());
 		}
 	}
 

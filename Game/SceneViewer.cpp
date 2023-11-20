@@ -27,7 +27,7 @@ void SceneViewer::Render()
 	m_MainScene->BeginRendering(gfx);
 
 	if (m_DeferredRendering)
-		RenderDeferred(gfx);
+		m_VisibilityRendering ? RenderVisibility(gfx) : RenderDeferred(gfx);
 	else
 		RenderForward(gfx);
 
@@ -47,7 +47,7 @@ void SceneViewer::InitGeometryBuffers()
 void SceneViewer::InitCustom()
 {
 #if 0
-	m_MainScene = Scene::Create(Graphics::s_Device, "Models/buster_drone.gltf", m_Input.get());
+	m_MainScene = Scene::Create(Graphics::s_Device, "Models/buster_drone.gltf", this);
 #else
 	m_MainScene = MFalcor::Scene::Create();
 	MFalcor::InstanceMatrices instanceMats;
@@ -164,7 +164,8 @@ void SceneViewer::RenderDeferred(GraphicsContext& gfx)
 	}
 
 	// gbuffer
-	m_MainScene->PrepareGBuffer(gfx, m_MainViewport, m_MainScissor);
+	m_MainScene->PrepareGBuffer(gfx);
+	gfx.SetViewportAndScissor(m_MainViewport, m_MainScissor);
 	gfx.SetRootSignature(m_MainScene->m_GBufferRS, false);
 
 	// camera
@@ -184,6 +185,39 @@ void SceneViewer::RenderDeferred(GraphicsContext& gfx)
 	m_MainScene->DeferredRender(computeContext, m_MainScene->m_DeferredCSPSO);
 
 	// transparent
+}
+
+void SceneViewer::RenderVisibility(GraphicsContext& gfx)
+{
+	// camera
+	const auto pCamera = m_MainScene->GetCamera();
+
+	auto& viewUniformParams = m_MainScene->m_ViewUniformParams;
+	auto& viewMatrix = viewUniformParams.viewMat;
+	auto& projMatrix = viewUniformParams.projMat;
+	auto& viewProjMatrix = viewUniformParams.viewProjMat;
+	MFalcor::Vector3 camPos = MFalcor::Vector3(viewUniformParams.camPos.x, viewUniformParams.camPos.y, viewUniformParams.camPos.z);
+
+	// frustum culling
+	{
+		m_MainScene->FrustumCulling(gfx.GetComputeContext(), viewMatrix, projMatrix, AlphaMode::kOPAQUE);
+		m_MainScene->FrustumCulling(gfx.GetComputeContext(), viewMatrix, projMatrix, AlphaMode::kMASK);
+		m_MainScene->FrustumCulling(gfx.GetComputeContext(), viewMatrix, projMatrix, AlphaMode::kBLEND);
+	}
+	// draw visibility
+	{
+		m_MainScene->PrepareVisibilityBuffer(gfx);
+		gfx.SetViewportAndScissor(m_MainViewport, m_MainScissor);
+		gfx.SetRootSignature(m_MainScene->m_VisibilityRS, false);
+		m_MainScene->BeginIndexDrawing(gfx);
+		m_MainScene->RenderVisibilityBuffer(gfx, AlphaMode::kOPAQUE);
+	}
+	// visibility compute
+	ComputeContext& computeContext = gfx.GetComputeContext();
+	{
+		computeContext.SetRootSignature(m_MainScene->m_VisibilityRS, false);
+		m_MainScene->VisibilityCompute(computeContext, m_MainScene->m_VisibilityComputePSO);
+	}
 }
 
 void SceneViewer::PostProcess()

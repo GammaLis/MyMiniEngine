@@ -82,6 +82,8 @@ namespace MyDirectX
 		ColorBuffer m_UVGradientsTarget;
 		ColorBuffer m_MaterialIDTarget;
 
+		ColorBuffer m_VisibilityBuffer;
+
 		RootSignature m_GBufferRS;
 		GraphicsPSO m_GBufferPSO;
 	};

@@ -7,7 +7,6 @@ using namespace MyDirectX;
 
 void GpuBuffer::Create(ID3D12Device* pDevice, const std::wstring& name, uint32_t numElements, uint32_t elementSize, const void* initialData)
 {
-	// -mf
 	ASSERT(pDevice != nullptr);
 
 	Destroy();

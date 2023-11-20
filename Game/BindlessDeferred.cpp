@@ -59,6 +59,8 @@ void BindlessDeferred::Clean()
 	m_UVGradientsTarget.Destroy();
 	m_MaterialIDTarget.Destroy();
 
+	m_VisibilityBuffer.Destroy();
+
 	// decals
 	m_DecalBuffer.Destroy();
 }
@@ -66,13 +68,15 @@ void BindlessDeferred::Clean()
 void BindlessDeferred::CreateRenderTargets(ID3D12Device* pDevice)
 {
 	const auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
-
 	uint32_t width = colorBuffer.GetWidth(), height = colorBuffer.GetHeight();
 
 	m_TangentFrame.Create(pDevice, L"TangentFrame", width, height, 1, DXGI_FORMAT_R10G10B10A2_UNORM);
 	m_UVTarget.Create(pDevice, L"UV Target", width, height, 1, DXGI_FORMAT_R16G16B16A16_SNORM);
 	m_UVGradientsTarget.Create(pDevice, L"UV Gradient Target", width, height, 1, DXGI_FORMAT_R16G16B16A16_SNORM);
 	m_MaterialIDTarget.Create(pDevice, L"Material ID Target", width, height, 1, DXGI_FORMAT_R8_UINT);
+
+	m_VisibilityBuffer.Create(pDevice, L"Visibility Buffer", width, height, 1, DXGI_FORMAT_R8G8B8A8_UNORM); // DXGI_FORMAT_R16G16B16A16_FLOAT DXGI_FORMAT_R8G8B8A8_UNORM DXGI_FORMAT_R32_UINT
+	m_VisibilityBuffer.SetClearColor(Colors::White);
 }
 
 void BindlessDeferred::CreateDecals(ID3D12Device* pDevice)
@@ -86,15 +90,6 @@ void BindlessDeferred::CreateDecals(ID3D12Device* pDevice)
 	{
 		Graphics::s_TextureManager.Init(L"Textures/");	// Decal/
 
-		// 0.
-		UINT numDestDescriptorRanges = 0;
-		D3D12_CPU_DESCRIPTOR_HANDLE pDestDescriptorRangeStarts[16];
-		UINT pDestDescriptorRangeSizes[16] = {0};
-
-		UINT numSrcDescriptorRanges = 0;
-		D3D12_CPU_DESCRIPTOR_HANDLE pSrcDescriptorRangeStarts[16];
-		UINT pSrcDescriptorRangeSizes[16] = {0};
-
 		uint32_t numTextures = _countof(DecalTexturePath);
 		std::vector<std::string> texturePath;
 		for (uint32_t i = 0; i < numTextures; ++i)
@@ -103,6 +98,14 @@ void BindlessDeferred::CreateDecals(ID3D12Device* pDevice)
 		}
 		texturePath.push_back("Default_Anim");
 		++numTextures;
+
+		UINT numDestDescriptorRanges = 0;
+		D3D12_CPU_DESCRIPTOR_HANDLE pDestDescriptorRangeStarts[16];
+		UINT pDestDescriptorRangeSizes[16] = { 0 };
+
+		UINT numSrcDescriptorRanges = 0;
+		D3D12_CPU_DESCRIPTOR_HANDLE pSrcDescriptorRangeStarts[16];
+		UINT pSrcDescriptorRangeSizes[16] = { 0 };
 
 		for (uint32_t i = 0; i < numTextures; ++i)
 		{
@@ -134,10 +137,10 @@ void BindlessDeferred::CreateDecals(ID3D12Device* pDevice)
 		using MMATH::inverse;
 
 		DecalData newDecal;
-		//newDecal.position = Vector3(-1200.0f, 185.0f, -445.0f);
-		//newDecal.size = Vector3(2.0f, 2.0f, 2.0f);
-		//newDecal.albedoTexIdx = 2 * m_NumDecal++;
-		//newDecal.normalTexIdx = newDecal.albedoTexIdx + 1;
+		// newDecal.position = Vector3(-1200.0f, 185.0f, -445.0f);
+		// newDecal.size = Vector3(2.0f, 2.0f, 2.0f);
+		// newDecal.albedoTexIdx = 2 * m_NumDecal++;
+		// newDecal.normalTexIdx = newDecal.albedoTexIdx + 1;
 		// newDecal._WorldMat = translate(Vector3(-1200.0f - 10.0f, 185.0f + 10, -445.0f)) * scale(Vector3(400.0f, 200.0f, 400.0f));
 		newDecal._WorldMat = translate(Vector3(-400.0f, 85.0f + 10, 0.0f)) * scale(Vector3(400.0f, 200.0f, 400.0f));
 		newDecal._WorldMat = MMATH::transpose(newDecal._WorldMat);
