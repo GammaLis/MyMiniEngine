@@ -15,11 +15,10 @@
 #include "ReservoirSampling.h"
 #include "ReSTIRGI.h"
 
-#include <atlbase.h>
-
 namespace MyDirectX
 {
 	class GraphicsContext;
+	class ReSTIRGI;
 
 	enum class RSId
 	{
@@ -158,9 +157,9 @@ namespace MyDirectX
 		void ReSTIRWithDirectLights(GraphicsContext& gfxContext);
 		void RaytraceReSTIRGI(GraphicsContext& gfxContext);
 
-		CComPtr<ID3D12Device5> m_RaytracingDevice;
-		std::vector<CComPtr<ID3D12Resource>> m_BLAS;
-		CComPtr<ID3D12Resource> m_TLAS;
+		ComPtr<ID3D12Device5> m_RaytracingDevice;
+		std::vector<ComPtr<ID3D12Resource>> m_BLAS;
+		ComPtr<ID3D12Resource> m_TLAS;
 		RootSignature m_GlobalRaytracingRS;
 		RootSignature m_LocalRaytracingRS;
 
@@ -202,7 +201,7 @@ namespace MyDirectX
 		bool m_bEnableReSTIRDI = true;
 
 		// ReSTIR GI
-		ReSTIRGI m_ReSTIRGI;
+		std::unique_ptr<ReSTIRGI> m_ReSTIRGI;
 		bool m_bEnableReSTIRGI = true;
 		
 		// Skybox

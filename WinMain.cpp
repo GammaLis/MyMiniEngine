@@ -9,7 +9,7 @@
 
 #define IMPLEMENTED_BVH 6
 
-#define IMPLEMENTED IMPLEMENTED_SCENEVIEWER
+#define IMPLEMENTED IMPLEMENTED_MODELVIEWER
 
 #include "MyBaseApp.h"
 #include "Utility.h"

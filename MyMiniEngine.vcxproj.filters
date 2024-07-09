@@ -148,9 +148,6 @@
     <ClInclude Include="Common\pch.h">
       <Filter>Common</Filter>
     </ClInclude>
-    <ClInclude Include="Common\resource.h">
-      <Filter>Common</Filter>
-    </ClInclude>
     <ClInclude Include="Core\GpuBuffer.h">
       <Filter>Core</Filter>
     </ClInclude>
@@ -1261,6 +1258,9 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="hinata.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="chichan.ico">
       <Filter>资源文件</Filter>
     </Image>
   </ItemGroup>

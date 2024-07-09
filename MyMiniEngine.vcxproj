@@ -56,7 +56,6 @@
     <ClInclude Include="Common\MyUtils.h" />
     <ClInclude Include="Common\MyWindow.h" />
     <ClInclude Include="Common\pch.h" />
-    <ClInclude Include="Common\resource.h" />
     <ClInclude Include="Core\Camera.h" />
     <ClInclude Include="Core\dds.h" />
     <ClInclude Include="Core\DDSTextureLoader.h" />
@@ -1295,6 +1294,7 @@
     <ResourceCompile Include="MyMiniEngine.rc" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="chichan.ico" />
     <Image Include="hinata.ico" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

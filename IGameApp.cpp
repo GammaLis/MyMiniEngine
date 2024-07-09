@@ -123,7 +123,7 @@ int IGameApp::Run()
 	MSG msg = {};
 	while (msg.message != WM_QUIT)
 	{
-		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))	// 这里不要写成hwnd，老是忘记
+		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))	// 这里不要写成hwnd
 		{
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);

@@ -100,6 +100,8 @@ ModelViewer::ModelViewer(HINSTANCE hInstance, const char *modelName, const wchar
 	, m_RaytracingDescHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 256)
 {
 	m_ModelName = modelName;
+
+	m_ReSTIRGI.reset(new ReSTIRGI());
 }
 
 /**
@@ -480,7 +482,7 @@ void ModelViewer::Render()
 		}
 		else if (m_bEnableReSTIRGI)
 		{
-			m_DebugPass.Render(gfxContext, m_ReSTIRGI.m_Irradiance.GetSRV());
+			m_DebugPass.Render(gfxContext, m_ReSTIRGI->m_Irradiance.GetSRV());
 		}
 	}
 #endif
@@ -980,7 +982,7 @@ void ModelViewer::RaytraceBarycentrics(CommandContext& context)
 
 	ID3D12GraphicsCommandList* pCmdList = context.GetCommandList();
 
-	CComPtr<ID3D12GraphicsCommandList4> pRaytracingCmdList;
+	ComPtr<ID3D12GraphicsCommandList4> pRaytracingCmdList;
 	pCmdList->QueryInterface(IID_PPV_ARGS(&pRaytracingCmdList));
 
 	ID3D12DescriptorHeap* pDescHeaps[] = { m_RaytracingDescHeap.GetHeapPointer() };
@@ -994,7 +996,7 @@ void ModelViewer::RaytraceBarycentrics(CommandContext& context)
 	pCmdList->SetComputeRootShaderResourceView((UINT)RTGlobalRSId::AccelerationStructure, m_TLAS->GetGPUVirtualAddress());
 
 	D3D12_DISPATCH_RAYS_DESC dispathRaysDesc = m_RaytracingInputs[(int)RaytracingType::Primarybarycentric].GetDispatchRayDesc(W, H);
-	pRaytracingCmdList->SetPipelineState1(m_RaytracingInputs[(int)RaytracingType::Primarybarycentric].m_pPSO);
+	pRaytracingCmdList->SetPipelineState1(m_RaytracingInputs[(int)RaytracingType::Primarybarycentric].m_pPSO.Get());
 	pRaytracingCmdList->DispatchRays(&dispathRaysDesc);
 }
 
@@ -1021,7 +1023,7 @@ void ModelViewer::RaytraceBarycentricsSSR(CommandContext& context)
 	context.FlushResourceBarriers();
 
 	ID3D12GraphicsCommandList* pCmdList = context.GetCommandList();
- 	CComPtr<ID3D12GraphicsCommandList4> pRaytracingCmdList;
+ 	ComPtr<ID3D12GraphicsCommandList4> pRaytracingCmdList;
 	pCmdList->QueryInterface(IID_PPV_ARGS(&pRaytracingCmdList));
 
 	ID3D12DescriptorHeap* pDescHeaps[] = { m_RaytracingDescHeap.GetHeapPointer() };
@@ -1035,7 +1037,7 @@ void ModelViewer::RaytraceBarycentricsSSR(CommandContext& context)
 	pCmdList->SetComputeRootShaderResourceView((UINT)RTGlobalRSId::AccelerationStructure, m_TLAS->GetGPUVirtualAddress());
 
 	D3D12_DISPATCH_RAYS_DESC dispathRaysDesc = m_RaytracingInputs[(int)RaytracingType::Reflectionbarycentric].GetDispatchRayDesc(W, H);
-	pRaytracingCmdList->SetPipelineState1(m_RaytracingInputs[(int)RaytracingType::Reflectionbarycentric].m_pPSO);
+	pRaytracingCmdList->SetPipelineState1(m_RaytracingInputs[(int)RaytracingType::Reflectionbarycentric].m_pPSO.Get());
 	pRaytracingCmdList->DispatchRays(&dispathRaysDesc);
 }
 
@@ -1064,7 +1066,7 @@ void ModelViewer::RaytraceDiffuse(GraphicsContext& gfxContext)
 	gfxContext.FlushResourceBarriers();
 
 	ID3D12GraphicsCommandList* pCmdList = gfxContext.GetCommandList();
-	CComPtr<ID3D12GraphicsCommandList4> pRaytracingCmdList;
+	ComPtr<ID3D12GraphicsCommandList4> pRaytracingCmdList;
 	pCmdList->QueryInterface(IID_PPV_ARGS(&pRaytracingCmdList));
 
 	ID3D12DescriptorHeap* pDescHeaps[] = { m_RaytracingDescHeap.GetHeapPointer() };
@@ -1079,7 +1081,7 @@ void ModelViewer::RaytraceDiffuse(GraphicsContext& gfxContext)
 	pCmdList->SetComputeRootShaderResourceView((UINT)RTGlobalRSId::AccelerationStructure, m_TLAS->GetGPUVirtualAddress());
 
 	D3D12_DISPATCH_RAYS_DESC dispathRaysDesc = m_RaytracingInputs[(int)RaytracingType::DiffuseHitShader].GetDispatchRayDesc(W, H);
-	pRaytracingCmdList->SetPipelineState1(m_RaytracingInputs[(int)RaytracingType::DiffuseHitShader].m_pPSO);
+	pRaytracingCmdList->SetPipelineState1(m_RaytracingInputs[(int)RaytracingType::DiffuseHitShader].m_pPSO.Get());
 	pRaytracingCmdList->DispatchRays(&dispathRaysDesc);
 }
 
@@ -1108,7 +1110,7 @@ void ModelViewer::RaytraceShadows(GraphicsContext& gfxContext)
 	gfxContext.FlushResourceBarriers();
 
 	ID3D12GraphicsCommandList* pCmdList = gfxContext.GetCommandList();
-	CComPtr<ID3D12GraphicsCommandList4> pRaytracingCmdList;
+	ComPtr<ID3D12GraphicsCommandList4> pRaytracingCmdList;
 	pCmdList->QueryInterface(IID_PPV_ARGS(&pRaytracingCmdList));
 
 	ID3D12DescriptorHeap* pDescHeaps[] = { m_RaytracingDescHeap.GetHeapPointer() };
@@ -1122,7 +1124,7 @@ void ModelViewer::RaytraceShadows(GraphicsContext& gfxContext)
 	pCmdList->SetComputeRootShaderResourceView((UINT)RTGlobalRSId::AccelerationStructure, m_TLAS->GetGPUVirtualAddress());
 
 	D3D12_DISPATCH_RAYS_DESC dispathRaysDesc = m_RaytracingInputs[(int)RaytracingType::Shadows].GetDispatchRayDesc(W, H);
-	pRaytracingCmdList->SetPipelineState1(m_RaytracingInputs[(int)RaytracingType::Shadows].m_pPSO);
+	pRaytracingCmdList->SetPipelineState1(m_RaytracingInputs[(int)RaytracingType::Shadows].m_pPSO.Get());
 	pRaytracingCmdList->DispatchRays(&dispathRaysDesc);
 }
 
@@ -1167,7 +1169,7 @@ void ModelViewer::ReferencePathTracing(GraphicsContext& gfxContext)
 	gfxContext.FlushResourceBarriers();
 
 	ID3D12GraphicsCommandList* pCmdList = gfxContext.GetCommandList();
-	CComPtr<ID3D12GraphicsCommandList4> pRaytracingCmdList;
+	ComPtr<ID3D12GraphicsCommandList4> pRaytracingCmdList;
 	pCmdList->QueryInterface(IID_PPV_ARGS(&pRaytracingCmdList));
 
 	ID3D12DescriptorHeap* pDescHeaps[] = { m_RaytracingDescHeap.GetHeapPointer() };
@@ -1183,7 +1185,7 @@ void ModelViewer::ReferencePathTracing(GraphicsContext& gfxContext)
 	pCmdList->SetComputeRootShaderResourceView((UINT)RTGlobalRSId::AccelerationStructure, m_TLAS->GetGPUVirtualAddress());
 
 	D3D12_DISPATCH_RAYS_DESC dispathRaysDesc = m_RaytracingInputs[(int)RaytracingType::ReferencePathTracing].GetDispatchRayDesc(W, H);
-	pRaytracingCmdList->SetPipelineState1(m_RaytracingInputs[(int)RaytracingType::ReferencePathTracing].m_pPSO);
+	pRaytracingCmdList->SetPipelineState1(m_RaytracingInputs[(int)RaytracingType::ReferencePathTracing].m_pPSO.Get());
 	pRaytracingCmdList->DispatchRays(&dispathRaysDesc);
 
 	// Copy
@@ -1256,7 +1258,7 @@ void ModelViewer::ReSTIRWithDirectLights(GraphicsContext& gfxContext)
 	computeContext.FlushResourceBarriers();
 
 	ID3D12GraphicsCommandList* pCmdList = computeContext.GetCommandList();
-	CComPtr<ID3D12GraphicsCommandList4> pRaytracingCmdList;
+	ComPtr<ID3D12GraphicsCommandList4> pRaytracingCmdList;
 	pCmdList->QueryInterface(IID_PPV_ARGS(&pRaytracingCmdList));
 
 	ID3D12Device* pDevice = Graphics::s_Device;
@@ -1282,7 +1284,7 @@ void ModelViewer::ReSTIRWithDirectLights(GraphicsContext& gfxContext)
 #endif
 
 	D3D12_DISPATCH_RAYS_DESC dispathRaysDesc = m_RaytracingInputs[(int)RaytracingType::ReSTIRWithDirectLights].GetDispatchRayDesc(W, H);
-	pRaytracingCmdList->SetPipelineState1(m_RaytracingInputs[(UINT)RaytracingType::ReSTIRWithDirectLights].m_pPSO);
+	pRaytracingCmdList->SetPipelineState1(m_RaytracingInputs[(UINT)RaytracingType::ReSTIRWithDirectLights].m_pPSO.Get());
 	pRaytracingCmdList->DispatchRays(&dispathRaysDesc);
 }
 
@@ -1295,6 +1297,8 @@ void ModelViewer::RaytraceReSTIRGI(GraphicsContext& gfxContext)
 
 	ID3D12Device* pDevice = Graphics::s_Device;
 	ComputeContext& computeContext = gfxContext.GetComputeContext();
+
+	auto *pRestirGI = m_ReSTIRGI.get();
 
 	auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 	auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
@@ -1310,17 +1314,17 @@ void ModelViewer::RaytraceReSTIRGI(GraphicsContext& gfxContext)
 	uint32_t currFrameIndex = frameIndex & 1;
 	uint32_t prevFrameIndex = 1 - currFrameIndex;
 
-	auto& currSampleRadiance = m_ReSTIRGI.m_TemporalSampleRadiance[currFrameIndex];
-	auto& currSampleNormal = m_ReSTIRGI.m_TemporalSampleNormal[currFrameIndex];
-	auto& currSampleHitInfo = m_ReSTIRGI.m_TemporalSampleHitInfo[currFrameIndex];
-	auto& currRayOrigin = m_ReSTIRGI.m_TemporalRayOrigin[currFrameIndex];
-	auto& currReservoir = m_ReSTIRGI.m_TemporalReservoir[currFrameIndex];
+	auto& currSampleRadiance = pRestirGI->m_TemporalSampleRadiance[currFrameIndex];
+	auto& currSampleNormal = pRestirGI->m_TemporalSampleNormal[currFrameIndex];
+	auto& currSampleHitInfo = pRestirGI->m_TemporalSampleHitInfo[currFrameIndex];
+	auto& currRayOrigin = pRestirGI->m_TemporalRayOrigin[currFrameIndex];
+	auto& currReservoir = pRestirGI->m_TemporalReservoir[currFrameIndex];
 
-	auto& prevSampleRadiance = m_ReSTIRGI.m_TemporalSampleRadiance[prevFrameIndex];
-	auto& prevSampleNormal = m_ReSTIRGI.m_TemporalSampleNormal[prevFrameIndex];
-	auto& prevSampleHitInfo = m_ReSTIRGI.m_TemporalSampleHitInfo[prevFrameIndex];
-	auto& prevRayOrigin = m_ReSTIRGI.m_TemporalRayOrigin[prevFrameIndex];
-	auto& prevReservoir = m_ReSTIRGI.m_TemporalReservoir[prevFrameIndex];
+	auto& prevSampleRadiance = pRestirGI->m_TemporalSampleRadiance[prevFrameIndex];
+	auto& prevSampleNormal = pRestirGI->m_TemporalSampleNormal[prevFrameIndex];
+	auto& prevSampleHitInfo = pRestirGI->m_TemporalSampleHitInfo[prevFrameIndex];
+	auto& prevRayOrigin = pRestirGI->m_TemporalRayOrigin[prevFrameIndex];
+	auto& prevReservoir = pRestirGI->m_TemporalReservoir[prevFrameIndex];
 
 	computeContext.SetRootSignature(m_GlobalRaytracingRS);
 
@@ -1351,9 +1355,9 @@ void ModelViewer::RaytraceReSTIRGI(GraphicsContext& gfxContext)
 	{
 		computeContext.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		computeContext.TransitionResource(normalBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-		computeContext.TransitionResource(m_ReSTIRGI.m_SampleRadiance, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		computeContext.TransitionResource(m_ReSTIRGI.m_SampleNormal, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		computeContext.TransitionResource(m_ReSTIRGI.m_SampleHitInfo, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		computeContext.TransitionResource(pRestirGI->m_SampleRadiance, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		computeContext.TransitionResource(pRestirGI->m_SampleNormal, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		computeContext.TransitionResource(pRestirGI->m_SampleHitInfo, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		computeContext.FlushResourceBarriers();
 
 		computeContext.SetConstantBuffer((UINT)RTGlobalRSId::ViewUniforms, g_ViewUniformBuffer.GetGpuPointer());
@@ -1363,23 +1367,23 @@ void ModelViewer::RaytraceReSTIRGI(GraphicsContext& gfxContext)
 		computeContext.SetDescriptorTable((UINT)RTGlobalRSId::InputTextures, m_DepthAndNormalsTable);
 		computeContext.SetDescriptorTable((UINT)RTGlobalRSId::Outputs, m_OutColorUAV);
 		computeContext.SetShaderResourceView((UINT)RTGlobalRSId::AccelerationStructure, m_TLAS->GetGPUVirtualAddress());
-		computeContext.SetDescriptorTable((UINT)RTGlobalRSId::ReSTIRGIOutputs, m_ReSTIRGI.m_SampleRadianceUAV.GetGpuHandle());
+		computeContext.SetDescriptorTable((UINT)RTGlobalRSId::ReSTIRGIOutputs, pRestirGI->m_SampleRadianceUAV.GetGpuHandle());
 
 		ID3D12GraphicsCommandList* pCmdList = computeContext.GetCommandList();
-		CComPtr<ID3D12GraphicsCommandList4> pRaytracingCmdList;
+		ComPtr<ID3D12GraphicsCommandList4> pRaytracingCmdList;
 		pCmdList->QueryInterface(IID_PPV_ARGS(&pRaytracingCmdList));
 
-		D3D12_DISPATCH_RAYS_DESC dispathRaysDesc = m_ReSTIRGI.GetDispatchRayDesc(W, H);
-		pRaytracingCmdList->SetPipelineState1(m_ReSTIRGI.m_ReSTIRGIInputs.m_pPSO);
+		D3D12_DISPATCH_RAYS_DESC dispathRaysDesc = pRestirGI->GetDispatchRayDesc(W, H);
+		pRaytracingCmdList->SetPipelineState1(pRestirGI->m_ReSTIRGIInputs.GetPSO());
 		pRaytracingCmdList->DispatchRays(&dispathRaysDesc);
 	}
 
 	const UINT DescriptorStepSize = pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	// Temporal resampling
 	{
-		computeContext.TransitionResource(m_ReSTIRGI.m_SampleRadiance, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-		computeContext.TransitionResource(m_ReSTIRGI.m_SampleNormal, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-		computeContext.TransitionResource(m_ReSTIRGI.m_SampleHitInfo, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		computeContext.TransitionResource(pRestirGI->m_SampleRadiance, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		computeContext.TransitionResource(pRestirGI->m_SampleNormal, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		computeContext.TransitionResource(pRestirGI->m_SampleHitInfo, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		computeContext.TransitionResource(prevSampleRadiance, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		computeContext.TransitionResource(prevSampleNormal, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		computeContext.TransitionResource(prevSampleHitInfo, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -1396,7 +1400,7 @@ void ModelViewer::RaytraceReSTIRGI(GraphicsContext& gfxContext)
 
 		// Prev sample srvs
 		{
-			auto descHandle = m_ReSTIRGI.m_TemporalSampleRadianceSRV;
+			auto descHandle = pRestirGI->m_TemporalSampleRadianceSRV;
 			pDevice->CopyDescriptorsSimple(1, descHandle.GetCpuHandle(), prevSampleRadiance.GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 			descHandle += DescriptorStepSize;
@@ -1413,7 +1417,7 @@ void ModelViewer::RaytraceReSTIRGI(GraphicsContext& gfxContext)
 		}
 		// Curr sample uavs
 		{
-			auto descHandle = m_ReSTIRGI.m_TemporalSampleRadianceUAV;
+			auto descHandle = pRestirGI->m_TemporalSampleRadianceUAV;
 			pDevice->CopyDescriptorsSimple(1, descHandle.GetCpuHandle(), currSampleRadiance.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 			descHandle += DescriptorStepSize;
@@ -1429,17 +1433,17 @@ void ModelViewer::RaytraceReSTIRGI(GraphicsContext& gfxContext)
 			pDevice->CopyDescriptorsSimple(1, descHandle.GetCpuHandle(), currReservoir.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		}
 
-		computeContext.SetPipelineState(m_ReSTIRGI.m_TemporalResamplingPSO);
+		computeContext.SetPipelineState(pRestirGI->m_TemporalResamplingPSO);
 
 		computeContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_RaytracingDescHeap.GetHeapPointer());
 
 		computeContext.SetConstantBuffer((UINT)RTGlobalRSId::ViewUniforms, g_ViewUniformBuffer.GetGpuPointer());
 		computeContext.SetDescriptorTable((UINT)RTGlobalRSId::InputTextures, m_DepthAndNormalsTable);
-		computeContext.SetDescriptorTable((UINT)RTGlobalRSId::ReSTIRGINewSamples, m_ReSTIRGI.m_SampleRadianceSRV.GetGpuHandle());
-		computeContext.SetDescriptorTable((UINT)RTGlobalRSId::ReSTIRGISPSamples, m_ReSTIRGI.m_TemporalSampleRadianceSRV.GetGpuHandle());
-		computeContext.SetDescriptorTable((UINT)RTGlobalRSId::ReSTIRGIOutputs, m_ReSTIRGI.m_TemporalSampleRadianceUAV.GetGpuHandle());
+		computeContext.SetDescriptorTable((UINT)RTGlobalRSId::ReSTIRGINewSamples, pRestirGI->m_SampleRadianceSRV.GetGpuHandle());
+		computeContext.SetDescriptorTable((UINT)RTGlobalRSId::ReSTIRGISPSamples, pRestirGI->m_TemporalSampleRadianceSRV.GetGpuHandle());
+		computeContext.SetDescriptorTable((UINT)RTGlobalRSId::ReSTIRGIOutputs, pRestirGI->m_TemporalSampleRadianceUAV.GetGpuHandle());
 
-		if (m_ReSTIRGI.IsHalfSize())
+		if (pRestirGI->IsHalfSize())
 			computeContext.Dispatch2D(halfW, halfH);
 		else
 			computeContext.Dispatch2D(W, H);
@@ -1457,11 +1461,11 @@ void ModelViewer::RaytraceReSTIRGI(GraphicsContext& gfxContext)
 		computeContext.TransitionResource(currSampleHitInfo, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		computeContext.TransitionResource(currRayOrigin, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		computeContext.TransitionResource(currReservoir, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-		computeContext.TransitionResource(m_ReSTIRGI.m_Irradiance, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		computeContext.TransitionResource(pRestirGI->m_Irradiance, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		computeContext.FlushResourceBarriers();
 
 		{
-			auto descHandle = m_ReSTIRGI.m_ResolveSampleRadianceSRV;
+			auto descHandle = pRestirGI->m_ResolveSampleRadianceSRV;
 			pDevice->CopyDescriptorsSimple(1, descHandle.GetCpuHandle(), currSampleRadiance.GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 			descHandle += DescriptorStepSize;
@@ -1477,19 +1481,19 @@ void ModelViewer::RaytraceReSTIRGI(GraphicsContext& gfxContext)
 			pDevice->CopyDescriptorsSimple(1, descHandle.GetCpuHandle(), currReservoir.GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		}
 
-		computeContext.SetPipelineState(m_ReSTIRGI.m_ResolvePSO);
+		computeContext.SetPipelineState(pRestirGI->m_ResolvePSO);
 
 		computeContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_RaytracingDescHeap.GetHeapPointer());
 
 		computeContext.SetConstantBuffer((UINT)RTGlobalRSId::ViewUniforms, g_ViewUniformBuffer.GetGpuPointer());
 		computeContext.SetDescriptorTable((UINT)RTGlobalRSId::InputTextures, m_DepthAndNormalsTable);
-		computeContext.SetDescriptorTable((UINT)RTGlobalRSId::ReSTIRGINewSamples, m_ReSTIRGI.m_SampleRadianceSRV.GetGpuHandle());
-		computeContext.SetDescriptorTable((UINT)RTGlobalRSId::ReSTIRGISPSamples, m_ReSTIRGI.m_ResolveSampleRadianceSRV.GetGpuHandle());
-		computeContext.SetDescriptorTable((UINT)RTGlobalRSId::ReSTIRGIOutputs, m_ReSTIRGI.m_IrradianceUAV.GetGpuHandle());
+		computeContext.SetDescriptorTable((UINT)RTGlobalRSId::ReSTIRGINewSamples, pRestirGI->m_SampleRadianceSRV.GetGpuHandle());
+		computeContext.SetDescriptorTable((UINT)RTGlobalRSId::ReSTIRGISPSamples, pRestirGI->m_ResolveSampleRadianceSRV.GetGpuHandle());
+		computeContext.SetDescriptorTable((UINT)RTGlobalRSId::ReSTIRGIOutputs, pRestirGI->m_IrradianceUAV.GetGpuHandle());
 
 		computeContext.Dispatch2D(W, H);
 
-		computeContext.TransitionResource(m_ReSTIRGI.m_Irradiance, D3D12_RESOURCE_STATE_GENERIC_READ);
+		computeContext.TransitionResource(pRestirGI->m_Irradiance, D3D12_RESOURCE_STATE_GENERIC_READ);
 	}
 
 #endif
@@ -1604,7 +1608,9 @@ void ModelViewer::InitRaytracing()
 	}
 
 	if (m_bEnableReSTIRGI)
-		m_ReSTIRGI.Init(pDevice, m_GlobalRaytracingRS);
+	{
+		m_ReSTIRGI->Init(pDevice, m_GlobalRaytracingRS);
+	}
 }
 
 void ModelViewer::InitRaytracingViews(ID3D12Device* pDevice)
@@ -1639,7 +1645,7 @@ void ModelViewer::InitRaytracingViews(ID3D12Device* pDevice)
 
 			// ReSTIR GI
 			if (m_bEnableReSTIRGI)
-				m_ReSTIRGI.InitUAVs(pDevice, m_RaytracingDescHeap);
+				m_ReSTIRGI->InitUAVs(pDevice, m_RaytracingDescHeap);
 			
 		}
 
@@ -1659,7 +1665,7 @@ void ModelViewer::InitRaytracingViews(ID3D12Device* pDevice)
 
 		// ReSTIR GI
 		if (m_bEnableReSTIRGI)
-			m_ReSTIRGI.InitSRVs(pDevice, m_RaytracingDescHeap);
+			m_ReSTIRGI->InitSRVs(pDevice, m_RaytracingDescHeap);
 	}
 	// Scene buffers
 	{
@@ -1748,7 +1754,15 @@ void ModelViewer::InitRaytracingAS(ID3D12Device* pDevice)
 	TLASInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 	m_RaytracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&TLASInputs, &TLPreBuildInfo);
 
-	const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+	/**
+	 * How to Compact AS in D3D12?
+	 * https://alextardif.com/Compaction.html
+	 * 
+	 * D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_COMPACTION
+	 */
+	const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = 
+		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+
 	std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometryDescs(numMeshes);
 	UINT64 scratchBufferSizeNeeded = TLPreBuildInfo.ScratchDataSizeInBytes;
 	for (uint32_t i = 0; i < numMeshes; ++i)
@@ -1796,7 +1810,7 @@ void ModelViewer::InitRaytracingAS(ID3D12Device* pDevice)
 	}
 
 	ByteAddressBuffer scratchBuffer;
-	scratchBuffer.Create(m_RaytracingDevice, L"AS Scratch Buffer", (uint32_t)scratchBufferSizeNeeded, 1);
+	scratchBuffer.Create(m_RaytracingDevice.Get(), L"AS Scratch Buffer", (uint32_t)scratchBufferSizeNeeded, 1);
 
 	D3D12_HEAP_PROPERTIES defaultHeapDesc = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 	auto topLevelDesc = CD3DX12_RESOURCE_DESC::Buffer(TLPreBuildInfo.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
@@ -1833,7 +1847,7 @@ void ModelViewer::InitRaytracingAS(ID3D12Device* pDevice)
 		BLASDescs[i].ScratchAccelerationStructureData = scratchBuffer.GetGpuVirtualAddress();
 
 		D3D12_RAYTRACING_INSTANCE_DESC& instanceDesc = instanceDescs[i];
-		AllocateBufferUav(pDevice, *blas, m_RaytracingDescHeap);
+		AllocateBufferUav(pDevice, *blas.Get(), m_RaytracingDescHeap);
 
 		// Identity matrix
 		ZeroMemory(instanceDesc.Transform, sizeof(instanceDesc.Transform));
@@ -1857,7 +1871,7 @@ void ModelViewer::InitRaytracingAS(ID3D12Device* pDevice)
 	GraphicsContext& gfxContext = GraphicsContext::Begin(L"Build Acceleration Structures");
 	ID3D12GraphicsCommandList* pCmdList = gfxContext.GetCommandList();
 
-	CComPtr<ID3D12GraphicsCommandList4> pRaytracingCmdList;
+	ComPtr<ID3D12GraphicsCommandList4> pRaytracingCmdList;
 	pCmdList->QueryInterface(IID_PPV_ARGS(&pRaytracingCmdList));
 
 	ID3D12DescriptorHeap* descHeaps[] = { m_RaytracingDescHeap.GetHeapPointer() };
@@ -2145,11 +2159,11 @@ void ModelViewer::InitRaytracingStateObjects(ID3D12Device *pDevice)
 #endif
 
 	{
-		CComPtr<ID3D12StateObject> pBarycentricPSO;
+		ComPtr<ID3D12StateObject> pBarycentricPSO;
 		m_RaytracingDevice->CreateStateObject(pStateObjectDesc, IID_PPV_ARGS(&pBarycentricPSO));
 
-		GetShaderTable(*m_Model, pBarycentricPSO, pHitShaderTable.data());
-		m_RaytracingInputs[(uint32_t)RaytracingType::Primarybarycentric] = RaytracingDispatchRayInputs(m_RaytracingDevice, pBarycentricPSO,
+		GetShaderTable(*m_Model, pBarycentricPSO.Get(), pHitShaderTable.data());
+		m_RaytracingInputs[(uint32_t)RaytracingType::Primarybarycentric] = RaytracingDispatchRayInputs(m_RaytracingDevice.Get(), pBarycentricPSO.Get(),
 			pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenExportName, missExportName);
 	}
 
@@ -2159,11 +2173,11 @@ void ModelViewer::InitRaytracingStateObjects(ID3D12Device *pDevice)
 #else
 		ReplaceDxilLibrary(pStateObjectDesc, RayGenShaderSSRLib, rayGenExportName);
 #endif
-		CComPtr<ID3D12StateObject> pReflectionbarycentricPSO;
+		ComPtr<ID3D12StateObject> pReflectionbarycentricPSO;
 		m_RaytracingDevice->CreateStateObject(pStateObjectDesc, IID_PPV_ARGS(&pReflectionbarycentricPSO));
 
-		GetShaderTable(*m_Model, pReflectionbarycentricPSO, pHitShaderTable.data());
-		m_RaytracingInputs[(uint32_t)RaytracingType::Reflectionbarycentric] = RaytracingDispatchRayInputs(m_RaytracingDevice, pReflectionbarycentricPSO,
+		GetShaderTable(*m_Model, pReflectionbarycentricPSO.Get(), pHitShaderTable.data());
+		m_RaytracingInputs[(uint32_t)RaytracingType::Reflectionbarycentric] = RaytracingDispatchRayInputs(m_RaytracingDevice.Get(), pReflectionbarycentricPSO.Get(),
 			pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenExportName, missExportName);
 	}
 
@@ -2174,11 +2188,11 @@ void ModelViewer::InitRaytracingStateObjects(ID3D12Device *pDevice)
 		ReplaceDxilLibrary(pStateObjectDesc, RayGenShaderShadowsLib, rayGenExportName);
 		ReplaceDxilLibrary(pStateObjectDesc, MissShadowsLib, missExportName);
 #endif
-		CComPtr<ID3D12StateObject> pShadowPSO;
+		ComPtr<ID3D12StateObject> pShadowPSO;
 		m_RaytracingDevice->CreateStateObject(pStateObjectDesc, IID_PPV_ARGS(&pShadowPSO));
 
-		GetShaderTable(*m_Model, pShadowPSO, pHitShaderTable.data());
-		m_RaytracingInputs[(int32_t)RaytracingType::Shadows] = RaytracingDispatchRayInputs(m_RaytracingDevice, pShadowPSO,
+		GetShaderTable(*m_Model, pShadowPSO.Get(), pHitShaderTable.data());
+		m_RaytracingInputs[(int32_t)RaytracingType::Shadows] = RaytracingDispatchRayInputs(m_RaytracingDevice.Get(), pShadowPSO.Get(),
 			pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenExportName, missExportName);
 	}
 
@@ -2193,11 +2207,11 @@ void ModelViewer::InitRaytracingStateObjects(ID3D12Device *pDevice)
 		ReplaceDxilLibrary(pStateObjectDesc, DiffuseHitShaderLib, anyHitExportName);
 		ReplaceDxilLibrary(pStateObjectDesc, MissShaderLib, missExportName);
 #endif
-		CComPtr<ID3D12StateObject> pDiffusePSO;
+		ComPtr<ID3D12StateObject> pDiffusePSO;
 		m_RaytracingDevice->CreateStateObject(pStateObjectDesc, IID_PPV_ARGS(&pDiffusePSO));
 
-		GetShaderTable(*m_Model, pDiffusePSO, pHitShaderTable.data());
-		m_RaytracingInputs[(uint32_t)RaytracingType::DiffuseHitShader] = RaytracingDispatchRayInputs(m_RaytracingDevice, pDiffusePSO,
+		GetShaderTable(*m_Model, pDiffusePSO.Get(), pHitShaderTable.data());
+		m_RaytracingInputs[(uint32_t)RaytracingType::DiffuseHitShader] = RaytracingDispatchRayInputs(m_RaytracingDevice.Get(), pDiffusePSO.Get(),
 			pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenExportName, missExportName);
 	}
 
@@ -2212,11 +2226,11 @@ void ModelViewer::InitRaytracingStateObjects(ID3D12Device *pDevice)
 		ReplaceDxilLibrary(pStateObjectDesc, MissShaderLib, missExportName);
 #endif
 
-		CComPtr<ID3D12StateObject> pReflectionPSO;
+		ComPtr<ID3D12StateObject> pReflectionPSO;
 		m_RaytracingDevice->CreateStateObject(pStateObjectDesc, IID_PPV_ARGS(&pReflectionPSO));
 
-		GetShaderTable(*m_Model, pReflectionPSO, pHitShaderTable.data());
-		m_RaytracingInputs[(uint32_t)RaytracingType::Reflection] = RaytracingDispatchRayInputs(m_RaytracingDevice, pReflectionPSO,
+		GetShaderTable(*m_Model, pReflectionPSO.Get(), pHitShaderTable.data());
+		m_RaytracingInputs[(uint32_t)RaytracingType::Reflection] = RaytracingDispatchRayInputs(m_RaytracingDevice.Get(), pReflectionPSO.Get(),
 			pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenExportName, missExportName);
 	}
 
@@ -2227,11 +2241,11 @@ void ModelViewer::InitRaytracingStateObjects(ID3D12Device *pDevice)
 		ReplaceDxilLibrary(pStateObjectDesc, SimplePathTracing, missExportName);
 		ReplaceDxilLibrary(pStateObjectDesc, SimplePathTracing, anyHitExportName);
 
-		CComPtr<ID3D12StateObject> pSimplePathTracingPSO;
+		ComPtr<ID3D12StateObject> pSimplePathTracingPSO;
 		m_RaytracingDevice->CreateStateObject(pStateObjectDesc, IID_PPV_ARGS(&pSimplePathTracingPSO));
 
-		GetShaderTable(*m_Model, pSimplePathTracingPSO, pHitShaderTable.data());
-		m_RaytracingInputs[(uint32_t)RaytracingType::ReferencePathTracing] = RaytracingDispatchRayInputs(m_RaytracingDevice, pSimplePathTracingPSO,
+		GetShaderTable(*m_Model, pSimplePathTracingPSO.Get(), pHitShaderTable.data());
+		m_RaytracingInputs[(uint32_t)RaytracingType::ReferencePathTracing] = RaytracingDispatchRayInputs(m_RaytracingDevice.Get(), pSimplePathTracingPSO.Get(),
 			pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenExportName, missExportName);
 	}
 
@@ -2241,11 +2255,11 @@ void ModelViewer::InitRaytracingStateObjects(ID3D12Device *pDevice)
 		ReplaceDxilLibrary(pStateObjectDesc, ReSTIRWithDirectLighting, hitExportName);
 		ReplaceDxilLibrary(pStateObjectDesc, ReSTIRWithDirectLighting, missExportName);
 
-		CComPtr<ID3D12StateObject> pReSTIRWithDirectLightingPSO;
+		ComPtr<ID3D12StateObject> pReSTIRWithDirectLightingPSO;
 		m_RaytracingDevice->CreateStateObject(pStateObjectDesc, IID_PPV_ARGS(&pReSTIRWithDirectLightingPSO));
 
-		GetShaderTable(*m_Model, pReSTIRWithDirectLightingPSO, pHitShaderTable.data());
-		m_RaytracingInputs[(uint32_t)RaytracingType::ReSTIRWithDirectLights] = RaytracingDispatchRayInputs(m_RaytracingDevice, pReSTIRWithDirectLightingPSO,
+		GetShaderTable(*m_Model, pReSTIRWithDirectLightingPSO.Get(), pHitShaderTable.data());
+		m_RaytracingInputs[(uint32_t)RaytracingType::ReSTIRWithDirectLights] = RaytracingDispatchRayInputs(m_RaytracingDevice.Get(), pReSTIRWithDirectLightingPSO.Get(),
 			pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenExportName, missExportName);
 	}
 
@@ -2255,11 +2269,11 @@ void ModelViewer::InitRaytracingStateObjects(ID3D12Device *pDevice)
 		ReplaceDxilLibrary(pStateObjectDesc, ReSTIR_TraceDiffuse, hitExportName);
 		ReplaceDxilLibrary(pStateObjectDesc, ReSTIR_TraceDiffuse, missExportName);
 
-		CComPtr<ID3D12StateObject> pReSTIRGIPSO;
+		ComPtr<ID3D12StateObject> pReSTIRGIPSO;
 		m_RaytracingDevice->CreateStateObject(pStateObjectDesc, IID_PPV_ARGS(&pReSTIRGIPSO));
 
-		GetShaderTable(*m_Model, pReSTIRGIPSO, pHitShaderTable.data());
-		m_ReSTIRGI.m_ReSTIRGIInputs = RaytracingDispatchRayInputs(m_RaytracingDevice, pReSTIRGIPSO,
+		GetShaderTable(*m_Model, pReSTIRGIPSO.Get(), pHitShaderTable.data());
+		m_ReSTIRGI->m_ReSTIRGIInputs = RaytracingDispatchRayInputs(m_RaytracingDevice.Get(), pReSTIRGIPSO.Get(),
 			pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenExportName, missExportName);
 	}
 
@@ -2267,7 +2281,7 @@ void ModelViewer::InitRaytracingStateObjects(ID3D12Device *pDevice)
 	{
 		WCHAR hitGroupExportNameClosestHitType[64];
 		swprintf_s(hitGroupExportNameClosestHitType, L"%s::closesthit", hitGroupExportName);
-		SetPipelineStateStackSize(rayGenExportName, hitGroupExportNameClosestHitType, missExportName, c_MaxRayRecursion, raytracingPipelineState.m_pPSO);
+		SetPipelineStateStackSize(rayGenExportName, hitGroupExportNameClosestHitType, missExportName, c_MaxRayRecursion, raytracingPipelineState.GetPSO());
 	}
 
 }
@@ -2296,13 +2310,12 @@ void ModelViewer::CleanRaytracing()
 	// m_GpuSceneMaterialSrvs.
 
 	if (m_bEnableReSTIRGI)
-		m_ReSTIRGI.Shutdown();
+		m_ReSTIRGI->Shutdown();
 }
 
 
 /**
-	当前渲染管线 (Forward+ / TiledBasedForward)
+	Pipeline: (Forward+ / TiledBasedForward)
 	RenderLightShadows => ZPrePass (DepthOnly ->Depth) => FillLightGrid (CullLights) =>
 	ModelViewer
-
 */

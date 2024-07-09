@@ -197,14 +197,14 @@ namespace MyDirectX
             m_BackBuffer[i].Destroy();
 
         UpdateSwapChain();
-        //==>
+        // =>
     #if 0
         ASSERT_SUCCEEDED(m_SwapChain->ResizeBuffers(SWAP_CHAIN_BUFFER_COUNT, newWidth, newHeight,
             m_SwapChainFormat, (m_Options & c_AllowTearing) ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0u));
     #endif
 
         UpdateBackBuffers();
-        //==>
+        // =>
     #if 0
         for (uint32_t i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
         {

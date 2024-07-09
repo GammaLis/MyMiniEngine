@@ -20,10 +20,8 @@ namespace MyDirectX
 
 		virtual void Cleanup() 
 		{
-			m_CommonCompute->s_CommandManager.IdleGPU();
-
+			Graphics::s_CommandManager.IdleGPU();
 			CleanCustom();
-
 			m_CommonCompute->Shutdown(); 
 		}
 
