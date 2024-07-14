@@ -16,7 +16,7 @@ namespace MyDirectX
 	{
 	public:
 		DynamicDescriptorHeap(CommandContext& context, D3D12_DESCRIPTOR_HEAP_TYPE type);
-		~DynamicDescriptorHeap() {  }
+		~DynamicDescriptorHeap() = default;
 
 		static void DestroyAll()
 		{
@@ -69,7 +69,7 @@ namespace MyDirectX
 		}
 
 	private:
-		static const uint32_t s_kNumDescriptorsPerHeap = 1024;
+		static constexpr uint32_t s_kNumDescriptorsPerHeap = 1024;
 		static std::mutex s_Mutex;
 		// 0 - D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1 - D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER
 		static std::vector<Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>> s_DescriptorHeapPool[2];
@@ -115,8 +115,8 @@ namespace MyDirectX
 			uint32_t m_StaleRootParamsBitMap;
 			uint32_t m_MaxCachedDescriptors;
 			
-			static const uint32_t kMaxNumDescriptors = 256;
-			static const uint32_t kMaxNumDescriptorTables = 16;
+			static constexpr uint32_t kMaxNumDescriptors = 256;
+			static constexpr uint32_t kMaxNumDescriptorTables = 16;
 
 			uint32_t ComputeStagedSize();
 			void CopyAndBindStaleTables(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t descriptorSize, DescriptorHandle destHandle,
@@ -134,7 +134,7 @@ namespace MyDirectX
 		DescriptorHandleCache m_GraphicsHandleCache;
 		DescriptorHandleCache m_ComputeHandleCache;
 
-		bool HasSpace(uint32_t count)
+		bool HasSpace(uint32_t count) const
 		{
 			return (m_CurHeap != nullptr && m_CurOffset + count <= s_kNumDescriptorsPerHeap);
 		}

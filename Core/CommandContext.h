@@ -4,7 +4,6 @@
 #include "GpuBuffer.h"
 #include "PixelBuffer.h"
 #include "LinearAllocator.h"
-#include "DynamicDescriptorHeap.h"
 #include "PipelineState.h"
 #include "RootSignature.h"
 #include <queue>
@@ -17,6 +16,7 @@ namespace MyDirectX
 
 	class GraphicsContext;
 	class ComputeContext;
+	class DynamicDescriptorHeap;
 
 	class ColorBuffer;
 	class DepthBuffer;
@@ -48,23 +48,24 @@ namespace MyDirectX
 	| D3D12_RESOURCE_STATE_COPY_DEST \
 	| D3D12_RESOURCE_STATE_COPY_SOURCE)
 
-	/// CommandContext 管理器，分配/销毁 CommandContext，全局唯一
+	/// CommandContext Manager, Alloc/Free CommandContext, Singleton 
 	class ContextManager
 	{
 	public:
-		ContextManager() {}
+		static constexpr uint32_t NumCommandContextType = 4;
+		
+		ContextManager() = default;
 
 		CommandContext* AllocateContext(D3D12_COMMAND_LIST_TYPE type);
 		void FreeContext(CommandContext*);
 		void DestroyAllContexts();
 
 	private:
-		std::vector<std::unique_ptr<CommandContext>> m_ContextPool[4];
-		std::queue<CommandContext*> m_AvailableContexts[4];
+		std::vector<std::unique_ptr<CommandContext>> m_ContextPool[NumCommandContextType];
+		std::queue<CommandContext*> m_AvailableContexts[NumCommandContextType];
 		std::mutex m_ContextAllocationMutex;
 	};
 
-	// 不可复制
 	struct NonCopyable
 	{
 		NonCopyable() = default;
@@ -108,7 +109,7 @@ namespace MyDirectX
 			return reinterpret_cast<ComputeContext&>(*this);
 		}
 
-		ID3D12GraphicsCommandList* GetCommandList()
+		ID3D12GraphicsCommandList* GetCommandList() const
 		{
 			return m_CommandList;
 		}
@@ -171,13 +172,13 @@ namespace MyDirectX
 		ID3D12RootSignature* m_CurComputeRootSignature;
 		ID3D12PipelineState* m_CurPipelineState;
 
-		DynamicDescriptorHeap m_DynamicViewDescriptorHeap;		// HEAP_TYPE_CBV_SRV_UAV
-		DynamicDescriptorHeap m_DynamicSamplerDescriptorHeap;	// HEAP_TYPE_SAMPLER
+		std::unique_ptr<DynamicDescriptorHeap> m_DynamicViewDescriptorHeap;		// HEAP_TYPE_CBV_SRV_UAV
+		std::unique_ptr<DynamicDescriptorHeap> m_DynamicSamplerDescriptorHeap;	// HEAP_TYPE_SAMPLER
 
-		D3D12_RESOURCE_BARRIER m_ResourceBarrierBuffer[16];
+		D3D12_RESOURCE_BARRIER m_ResourceBarrierBuffer[16] = { };
 		UINT m_NumBarriersToFlush;
 
-		ID3D12DescriptorHeap* m_CurDescriptorHeaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
+		ID3D12DescriptorHeap* m_CurDescriptorHeaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES] = { };
 		
 		LinearAllocator m_CpuLinearAllocator;
 		LinearAllocator m_GpuLinearAllocator;
@@ -325,11 +326,11 @@ namespace MyDirectX
 		m_CurPipelineState = pipelineState;
 	}
 
-	inline void CommandContext::SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, ID3D12DescriptorHeap* pDescHeap)
+	inline void CommandContext::SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, ID3D12DescriptorHeap* pHeap)
 	{
-		if (m_CurDescriptorHeaps[type] != pDescHeap)
+		if (m_CurDescriptorHeaps[type] != pHeap)
 		{
-			m_CurDescriptorHeaps[type] = pDescHeap;
+			m_CurDescriptorHeaps[type] = pHeap;
 			BindDescriptorHeaps();
 		}
 	}
@@ -367,7 +368,7 @@ namespace MyDirectX
 	inline void CommandContext::CopyBufferRegion(GpuResource& dest, size_t destOffset, GpuResource& src, size_t srcOffset, size_t numBytes)
 	{
 		TransitionResource(dest, D3D12_RESOURCE_STATE_COPY_DEST);
-		//TransitionResource(src, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		// TransitionResource(src, D3D12_RESOURCE_STATE_COPY_SOURCE);
 		FlushResourceBarriers();
 		m_CommandList->CopyBufferRegion(dest.GetResource(), destOffset, src.GetResource(), srcOffset, numBytes);
 	}

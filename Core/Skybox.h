@@ -32,7 +32,7 @@ namespace MyDirectX
 		UINT m_IndexCount = 0;
 		UINT m_IndexOffset = 0;
 
-		D3D12_CPU_DESCRIPTOR_HANDLE srv;
+		D3D12_CPU_DESCRIPTOR_HANDLE srv{};
 	};
 
 }

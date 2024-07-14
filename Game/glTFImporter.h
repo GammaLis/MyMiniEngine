@@ -6,6 +6,7 @@
 #include <memory>
 
 // rapidjson
+#define RAPIDJSON_NOMEMBERITERATORCLASS
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>

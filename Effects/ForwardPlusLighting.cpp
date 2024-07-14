@@ -23,7 +23,7 @@ namespace MyDirectX
 		float _InvTileDim;
 		float _RcpZMagic;
 		uint32_t _TileCount;
-		//uint32_t _Padding[3];	// Matrix4 已经128位(16字节)对齐，不用补齐 -20-2-17
+		// uint32_t _Padding[3];	// Matrix4 is already 128bits (16bytes) aligned, no need padding, -20-2-17
 		Matrix4 _ViewProjMat; 
 	};
 
@@ -66,6 +66,9 @@ namespace MyDirectX
 	{
 		Vector3 posScale = maxBound - minBound;
 		Vector3 posBias = minBound;
+
+		m_LightData.resize(MaxLights);
+		m_LightShadowMatrix.resize(MaxLights);
 
 		RandomNumberGenerator rng;
 		// rng.SetSeed(1);
@@ -152,7 +155,7 @@ namespace MyDirectX
 			m_LightData[n].type = type;
 			m_LightData[n].coneDir = XMFLOAT3(coneDir.GetX(), coneDir.GetY(), coneDir.GetZ());
 			m_LightData[n].coneAngles = XMFLOAT2(1.0f / (cos(coneInner) - cos(coneOuter)), cos(coneOuter));
-			// WARNING:不能存为Math::Matrix4 - 16字节对齐 SIMD指令 ！！！
+			// WARNING: Can't be Math::Matrix4 - SIMD commands need 16 byte alignment !!!
 			// m_LightData[n].shadowTextureMatrix = DirectX::XMMATRIX(Transpose(shadowTextureMatrix));
 			DirectX::XMStoreFloat4x4(&m_LightData[n].shadowTextureMatrix, DirectX::XMMATRIX(Transpose(shadowTextureMatrix)));
 		}
@@ -176,11 +179,11 @@ namespace MyDirectX
 		}
 
 		// create light buffer
-		m_LightBuffer.Create(pDevice, L"m_LightBuffer", MaxLights, sizeof(LightData), m_LightData);
+		m_LightBuffer.Create(pDevice, L"m_LightBuffer", MaxLights, sizeof(LightData), m_LightData.data());
 
 		// assumes max resolution of 1920x1080
 		uint32_t maxWidth = 1920, maxHeight = 1080;
-		// light grid cells 最大数量
+		// light grid cells max num
 		uint32_t lightGridCells = Math::DivideByMultiple(maxWidth, MinLightGridDim) * Math::DivideByMultiple(maxHeight, MinLightGridDim);
 		uint32_t lightGridSizeBytes = lightGridCells * (4 + MaxLights * 4);
 		m_LightGrid.Create(pDevice, L"m_LightGrid", lightGridSizeBytes, 1, nullptr);

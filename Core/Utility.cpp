@@ -14,6 +14,7 @@
 #include "pch.h"
 #include "Utility.h"
 #include "Math/Common.h"
+#include <locale> // std::setlocale
 #include <string>
 
 // A faster version of memcopy that uses SSE instructions.  TODO:  Write an ARM variant if necessary.

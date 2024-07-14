@@ -1,6 +1,7 @@
 ﻿#include "CommandContext.h"
 #include "Graphics.h"
 #include "CommandListManager.h"
+#include "DynamicDescriptorHeap.h"
 
 #include "ColorBuffer.h"
 #include "DepthBuffer.h"
@@ -16,6 +17,8 @@
 #pragma warning(pop)
 
 using namespace MyDirectX;
+
+/// ContextManager 
 
 CommandContext* ContextManager::AllocateContext(D3D12_COMMAND_LIST_TYPE type)
 {
@@ -53,9 +56,11 @@ void ContextManager::FreeContext(CommandContext* usedContext)
 
 void ContextManager::DestroyAllContexts()
 {
-	for (uint32_t i = 0; i < 4; ++i)
+	for (uint32_t i = 0; i < NumCommandContextType; ++i)
 		m_ContextPool[i].clear();
 }
+
+/// CommandContext
 
 void CommandContext::DestroyAllContexts()
 {
@@ -69,7 +74,7 @@ CommandContext& CommandContext::Begin(const std::wstring& ID)
 	CommandContext* pNewContext = Graphics::s_ContextManager.AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 	pNewContext->SetID(ID);
 
-	// TODO
+	// TODO: Engine profiling
 
 	return *pNewContext;
 }
@@ -80,19 +85,18 @@ ComputeContext& ComputeContext::Begin(const std::wstring& ID, bool async)
 		async ? D3D12_COMMAND_LIST_TYPE_COMPUTE : D3D12_COMMAND_LIST_TYPE_DIRECT)->GetComputeContext();
 	newContext.SetID(ID);
 
-	// TODO
+	// TODO: Engine profiling
 
 	return newContext;
 }
 
 CommandContext::CommandContext(D3D12_COMMAND_LIST_TYPE type)
 	: m_Type(type),
-	m_DynamicViewDescriptorHeap(*this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV),
-	m_DynamicSamplerDescriptorHeap(*this, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER),
+	m_DynamicViewDescriptorHeap(std::make_unique<DynamicDescriptorHeap>(*this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)),
+	m_DynamicSamplerDescriptorHeap(std::make_unique<DynamicDescriptorHeap>(*this, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)),
 	m_CpuLinearAllocator(LinearAllocatorType::kCpuWritable),
 	m_GpuLinearAllocator(LinearAllocatorType::kGpuExclusive)
 {
-	// -mf
 	m_Device = nullptr;
 
 	m_CommandManager = nullptr;
@@ -111,7 +115,7 @@ CommandContext::CommandContext(D3D12_COMMAND_LIST_TYPE type)
 
 void CommandContext::Reset()
 {
-	// we only call Reset() on previously freed contexts. The command list persists, but we must 
+	// We only call Reset() on previously freed contexts. The command list persists, but we must 
 	// request a new allocator
 	ASSERT(m_CommandList != nullptr && m_CurAllocator == nullptr);
 	m_CurAllocator = Graphics::s_CommandManager.GetQueue(m_Type).RequestAllocator();
@@ -123,7 +127,10 @@ void CommandContext::Reset()
 
 	m_NumBarriersToFlush = 0;
 
-	BindDescriptorHeaps();
+	// TODO: No need to bind here? Or should clear DescriptorHeaps?
+	for (auto &DescHeap : m_CurDescriptorHeaps)
+		DescHeap = nullptr;
+	// BindDescriptorHeaps();
 }
 
 CommandContext::~CommandContext()
@@ -145,7 +152,7 @@ uint64_t CommandContext::Flush(bool bWaitForCompletion)
 		Graphics::s_CommandManager.WaitForFence(fenceValue);
 	}
 
-	// reset the command list and restore previous state
+	// Reset the command list and restore previous state
 	m_CommandList->Reset(m_CurAllocator, nullptr);
 
 	if (m_CurGraphicsRootSignature)
@@ -172,7 +179,7 @@ uint64_t CommandContext::Finish(bool bWaitForCompletion)
 
 	FlushResourceBarriers();
 
-	//
+	// TODO: Engine profiling
 
 	ASSERT(m_CurAllocator != nullptr);
 
@@ -185,8 +192,8 @@ uint64_t CommandContext::Finish(bool bWaitForCompletion)
 	m_CpuLinearAllocator.CleanupUsedPages(fenceValue);
 	m_GpuLinearAllocator.CleanupUsedPages(fenceValue);
 	
-	m_DynamicViewDescriptorHeap.CleanupUsedHeaps(fenceValue);
-	m_DynamicSamplerDescriptorHeap.CleanupUsedHeaps(fenceValue);
+	m_DynamicViewDescriptorHeap->CleanupUsedHeaps(fenceValue);
+	m_DynamicSamplerDescriptorHeap->CleanupUsedHeaps(fenceValue);
 
 	if (bWaitForCompletion)
 		Graphics::s_CommandManager.WaitForFence(fenceValue);
@@ -225,7 +232,7 @@ uint32_t CommandContext::ReadbackTexture(ID3D12Device* pDevice, ReadbackBuffer& 
 {
 	uint64_t copySize = 0;
 
-	// the footprint may depend on the device of the resource, but we assume there is only one device
+	// The footprint may depend on the device of the resource, but we assume there is only one device
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT placedFootprint;
 	auto resourceDesc = srcBuffer.GetResource()->GetDesc();
 	pDevice->GetCopyableFootprints(&resourceDesc, 0, 1, 0, 
@@ -249,13 +256,13 @@ void CommandContext::InitializeTexture(GpuResource& dest, UINT numSubresources, 
 
 	CommandContext& initContext = CommandContext::Begin();
 
-	// copy data to the intermediate upload heap and then schedule a copy from the upload heap to the default texture 
+	// Copy data to the intermediate upload heap and then schedule a copy from the upload heap to the default texture 
 	DynAlloc mem = initContext.ReserveUploadMemory(uploadBufferSize);
 	initContext.TransitionResource(dest, D3D12_RESOURCE_STATE_COPY_DEST, true);
 	UpdateSubresources(initContext.m_CommandList, dest.GetResource(), mem.buffer.GetResource(), 0, 0, numSubresources, subData);
 	initContext.TransitionResource(dest, D3D12_RESOURCE_STATE_GENERIC_READ);
 
-	// execute the command list and wait for it to finish so we can release the upload buffer
+	// Execute the command list and wait for it to finish so we can release the upload buffer
 	initContext.Finish(true);
 }
 
@@ -264,15 +271,15 @@ void CommandContext::InitializeBuffer(GpuBuffer& dest, const void* data, size_t 
 	CommandContext& initContext = CommandContext::Begin();
 
 	DynAlloc mem = initContext.ReserveUploadMemory(numBytes);
-	SIMDMemCopy(mem.dataPtr, data, Math::DivideByMultiple(numBytes, 16));	// 需要16字节对齐
+	SIMDMemCopy(mem.dataPtr, data, Math::DivideByMultiple(numBytes, 16));	// SIMD needs 16 bytes alignment
 	// memcpy(mem.dataPtr, data, numBytes);
 
-	// copy data to the intermediate upload heap and then schedule a copy from the upload heap to the default buffer
+	// Copy data to the intermediate upload heap and then schedule a copy from the upload heap to the default buffer
 	initContext.TransitionResource(dest, D3D12_RESOURCE_STATE_COPY_DEST, true);
 	initContext.m_CommandList->CopyBufferRegion(dest.GetResource(), offset, mem.buffer.GetResource(), 0, numBytes);
 	initContext.TransitionResource(dest, D3D12_RESOURCE_STATE_GENERIC_READ, true);
 
-	// execute the command list and wait for it to finish so we can release the upload buffer
+	// Execute the command list and wait for it to finish so we can release the upload buffer
 	initContext.Finish(true);
 }
 
@@ -285,7 +292,7 @@ void CommandContext::InitializeBuffer(GpuBuffer& dest, const UploadBuffer& src, 
 
 	// copy data to the intermediate upload heap and then schedule a copy from the upload heap to the default texture
 	initContext.TransitionResource(dest, D3D12_RESOURCE_STATE_COPY_DEST, true);
-	initContext.m_CommandList->CopyBufferRegion(dest.GetResource(), destOffset, (ID3D12Resource*)src.GetResource(), srcOffset, numBytes);
+	initContext.m_CommandList->CopyBufferRegion(dest.GetResource(), destOffset, const_cast<ID3D12Resource*>(src.GetResource()), srcOffset, numBytes);
 	initContext.TransitionResource(dest, D3D12_RESOURCE_STATE_GENERIC_READ, true);
 
 	// execute the command list and wait for it to finish so we can release the upload buffer
@@ -338,7 +345,8 @@ void CommandContext::ReadbackTexture2D(GpuResource& readbackBuffer, PixelBuffer&
 {
 	// the footprint may depend on the device of the resource, but we can assume there is only one device
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT placedFootprint;
-	Graphics::s_Device->GetCopyableFootprints(&srcBuffer.GetResource()->GetDesc(), 0, 1, 0, &placedFootprint, nullptr, nullptr, nullptr);
+	const auto desc = srcBuffer.GetResource()->GetDesc();
+	Graphics::s_Device->GetCopyableFootprints(&desc, 0, 1, 0, &placedFootprint, nullptr, nullptr, nullptr);
 
 	// this very short command list only issues one API call and will be synchronized so we can immediately read
 	// the buffer contents
@@ -346,9 +354,9 @@ void CommandContext::ReadbackTexture2D(GpuResource& readbackBuffer, PixelBuffer&
 
 	context.TransitionResource(srcBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE, true);
 
-	context.m_CommandList->CopyTextureRegion(
-		&CD3DX12_TEXTURE_COPY_LOCATION(readbackBuffer.GetResource(), placedFootprint), 0, 0, 0,
-		&CD3DX12_TEXTURE_COPY_LOCATION(srcBuffer.GetResource(), 0), nullptr);
+	auto dstLocation = CD3DX12_TEXTURE_COPY_LOCATION(readbackBuffer.GetResource(), placedFootprint);
+	auto srcLocation = CD3DX12_TEXTURE_COPY_LOCATION(srcBuffer.GetResource(), 0); 
+	context.m_CommandList->CopyTextureRegion(&dstLocation, 0, 0, 0, &srcLocation, nullptr);
 
 	context.Finish(true);
 }
@@ -494,11 +502,11 @@ void CommandContext::PIXSetMarker(const wchar_t* label)
 }
 
 /**
-	能够同时设置
+	At most 2 types DescriptorHeap:
 	D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV，
 	D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER，
-	2种
-	一般很少设置D3D12_DESCRIPTOR_HEAP_TYPE_RTV和D3D12_DESCRIPTOR_HEAP_TYPE_DSV（大概），-2020-2-7
+	
+	D3D12_DESCRIPTOR_HEAP_TYPE_RTV and D3D12_DESCRIPTOR_HEAP_TYPE_DSV for 'RTV' and 'DSV' is directly set via SetRenderTargets(...)
 
 	Ref: https://learn.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12graphicscommandlist-setdescriptorheaps
 	You can only bind descriptor heaps of type D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV and D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLES.
@@ -520,15 +528,16 @@ void CommandContext::BindDescriptorHeaps()
 		m_CommandList->SetDescriptorHeaps(nonNullHeaps, heapsToBind);
 }
 
-// GraphicsContext
+/// GraphicsContext
+
 void GraphicsContext::ClearUAV(GpuBuffer& target)
 {
 	FlushResourceBarriers();
 
 	// after binding a UAV, we can get a GPU handle that is required to clear it as a UAV (because it essentially
 	// runs a shader to set all of the values).
-	D3D12_GPU_DESCRIPTOR_HANDLE gpuVisibleHandle = m_DynamicViewDescriptorHeap.UploadDirect(target.GetUAV());
-	const UINT clearColor[4] = {};
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuVisibleHandle = m_DynamicViewDescriptorHeap->UploadDirect(target.GetUAV());
+	constexpr UINT clearColor[4] = {};
 	m_CommandList->ClearUnorderedAccessViewUint(gpuVisibleHandle, target.GetUAV(), target.GetResource(),
 		clearColor, 0, nullptr);
 }
@@ -539,7 +548,7 @@ void GraphicsContext::ClearUAV(ColorBuffer& target)
 
 	// After binding a UAV, we can get a GPU handle that is required to clear it as a UAV (because it essentially runs
 	// a shader to set all of the values).
-	D3D12_GPU_DESCRIPTOR_HANDLE gpuVisibleHandle = m_DynamicViewDescriptorHeap.UploadDirect(target.GetUAV());
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuVisibleHandle = m_DynamicViewDescriptorHeap->UploadDirect(target.GetUAV());
 	CD3DX12_RECT clearRect(0, 0, (LONG)target.GetWidth(), (LONG)target.GetHeight());
 
 	const float* clearColor = target.GetClearColor().GetPtr();
@@ -606,8 +615,8 @@ void GraphicsContext::SetRootSignature(const RootSignature& rootSig, bool bParse
 	// Sometimes i know i don't use DynamicDescriptorHeap, so no need to parse them!
 	if (bParseSignature)
 	{
-		m_DynamicViewDescriptorHeap.ParseGraphicsRootSignature(rootSig);
-		m_DynamicSamplerDescriptorHeap.ParseGraphicsRootSignature(rootSig);
+		m_DynamicViewDescriptorHeap->ParseGraphicsRootSignature(rootSig);
+		m_DynamicSamplerDescriptorHeap->ParseGraphicsRootSignature(rootSig);
 	}
 }
 
@@ -729,7 +738,7 @@ void GraphicsContext::SetDynamicConstantBufferView(UINT rootIndex, size_t buffer
 {
 	ASSERT(bufferData != nullptr && Math::IsAligned(bufferData, 16));
 	DynAlloc cb = m_CpuLinearAllocator.Allocate(bufferSize);
-	//SIMDMemCopy(cb.dataPtr, bufferData, Math::AlignUp(bufferSize, 16) >> 4);
+	// SIMDMemCopy(cb.dataPtr, bufferData, Math::AlignUp(bufferSize, 16) >> 4);
 	memcpy(cb.dataPtr, bufferData, bufferSize);
 	m_CommandList->SetGraphicsRootConstantBufferView(rootIndex, cb.GpuAddress);
 }
@@ -768,7 +777,7 @@ void GraphicsContext::SetDynamicDescriptor(UINT rootIndex, UINT offset, D3D12_CP
 
 void GraphicsContext::SetDynamicDescriptors(UINT rootIndex, UINT offset, UINT count, const D3D12_CPU_DESCRIPTOR_HANDLE handles[])
 {
-	m_DynamicViewDescriptorHeap.SetGraphicsDescriptorHandles(rootIndex, offset, count, handles);
+	m_DynamicViewDescriptorHeap->SetGraphicsDescriptorHandles(rootIndex, offset, count, handles);
 }
 
 void GraphicsContext::SetDynamicSampler(UINT rootIndex, UINT offset, D3D12_CPU_DESCRIPTOR_HANDLE handle)
@@ -778,7 +787,7 @@ void GraphicsContext::SetDynamicSampler(UINT rootIndex, UINT offset, D3D12_CPU_D
 
 void GraphicsContext::SetDynamicSamplers(UINT rootIndex, UINT offset, UINT count, const D3D12_CPU_DESCRIPTOR_HANDLE handles[])
 {
-	m_DynamicSamplerDescriptorHeap.SetGraphicsDescriptorHandles(rootIndex, offset, count, handles);
+	m_DynamicSamplerDescriptorHeap->SetGraphicsDescriptorHandles(rootIndex, offset, count, handles);
 }
 
 void GraphicsContext::SetIndexBuffer(const D3D12_INDEX_BUFFER_VIEW& ibv)
@@ -853,16 +862,16 @@ void GraphicsContext::DrawIndexed(UINT indexCount, UINT startIndexLocation, INT 
 void GraphicsContext::DrawInstanced(UINT vertexCountPerInstance, UINT instanceCount, UINT startVertexLocation, UINT startInstanceLocation)
 {
 	FlushResourceBarriers();
-	m_DynamicViewDescriptorHeap.CommitGraphicsRootDescriptorTables(m_CommandList);
-	m_DynamicSamplerDescriptorHeap.CommitGraphicsRootDescriptorTables(m_CommandList);
+	m_DynamicViewDescriptorHeap->CommitGraphicsRootDescriptorTables(m_CommandList);
+	m_DynamicSamplerDescriptorHeap->CommitGraphicsRootDescriptorTables(m_CommandList);
 	m_CommandList->DrawInstanced(vertexCountPerInstance, instanceCount, startVertexLocation, startInstanceLocation);
 }
 
 void GraphicsContext::DrawIndexedInstanced(UINT indexCountPerInstance, UINT instanceCount, UINT startIndexLocation, INT baseVertexLocation, UINT startInstanceLocation)
 {
 	FlushResourceBarriers();
-	m_DynamicViewDescriptorHeap.CommitGraphicsRootDescriptorTables(m_CommandList);
-	m_DynamicSamplerDescriptorHeap.CommitGraphicsRootDescriptorTables(m_CommandList);
+	m_DynamicViewDescriptorHeap->CommitGraphicsRootDescriptorTables(m_CommandList);
+	m_DynamicSamplerDescriptorHeap->CommitGraphicsRootDescriptorTables(m_CommandList);
 	m_CommandList->DrawIndexedInstanced(indexCountPerInstance, instanceCount, startIndexLocation, baseVertexLocation, startInstanceLocation);
 }
 
@@ -876,22 +885,23 @@ void GraphicsContext::ExecuteIndirect(CommandSignature& commandSig, GpuBuffer& a
 	GpuBuffer* commandCounterBuffer, uint64_t counterOffset)
 {
 	FlushResourceBarriers();
-	m_DynamicViewDescriptorHeap.CommitGraphicsRootDescriptorTables(m_CommandList);
-	m_DynamicSamplerDescriptorHeap.CommitGraphicsRootDescriptorTables(m_CommandList);
+	m_DynamicViewDescriptorHeap->CommitGraphicsRootDescriptorTables(m_CommandList);
+	m_DynamicSamplerDescriptorHeap->CommitGraphicsRootDescriptorTables(m_CommandList);
 	m_CommandList->ExecuteIndirect(commandSig.GetSignature(), maxCommands, 
 		argumentBuffer.GetResource(), argumentStartOffset,
 		commandCounterBuffer == nullptr ? nullptr : commandCounterBuffer->GetResource(), counterOffset);
 }
 
-// ComputeContext
+/// ComputeContext
+
 void ComputeContext::ClearUAV(GpuBuffer& target)
 {
 	FlushResourceBarriers();
 
 	// after binding a UAV, we can get a GPU handle that is required to clear it as a UAV (because it essentially runs
 	// a shader to set all of the values)
-	D3D12_GPU_DESCRIPTOR_HANDLE gpuVisibleHandle = m_DynamicViewDescriptorHeap.UploadDirect(target.GetUAV());
-	const UINT clearColor[4] = {};
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuVisibleHandle = m_DynamicViewDescriptorHeap->UploadDirect(target.GetUAV());
+	constexpr UINT clearColor[4] = {};
 	m_CommandList->ClearUnorderedAccessViewUint(gpuVisibleHandle, target.GetUAV(), target.GetResource(),
 		clearColor, 0, nullptr);
 }
@@ -902,7 +912,7 @@ void ComputeContext::ClearUAV(ColorBuffer& target)
 
 	// After binding a UAV, we can get a GPU handle that is required to clear it as a UAV (because it essentially runs
 	// a shader to set all of the values).
-	D3D12_GPU_DESCRIPTOR_HANDLE gpuVisibleHandle = m_DynamicViewDescriptorHeap.UploadDirect(target.GetUAV());
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuVisibleHandle = m_DynamicViewDescriptorHeap->UploadDirect(target.GetUAV());
 	CD3DX12_RECT clearRect(0, 0, (LONG)target.GetWidth(), (LONG)target.GetHeight());
 
 	const float* clearColor = target.GetClearColor().GetPtr();
@@ -918,8 +928,8 @@ void ComputeContext::SetRootSignature(const RootSignature& rootSig, bool bParseS
 
 	if (bParseSignature)
 	{
-		m_DynamicViewDescriptorHeap.ParseComputeRootSignature(rootSig);
-		m_DynamicSamplerDescriptorHeap.ParseComputeRootSignature(rootSig);
+		m_DynamicViewDescriptorHeap->ParseComputeRootSignature(rootSig);
+		m_DynamicSamplerDescriptorHeap->ParseComputeRootSignature(rootSig);
 	}
 }
 
@@ -973,7 +983,7 @@ void ComputeContext::SetDynamicConstantBufferView(UINT rootIndex, size_t bufferS
 {
 	ASSERT(bufferData != nullptr && Math::IsAligned(bufferData, 16));
 	DynAlloc cb = m_CpuLinearAllocator.Allocate(bufferSize);
-	//SIMDMemCopy(cb.dataPtr, bufferData, Math::AlignUp(bufferSize, 16) >> 4);
+	// SIMDMemCopy(cb.dataPtr, bufferData, Math::AlignUp(bufferSize, 16) >> 4);
 	memcpy(cb.dataPtr, bufferData, bufferSize);
 	m_CommandList->SetComputeRootConstantBufferView(rootIndex, cb.GpuAddress);
 }
@@ -1020,7 +1030,7 @@ void ComputeContext::SetDynamicDescriptor(UINT rootIndex, UINT offset, D3D12_CPU
 
 void ComputeContext::SetDynamicDescriptors(UINT rootIndex, UINT offset, UINT count, const D3D12_CPU_DESCRIPTOR_HANDLE handles[])
 {
-	m_DynamicViewDescriptorHeap.SetComputeDescriptorHandles(rootIndex, offset, count, handles);
+	m_DynamicViewDescriptorHeap->SetComputeDescriptorHandles(rootIndex, offset, count, handles);
 }
 
 void ComputeContext::SetDynamicSampler(UINT rootIndex, UINT offset, D3D12_CPU_DESCRIPTOR_HANDLE handle)
@@ -1030,15 +1040,15 @@ void ComputeContext::SetDynamicSampler(UINT rootIndex, UINT offset, D3D12_CPU_DE
 
 void ComputeContext::SetDynamicSamplers(UINT rootIndex, UINT offset, UINT count, const D3D12_CPU_DESCRIPTOR_HANDLE handles[])
 {
-	m_DynamicSamplerDescriptorHeap.SetComputeDescriptorHandles(rootIndex, offset, count, handles);
+	m_DynamicSamplerDescriptorHeap->SetComputeDescriptorHandles(rootIndex, offset, count, handles);
 }
 
 // Dispatch
 void ComputeContext::Dispatch(size_t groupCountX, size_t groupCountY, size_t groupCountZ)
 {
 	FlushResourceBarriers();
-	m_DynamicViewDescriptorHeap.CommitComputeRootDescriptorTables(m_CommandList);
-	m_DynamicSamplerDescriptorHeap.CommitComputeRootDescriptorTables(m_CommandList);
+	m_DynamicViewDescriptorHeap->CommitComputeRootDescriptorTables(m_CommandList);
+	m_DynamicSamplerDescriptorHeap->CommitComputeRootDescriptorTables(m_CommandList);
 	m_CommandList->Dispatch((UINT)groupCountX, (UINT)groupCountY, (UINT)groupCountZ);
 }
 
@@ -1070,8 +1080,8 @@ void ComputeContext::DispatchIndirect(GpuBuffer& argumentBuffer, uint64_t argume
 void ComputeContext::ExecuteIndirect(CommandSignature& commandSig, GpuBuffer& argumentBuffer, uint64_t argumentStartOffset, uint32_t maxCommands, GpuBuffer* commandCounterBuffer, uint64_t counterOffset)
 {
 	FlushResourceBarriers();
-	m_DynamicViewDescriptorHeap.CommitComputeRootDescriptorTables(m_CommandList);
-	m_DynamicSamplerDescriptorHeap.CommitComputeRootDescriptorTables(m_CommandList);
+	m_DynamicViewDescriptorHeap->CommitComputeRootDescriptorTables(m_CommandList);
+	m_DynamicSamplerDescriptorHeap->CommitComputeRootDescriptorTables(m_CommandList);
 	m_CommandList->ExecuteIndirect(commandSig.GetSignature(), maxCommands,
 		argumentBuffer.GetResource(), argumentStartOffset,
 		commandCounterBuffer == nullptr ? nullptr : commandCounterBuffer->GetResource(), counterOffset);
@@ -1119,8 +1129,8 @@ be performed.
 
 /**
 	https://docs.microsoft.com/en-us/windows/win32/direct3d12/indirect-drawing
-	Indirect Drawing
-	indirect drawing enables some scene-traversal and culling to be moved from the CPU to the GPU, which can
+	>> Indirect Drawing
+	Indirect drawing enables some scene-traversal and culling to be moved from the CPU to the GPU, which can
 improve performance. The command buffer can be generated by the CPU or GPU
 	** Command Signatures
 	** Indirect Argument Buffer Structures

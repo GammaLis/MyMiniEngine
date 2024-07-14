@@ -103,28 +103,32 @@ void Skybox::Init(ID3D12Device* pDevice, const std::wstring& fileName)
 		m_IndexCount = _countof(indices);
 		m_IndexOffset = 0;
 
-		//Geometry::Mesh box;
-		//MyBasicGeometry::BasicBox(2, 2, 2, box);
+#if 0
+		Geometry::Mesh box;
+		MyBasicGeometry::BasicBox(2, 2, 2, box);
 
 		// vertices
-		//m_VertexCount = box.vertices.size();
-		//m_VertexOffset = 0;
-		//m_VertexStride = sizeof(MyVertex);
-		//std::vector<MyVertex> vertices(m_VertexCount);
-		//for (size_t i = 0; i < m_VertexCount; ++i)
-		//{
-		//	vertices[i].position = box.vertices[i].position;
-		//}
+		m_VertexCount = box.vertices.size();
+		m_VertexOffset = 0;
+		m_VertexStride = sizeof(MyVertex);
+		std::vector<MyVertex> vertices(m_VertexCount);
+		for (size_t i = 0; i < m_VertexCount; ++i)
+		{
+			vertices[i].position = box.vertices[i].position;
+		}
+#endif
 		m_SkyVB.Create(pDevice, L"SkyboxVB", m_VertexCount, m_VertexStride, vertices);
 
 		// indices
-		//m_IndexCount = box.indices.size();
-		//m_IndexOffset = 0;
-		//std::vector<uint16_t> indices(m_IndexCount);
-		//for (size_t i = 0; i < m_IndexCount; ++i)
-		//{
-		//	indices[i] = static_cast<uint16_t>(box.indices[i]);
-		//}
+#if 0
+		m_IndexCount = box.indices.size();
+		m_IndexOffset = 0;
+		std::vector<uint16_t> indices(m_IndexCount);
+		for (size_t i = 0; i < m_IndexCount; ++i)
+		{
+			indices[i] = static_cast<uint16_t>(box.indices[i]);
+		}
+#endif
 		m_SkyIB.Create(pDevice, L"SkyboxIB", m_IndexCount, sizeof(uint16_t), indices);
 	}
 
@@ -165,7 +169,7 @@ void Skybox::Render(GraphicsContext& gfx, const Math::Camera& camera)
 
 	gfx.SetDynamicDescriptor(2, 0, srv);
 
-	gfx.DrawIndexed(m_IndexCount, m_IndexOffset, m_VertexOffset);
+	gfx.DrawIndexed(m_IndexCount, m_IndexOffset, static_cast<INT>(m_VertexOffset));
 }
 
 void Skybox::Shutdown()

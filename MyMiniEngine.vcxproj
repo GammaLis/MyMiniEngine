@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="packages\Microsoft.Direct3D.D3D12.1.614.0\build\native\Microsoft.Direct3D.D3D12.props" Condition="Exists('packages\Microsoft.Direct3D.D3D12.1.614.0\build\native\Microsoft.Direct3D.D3D12.props')" />
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -19,7 +20,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Core\LinearAllocator.h" />
+    <ClInclude Include="Core\mtqueue.h" />
     <ClInclude Include="Core\ProfilingScope.h" />
+    <ClInclude Include="Core\Utility.h" />
     <ClInclude Include="Effects\Denoiser.h" />
     <ClInclude Include="Effects\TemporalEffects.h" />
     <ClInclude Include="Game\Accelerations.h" />
@@ -81,14 +85,12 @@
     <ClInclude Include="Scenes\Scene.h" />
     <ClInclude Include="Core\stb_image.h" />
     <ClInclude Include="Core\stb_image_write.h" />
-    <ClInclude Include="Core\Utility.h" />
     <ClInclude Include="Core\VectorMath.h" />
     <ClInclude Include="Core\PipelineState.h" />
     <ClInclude Include="Core\RootSignature.h" />
     <ClInclude Include="Core\DynamicUploadBuffer.h" />
     <ClInclude Include="Core\Graphics.h" />
     <ClInclude Include="Core\DescriptorHeap.h" />
-    <ClInclude Include="Core\LinearAllocator.h" />
     <ClInclude Include="Core\PixelBuffer.h" />
     <ClInclude Include="Core\DepthBuffer.h" />
     <ClInclude Include="Core\DynamicDescriptorHeap.h" />
@@ -1386,8 +1388,10 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <LanguageStandard>Default</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <AdditionalOptions>
+      </AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -1437,17 +1441,18 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets" Condition="Exists('packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets')" />
-    <Import Project="packages\directxmesh_desktop_win10.2022.7.30.1\build\native\directxmesh_desktop_win10.targets" Condition="Exists('packages\directxmesh_desktop_win10.2022.7.30.1\build\native\directxmesh_desktop_win10.targets')" />
-    <Import Project="packages\directxtex_desktop_win10.2022.7.30.1\build\native\directxtex_desktop_win10.targets" Condition="Exists('packages\directxtex_desktop_win10.2022.7.30.1\build\native\directxtex_desktop_win10.targets')" />
-    <Import Project="packages\WinPixEventRuntime.1.0.220810001\build\WinPixEventRuntime.targets" Condition="Exists('packages\WinPixEventRuntime.1.0.220810001\build\WinPixEventRuntime.targets')" />
+    <Import Project="packages\directxmesh_desktop_win10.2024.6.5.1\build\native\directxmesh_desktop_win10.targets" Condition="Exists('packages\directxmesh_desktop_win10.2024.6.5.1\build\native\directxmesh_desktop_win10.targets')" />
+    <Import Project="packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets" Condition="Exists('packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')" />
+    <Import Project="packages\Microsoft.Direct3D.D3D12.1.614.0\build\native\Microsoft.Direct3D.D3D12.targets" Condition="Exists('packages\Microsoft.Direct3D.D3D12.1.614.0\build\native\Microsoft.Direct3D.D3D12.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>这台计算机上缺少此项目引用的 NuGet 程序包。使用“NuGet 程序包还原”可下载这些程序包。有关更多信息，请参见 http://go.microsoft.com/fwlink/?LinkID=322105。缺少的文件是 {0}。</ErrorText>
     </PropertyGroup>
     <Error Condition="!Exists('packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets'))" />
-    <Error Condition="!Exists('packages\directxmesh_desktop_win10.2022.7.30.1\build\native\directxmesh_desktop_win10.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\directxmesh_desktop_win10.2022.7.30.1\build\native\directxmesh_desktop_win10.targets'))" />
-    <Error Condition="!Exists('packages\directxtex_desktop_win10.2022.7.30.1\build\native\directxtex_desktop_win10.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\directxtex_desktop_win10.2022.7.30.1\build\native\directxtex_desktop_win10.targets'))" />
-    <Error Condition="!Exists('packages\WinPixEventRuntime.1.0.220810001\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\WinPixEventRuntime.1.0.220810001\build\WinPixEventRuntime.targets'))" />
+    <Error Condition="!Exists('packages\directxmesh_desktop_win10.2024.6.5.1\build\native\directxmesh_desktop_win10.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\directxmesh_desktop_win10.2024.6.5.1\build\native\directxmesh_desktop_win10.targets'))" />
+    <Error Condition="!Exists('packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets'))" />
+    <Error Condition="!Exists('packages\Microsoft.Direct3D.D3D12.1.614.0\build\native\Microsoft.Direct3D.D3D12.props')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Microsoft.Direct3D.D3D12.1.614.0\build\native\Microsoft.Direct3D.D3D12.props'))" />
+    <Error Condition="!Exists('packages\Microsoft.Direct3D.D3D12.1.614.0\build\native\Microsoft.Direct3D.D3D12.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Microsoft.Direct3D.D3D12.1.614.0\build\native\Microsoft.Direct3D.D3D12.targets'))" />
   </Target>
 </Project>

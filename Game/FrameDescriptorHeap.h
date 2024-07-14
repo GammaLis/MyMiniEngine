@@ -7,6 +7,7 @@ namespace MyDirectX
 	// Ref: MyNameIsMJP - BindlessDeferred
 
 	static constexpr uint32_t MaxFrameBufferCount = 3;
+	static constexpr uint32_t INDEX_NONE = std::numeric_limits<uint32_t>::max();
 
 	struct DescriptorRange
 	{
@@ -17,12 +18,12 @@ namespace MyDirectX
 	struct PersistentDescriptorAlloc
 	{
 		DescriptorHandle handles[MaxFrameBufferCount] = {};
-		uint32_t index = uint32_t(-1);
+		uint32_t index = INDEX_NONE;
 	};
 	struct TemporaryDescriptorAlloc
 	{
 		DescriptorHandle startHandle{};
-		uint32_t startIndex = uint32_t(-1);
+		uint32_t startIndex = INDEX_NONE;
 	};
 
 	class FrameDescriptorHeap
@@ -40,7 +41,7 @@ namespace MyDirectX
 		}
 		~FrameDescriptorHeap() { Destroy(); }
 
-		void Create(ID3D12Device *pDevice, const std::wstring &heapName, uint32_t numPersistent = uint32_t(-1));
+		void Create(ID3D12Device *pDevice, const std::wstring &heapName, uint32_t numPersistent = INDEX_NONE);
 		void Create(ID3D12Device *pDevice, const std::wstring &heapName, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t maxCount, uint32_t numPersistent, bool shaderVisible = true);
 
 		void Destroy();

@@ -115,8 +115,8 @@ namespace MyDirectX
 		ID3D12DescriptorHeap* GetHeapPointer() const { return m_DescriptorHeap.Get(); }
 		uint32_t GetDescriptorSize() const { return m_DescriptorSize; }
 		DescriptorHandle GetHandleAtOffset(uint32_t offset) const { return m_FirstHandle + offset * m_DescriptorSize; }
-		uint32_t GetOffsetOfHandle(const DescriptorHandle& handle) { return (uint32_t)(handle.GetCpuPtr() - m_FirstHandle.GetCpuPtr()) / m_DescriptorSize; }
-		uint32_t GetAllocedCount() const { return m_HeapDesc.NumDescriptors - m_NumFreeDescriptors; }
+		uint32_t GetOffsetOfHandle(const DescriptorHandle& handle) const { return (uint32_t)(handle.GetCpuPtr() - m_FirstHandle.GetCpuPtr()) / m_DescriptorSize; }
+		uint32_t GetAllocatedCount() const { return m_HeapDesc.NumDescriptors - m_NumFreeDescriptors; }
 		bool ValidateHandle(const DescriptorHandle& descHandle) const;
 
 	private:

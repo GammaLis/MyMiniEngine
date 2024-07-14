@@ -78,9 +78,9 @@ struct alignas(16) HitShaderConstants
 	uint32_t _UseShadowRays = 0;
 };
 
-static const uint32_t c_MaxFrameIndex = 255;
+static constexpr uint32_t c_MaxFrameIndex = 255;
 static const auto c_BackgroundColor = DirectX::Colors::White;
-static RaytracingMode s_RaytracingMode = RaytracingMode::ReSTIRWithDirectLights; // ReSTIRWithDirectLights ReSTIRGI
+static RaytracingMode s_RaytracingMode = RaytracingMode::Off; // ReSTIRWithDirectLights ReSTIRGI
 
 DynamicCB g_DynamicCB = {};
 HitShaderConstants g_HitShaderConstants = {};
@@ -93,7 +93,7 @@ struct FReservoir
 	float Weight;
 	float M;
 };
-const uint32_t c_MaxReservoirs = 1; // number of reservoirs per pixel to allocate
+constexpr uint32_t c_MaxReservoirs = 1; // number of reservoirs per pixel to allocate
 
 ModelViewer::ModelViewer(HINSTANCE hInstance, const char *modelName, const wchar_t* title, UINT width, UINT height)
 	: IGameApp(hInstance, title, width, height)
@@ -252,7 +252,7 @@ void ModelViewer::Update(float deltaTime)
 		g_ViewUniformBufferParameters.InvProjMatrix = Math::Transpose(invProjMat);
 		g_ViewUniformBufferParameters.ScreenToViewMatrix = Math::Transpose(screenToViewMat);
 		g_ViewUniformBufferParameters.ScreenToWorldMatrix = Math::Transpose(screenToWorldMat);
-		g_ViewUniformBufferParameters.BufferSizeAndInvSize = Math::Vector4((float)bufferWidth, (float)bufferHeight, 1.0f / bufferWidth, 1.0f / bufferHeight);
+		g_ViewUniformBufferParameters.BufferSizeAndInvSize = Math::Vector4((float)bufferWidth, (float)bufferHeight, 1.0f / (float)bufferWidth, 1.0f /(float)bufferHeight);
 		g_ViewUniformBufferParameters.InvDeviceZToWorldZTransform = Math::CreateInvDeviceZToWorldZTransform(projMat);
 		g_ViewUniformBufferParameters.DebugColor = Math::Vector4(c_BackgroundColor);
 		g_ViewUniformBufferParameters.CamPos = m_Camera.GetPosition();
@@ -291,8 +291,8 @@ void ModelViewer::Render()
 	psConstants._ShadowTexelSize[1] = 1.0f / shadowBuffer.GetHeight();
 
 	const auto& forwardPlusLighting = Effects::s_ForwardPlusLighting;
-	psConstants._InvTileDim[0] = 1.0f / forwardPlusLighting.m_LightGridDim;
-	psConstants._InvTileDim[1] = 1.0f / forwardPlusLighting.m_LightGridDim;
+	psConstants._InvTileDim[0] = 1.0f / (float)forwardPlusLighting.m_LightGridDim;
+	psConstants._InvTileDim[1] = 1.0f / (float)forwardPlusLighting.m_LightGridDim;
 
 	psConstants._TileCount[0] = Math::DivideByMultiple(colorBuffer.GetWidth(), forwardPlusLighting.m_LightGridDim);
 	psConstants._TileCount[1] = Math::DivideByMultiple(colorBuffer.GetHeight(), forwardPlusLighting.m_LightGridDim);
@@ -443,7 +443,7 @@ void ModelViewer::Render()
 		Effects::s_ParticleEffectManager.Render(gfxContext, m_Camera, colorBuffer, depthBuffer, linearDepth);
 	}
 	
-	// 普通渲染顺序，不经z prepass
+	// No ZPrepass
 	/**
 	{
 		gfxContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
@@ -620,7 +620,7 @@ void ModelViewer::InitCustom()
 
 	// Resources
 	// ...
-	m_ExtraTextures[0] = Graphics::s_TextureManager.GetWhiteTex2D().GetSRV();	// 暂时为空
+	m_ExtraTextures[0] = Graphics::s_TextureManager.GetWhiteTex2D().GetSRV();	// Null yet
 	m_ExtraTextures[1] = Graphics::s_BufferManager.m_ShadowBuffer.GetSRV();
 
 	// Effects
@@ -723,7 +723,7 @@ void ModelViewer::RenderLightShadows(GraphicsContext& gfxContext)
 	++LightIndex;
 }
 
-void ModelViewer::RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4 viewProjMat, ObjectFilter filter)
+void ModelViewer::RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4 &viewProjMat, ObjectFilter filter)
 {
 	using std::wstring;
 	static const wstring RenderOpaqueObjectsString = L"Render Objects Opaque";
@@ -744,8 +744,8 @@ void ModelViewer::RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4
 	ProfilingScope profilingScope(ProfilingString, gfxContext);
 
 	VSConstants vsConstants;
-	vsConstants._ModelToProjection = Math::Transpose(viewProjMat);	// HLSL - 对应 mul(float4(pos), mat)
-	// vsConstants._ModelToProjection = (viewProjMat);	// HLSL - 对应 mul(mat, float4(pos))
+	vsConstants._ModelToProjection = Math::Transpose(viewProjMat);	// HLSL - mul(float4(pos), mat)
+	// vsConstants._ModelToProjection = (viewProjMat);	// HLSL - mul(mat, float4(pos))
 	vsConstants._ModelToShadow = Math::Transpose(m_SunShadow.GetShadowMatrix());
 	XMStoreFloat3(&vsConstants._CamPos, m_Camera.GetPosition());
 
@@ -1708,7 +1708,7 @@ void ModelViewer::InitRaytracingViews(ID3D12Device* pDevice)
 	uint32_t numMeshes = m_Model->m_MeshCount;
 	uint32_t numMaterials = m_Model->m_MaterialCount;
 
-	uint32_t descOffset = m_RaytracingDescHeap.GetAllocedCount();
+	uint32_t descOffset = m_RaytracingDescHeap.GetAllocatedCount();
 
 	// Texture descriptor heap
 	// Copy descriptors
@@ -1931,13 +1931,13 @@ void ModelViewer::InitRaytracingStateObjects(ID3D12Device *pDevice)
 	uint32_t numMeshes = m_Model->m_MeshCount;
 	uint32_t numMaterials = m_Model->m_MaterialCount;
 
-	uint32_t descOffset = m_RaytracingDescHeap.GetAllocedCount();
+	uint32_t descOffset = m_RaytracingDescHeap.GetAllocatedCount();
 
 	SamplerDesc DefaultSamplerDesc;
 	DefaultSamplerDesc.MaxAnisotropy = 8;
 
 	/// Root signature
-	// Gloal Raytracing RS
+	// Global Raytracing RS
 	m_GlobalRaytracingRS.Reset((UINT)RTGlobalRSId::Num, 4);
 	m_GlobalRaytracingRS[(UINT)RTGlobalRSId::ViewUniforms].InitAsConstantBuffer(g_ViewUniformBufferParamsRegister, g_UniformBufferParamsSpace);
 	m_GlobalRaytracingRS[(UINT)RTGlobalRSId::SceneBuffers].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,  1,  8); // SceneBuffers: MeshInfo+IB+VB+LightBuffer+...
@@ -1957,7 +1957,7 @@ void ModelViewer::InitRaytracingStateObjects(ID3D12Device *pDevice)
 	m_GlobalRaytracingRS.InitStaticSampler(3, Graphics::s_CommonStates.SamplerShadowDesc);
 	m_GlobalRaytracingRS.Finalize(Graphics::s_Device, L"Global RaytracingRS");
 
-	// Lobal Raytracing RS
+	// Local Raytracing RS
 	m_LocalRaytracingRS.Reset(2, 0);
 	UINT sizeOfRootConstantInDwords = (sizeof(MaterialRootConstant) - 1) / sizeof(DWORD) + 1;
 	m_LocalRaytracingRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 6, 2, 1); // space = 1
@@ -2119,16 +2119,18 @@ void ModelViewer::InitRaytracingStateObjects(ID3D12Device *pDevice)
 	stateObject.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
 #endif
 
-	const UINT shaderIdentifierSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+	constexpr UINT shaderIdentifierSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 #define ALIGN(alignment, num) ((((num) + alignment - 1) / alignment) * alignment)
-	const UINT offsetToDescriptorHandle = ALIGN(sizeof(D3D12_GPU_DESCRIPTOR_HANDLE), shaderIdentifierSize);
-	const UINT offsetToMaterialConstants= ALIGN(sizeof(UINT32), offsetToDescriptorHandle + sizeof(D3D12_GPU_DESCRIPTOR_HANDLE));
-	const UINT shaderRecordSizeInBytes  = ALIGN(D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT, offsetToMaterialConstants + sizeof(MaterialRootConstant));
+// If num is POT	
+// #define ALIGN(alignment, num) ( alignment + num-1 ) & (~(num-1))
+	constexpr UINT offsetToDescriptorHandle = ALIGN(sizeof(D3D12_GPU_DESCRIPTOR_HANDLE), shaderIdentifierSize);
+	constexpr UINT offsetToMaterialConstants= ALIGN(sizeof(UINT32), offsetToDescriptorHandle + sizeof(D3D12_GPU_DESCRIPTOR_HANDLE));
+	constexpr UINT shaderRecordSizeInBytes  = ALIGN(D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT, offsetToMaterialConstants + sizeof(MaterialRootConstant));
 
 #undef ALIGN
 
 	std::vector<byte> pHitShaderTable(shaderRecordSizeInBytes * numMeshes);
-	auto GetShaderTable = [=](const Model& model, ID3D12StateObject* pPSO, byte* pShaderTable)
+	auto GetShaderTable = [&](const Model& model, ID3D12StateObject* pPSO, byte* pShaderTable)
 	{
 		ID3D12StateObjectProperties* stateObjectProperties = nullptr;
 		ThrowIfFailed(pPSO->QueryInterface(IID_PPV_ARGS(&stateObjectProperties)));

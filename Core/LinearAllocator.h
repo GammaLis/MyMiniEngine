@@ -43,12 +43,12 @@ namespace MyDirectX
 			m_GpuVirtualAddress = m_pResource->GetGPUVirtualAddress();
 			m_pResource->Map(0, nullptr, &m_CpuVirtualAddress);
 		}
-		~LinearAllocationPage()
+		virtual ~LinearAllocationPage()
 		{
 			Unmap();
 		}
 
-		// UPLOAD_HEAP (or DEFAULT_HEAP Map ???，DEFAULT_HEAP也能MAP ??? -20-1-15)
+		// UPLOAD_HEAP (or DEFAULT_HEAP Map ??? DEFAULT_HEAP can MAP ??? -20-1-15)
 		void Map()
 		{
 			if (m_CpuVirtualAddress == nullptr)
@@ -68,12 +68,12 @@ namespace MyDirectX
 		D3D12_GPU_VIRTUAL_ADDRESS m_GpuVirtualAddress;
 	};
 
-	// 主要2种 分配器类型：GPU可写分配器(DefaultHeap),CPU可写分配器(UploadHeap)
+	// 2 AllocatorTypes锛欸PU writable (DefaultHeap), CPU writable (UploadHeap)
 	enum class LinearAllocatorType
 	{
 		kInvalidAllocator = -1,
 
-		kGpuExclusive = 0,	// DEFAULT GPU-writeable (via UAV)	exclisive - 独占的
+		kGpuExclusive = 0,	// DEFAULT GPU-writeable (via UAV)	exclusive
 		kCpuWritable = 1,	// UPLOAD CPU-writeable (but write combined)
 
 		kNumAllocatorTypes
@@ -85,7 +85,7 @@ namespace MyDirectX
 		kCpuAllocatorPageSize = 0x200000    // 2MB
 	};
 
-	// 页管理器 管理 页 的生命周期，和对应操作
+	// Page allocator, manages the life of pages
 	class LinearAllocatorPageManager
 	{
 	public:
@@ -99,9 +99,9 @@ namespace MyDirectX
 		// freed pages will be destroyed once their fence has passed. This is for single-use, "large" pages
 		void FreeLargePages(uint64_t fenceID, const std::vector<LinearAllocationPage*>& pages);
 
-		// -2020-3-28修改：
-		//	m_DeletionQueue没有加入m_PagePool，用完即删；
-		//	但是程序只执行一次时(如CommonCompute)，m_DeletionQueue没有删除
+		// -2020-3-28 Note:
+		//	m_DeletionQueue is not in m_PagePool, get deleted once used
+		//	But if only run once (e.g. CommonCompute), m_DeletionQueue does not get deleted
 		void Destroy() 
 		{ 
 			m_PagePool.clear(); 
@@ -124,8 +124,7 @@ namespace MyDirectX
 		std::mutex m_Mutex;
 	};
 
-	// 分配器 分配 页，页管理器 进行记录，操作和管理
-	// 多个线程 - 多个分配器
+	// Multi threads, multi allocators
 	class LinearAllocator
 	{
 	public:

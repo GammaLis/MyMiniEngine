@@ -130,5 +130,5 @@ namespace MyDirectX
 		ThrowIfFailed(value ? S_OK : E_FAIL, msg);
 	}
 
-	const unsigned SCR_WIDTH = 1080, SCR_HEIGHT = 720;
+	constexpr unsigned SCR_WIDTH = 1080, SCR_HEIGHT = 720;
 }

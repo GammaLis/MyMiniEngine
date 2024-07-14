@@ -225,7 +225,7 @@ namespace MyDirectX
 			destHandle += tableSize[i] * descriptorSize;
 
 			unsigned long skipCount;
-			// 比如 0b...10 0011 1000
+			// e.g. 0b...10 0011 1000
 			while (_BitScanForward64(&skipCount, setHandles))	// skipCount = 3
 			{
 				// skip over unset descriptor handles
@@ -335,5 +335,5 @@ namespace MyDirectX
 	}
 }
 
-// _BitScanReverse - 从高位到低位，第一个1出现位置（左边开始计数...3210）
-// _BitScanForward - 从低位到高位，第一个1出现位置
+// _BitScanReverse - from high to low, the first set bit (start from the left 3210)
+// _BitScanForward - from low to high, the first set bit

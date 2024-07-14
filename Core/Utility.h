@@ -14,73 +14,72 @@
 #pragma once
 
 #include "pch.h"
-#include <codecvt>
 
 namespace Utility
 {
 #ifdef _CONSOLE
-    inline void Print( const char* msg ) { printf("%s", msg); }
-    inline void Print( const wchar_t* msg ) { wprintf(L"%ws", msg); }
+    inline void Print(const char* msg) { printf("%s", msg); }
+    inline void Print(const wchar_t* msg) { wprintf(L"%ws", msg); }
 #else
     inline void Print(const char* msg) { OutputDebugStringA(msg); }
     inline void Print(const wchar_t* msg) { OutputDebugString(msg); }
 #endif
 
-    inline void Printf( const char* format, ... )
+    inline void Printf(const char* format, ...)
     {
         char buffer[256];
         va_list ap;
         va_start(ap, format);
-        vsprintf_s(buffer, 256, format, ap);
+        (void)vsprintf_s(buffer, 256, format, ap);
         va_end(ap);
         Print(buffer);
     }
 
-    inline void Printf( const wchar_t* format, ... )
+    inline void Printf(const wchar_t* format, ...)
     {
         wchar_t buffer[256];
         va_list ap;
         va_start(ap, format);
-        vswprintf(buffer, 256, format, ap);
+        (void)vswprintf(buffer, 256, format, ap);
         va_end(ap);
         Print(buffer);
     }
 
 #ifndef RELEASE
-    inline void PrintSubMessage( const char* format, ... )
+    inline void PrintSubMessage(const char* format, ...)
     {
         Print("--> ");
         char buffer[256];
         va_list ap;
         va_start(ap, format);
-        vsprintf_s(buffer, 256, format, ap);
+        (void)vsprintf_s(buffer, 256, format, ap);
         va_end(ap);
         Print(buffer);
         Print("\n");
     }
-    inline void PrintSubMessage( const wchar_t* format, ... )
+    inline void PrintSubMessage(const wchar_t* format, ...)
     {
         Print("--> ");
         wchar_t buffer[256];
         va_list ap;
         va_start(ap, format);
-        vswprintf(buffer, 256, format, ap);
+        (void)vswprintf(buffer, 256, format, ap);
         va_end(ap);
         Print(buffer);
         Print("\n");
     }
-    inline void PrintSubMessage( void )
+    inline void PrintSubMessage(void)
     {
     }
 
-    std::wstring UTF8ToWideString(const std::string &str);
-    std::string WideStringToUTF8(const std::wstring &wstr);
+    std::wstring UTF8ToWideString(const std::string& str);
+    std::string WideStringToUTF8(const std::wstring& wstr);
 
-    std::string ToLower(const std::string &str);
-    std::string GetBasePath(const std::string &str);
-    std::string RemoveBasePath(const std::string &str);
-    std::string GetFileExtension(const std::string &str);
-    std::string RemoveExtension(const std::string &str);
+    std::string ToLower(const std::string& str);
+    std::string GetBasePath(const std::string& str);
+    std::string RemoveBasePath(const std::string& str);
+    std::string GetFileExtension(const std::string& str);
+    std::string RemoveExtension(const std::string& str);
 
     std::wstring ToLower(const std::wstring& str);
     std::wstring GetBasePath(const std::wstring& str);
@@ -106,18 +105,18 @@ namespace Utility
 
 #ifdef RELEASE
 
-    #define ASSERT( isTrue, ... ) (void)(isTrue)
-    #define WARN_ONCE_IF( isTrue, ... ) (void)(isTrue)
-    #define WARN_ONCE_IF_NOT( isTrue, ... ) (void)(isTrue)
-    #define ERROR( msg, ... )
-    #define DEBUGPRINT( msg, ... ) do {} while(0)
-    #define ASSERT_SUCCEEDED( hr, ... ) (void)(hr)
+#define ASSERT( isTrue, ... ) (void)(isTrue)
+#define WARN_ONCE_IF( isTrue, ... ) (void)(isTrue)
+#define WARN_ONCE_IF_NOT( isTrue, ... ) (void)(isTrue)
+#define ERROR( msg, ... )
+#define DEBUGPRINT( msg, ... ) do {} while(0)
+#define ASSERT_SUCCEEDED( hr, ... ) (void)(hr)
 
 #else    // !RELEASE
 
-    #define STRINGIFY(x) #x
-    #define STRINGIFY_BUILTIN(x) STRINGIFY(x)
-    #define ASSERT( isFalse, ... ) \
+#define STRINGIFY(x) #x
+#define STRINGIFY_BUILTIN(x) STRINGIFY(x)
+#define ASSERT( isFalse, ... ) \
         if (!(bool)(isFalse)) { \
             Utility::Print("\nAssertion failed in " STRINGIFY_BUILTIN(__FILE__) " @ " STRINGIFY_BUILTIN(__LINE__) "\n"); \
             Utility::PrintSubMessage("\'" #isFalse "\' is false"); \
@@ -126,7 +125,7 @@ namespace Utility
             __debugbreak(); \
         }
 
-    #define ASSERT_SUCCEEDED( hr, ... ) \
+#define ASSERT_SUCCEEDED( hr, ... ) \
         if (FAILED(hr)) { \
             Utility::Print("\nHRESULT failed in " STRINGIFY_BUILTIN(__FILE__) " @ " STRINGIFY_BUILTIN(__LINE__) "\n"); \
             Utility::PrintSubMessage("hr = 0x%08X", hr); \
@@ -136,7 +135,7 @@ namespace Utility
         }
 
 
-    #define WARN_ONCE_IF( isTrue, ... ) \
+#define WARN_ONCE_IF( isTrue, ... ) \
     { \
         static bool s_TriggeredWarning = false; \
         if ((bool)(isTrue) && !s_TriggeredWarning) { \
@@ -148,30 +147,29 @@ namespace Utility
         } \
     }
 
-    #define WARN_ONCE_IF_NOT( isTrue, ... ) WARN_ONCE_IF(!(isTrue), __VA_ARGS__)
+#define WARN_ONCE_IF_NOT( isTrue, ... ) WARN_ONCE_IF(!(isTrue), __VA_ARGS__)
 
-    #define ERROR( ... ) \
+#define ERROR( ... ) \
         Utility::Print("\nError reported in " STRINGIFY_BUILTIN(__FILE__) " @ " STRINGIFY_BUILTIN(__LINE__) "\n"); \
         Utility::PrintSubMessage(__VA_ARGS__); \
         Utility::Print("\n");
 
-    #define DEBUGPRINT( msg, ... ) \
+#define DEBUGPRINT( msg, ... ) \
     Utility::Printf( msg "\n", ##__VA_ARGS__ );
 
 #endif
 
 #define BreakIfFailed( hr ) if (FAILED(hr)) __debugbreak()
 
-void SIMDMemCopy( void* __restrict Dest, const void* __restrict Source, size_t NumQuadwords );
-void SIMDMemFill( void* __restrict Dest, __m128 FillVector, size_t NumQuadwords );
+void SIMDMemCopy(void* __restrict Dest, const void* __restrict Source, size_t NumQuadwords);
+void SIMDMemFill(void* __restrict Dest, __m128 FillVector, size_t NumQuadwords);
 
-std::wstring MakeWStr( const std::string& str );
+std::wstring MakeWStr(const std::string& str);
 
 namespace StringUtils
 {
     // Falcor StringUtils.h
 
-    // Ç°×º
     inline bool HasPrefix(const std::string str, const std::string& prefix, bool caseSensitive = false)
     {
         if (str.size() >= prefix.size())
@@ -189,7 +187,7 @@ namespace StringUtils
         }
         return false;
     }
-    // ºó×º
+
     inline bool HasSuffix(const std::string& str, const std::string& suffix, bool caseSensitive = false)
     {
         if (str.size() >= suffix.size())
@@ -252,16 +250,22 @@ namespace StringUtils
     // Convert an ASCII string to a UTF-8 wstring
     inline std::wstring string_2_wstring(const std::string& s)
     {
-        std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
-        std::wstring ws = cvt.from_bytes(s);
+        // https://learn.microsoft.com/en-us/windows/win32/api/stringapiset/nf-stringapiset-multibytetowidechar
+        // https://stackoverflow.com/questions/6693010/how-do-i-use-multibytetowidechar
+        // 1. The first call to 'MultiByteToWideChar' is used to find the buffer size you need for the wide string.
+        // 2. Obtain a non-const buffer large enough to accomodate the wide string, using the buffer size from the Step 1.
+        int wchars_num = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
+        std::wstring ws(wchars_num, ' ');
+        (void)MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, ws.data(), wchars_num);
         return ws;
     }
 
     // Convert a UTF-8 wstring to an ASCII string
     inline std::string wstring_2_string(const std::wstring& ws)
     {
-        std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
-        std::string s = cvt.to_bytes(ws);
+        int size = WideCharToMultiByte(CP_UTF8, 0, ws.data(), -1, nullptr, 0, nullptr, nullptr);
+        std::string s(size, ' ');
+        (void)WideCharToMultiByte(CP_UTF8, 0, ws.data(), -1, s.data(), size, nullptr, nullptr);
         return s;
     }
 
@@ -278,7 +282,7 @@ namespace StringUtils
     {
         return filePath.substr(filePath.find_last_of("/\\") + 1);
     }
-    inline std::string GetFileNameWithNoExtensions(const std::string &filePath)
+    inline std::string GetFileNameWithNoExtensions(const std::string& filePath)
     {
         std::string baseFileName = filePath.substr(filePath.find_last_of("/\\") + 1);
         return baseFileName.substr(0, baseFileName.rfind('.'));
@@ -288,7 +292,7 @@ namespace StringUtils
 namespace MyDirectX
 {
     //--------------------------------------------------------------------------------------
-    // ½è¼øDDSTextureLoader.cpp
+    // Ref: DDSTextureLoader.cpp
     // Return the Bytes for a particular format
     //--------------------------------------------------------------------------------------
     static uint32_t BytesPerFormat(_In_ DXGI_FORMAT fmt)

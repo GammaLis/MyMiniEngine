@@ -19,13 +19,14 @@ namespace MyDirectX
 	class ForwardPlusLighting
 	{
 	public:
-		static const unsigned MaxLights = 128;
-		static const unsigned MinLightGridDim = 8;
+		static constexpr unsigned MaxLights = 128;
+		static constexpr unsigned MinLightGridDim = 8;
 
 		void Init(ID3D12Device *pDevice);
+		void Shutdown();
+		
 		void CreateRandomLights(ID3D12Device* pDevice, const Math::Vector3 minBound, const Math::Vector3 maxBound);
 		void FillLightGrid(GraphicsContext& gfxContext, const Math::Camera& camera, uint64_t frameIndex);
-		void Shutdown();
 
 		// must keep in sync with HLSL
 		struct LightData
@@ -37,10 +38,10 @@ namespace MyDirectX
 
 			DirectX::XMFLOAT3 coneDir;
 			DirectX::XMFLOAT2 coneAngles;
-			// Math::Matrix4 shadowTextureMatrix;		// WARNING:不能存为Math::Matrix4 - 16字节对齐 SIMD指令 ！！！
+			// Math::Matrix4 shadowTextureMatrix;		// WARNING: Can't use 'Math::Matrix4' - SIMD instructions need 16Byte alignment !!!
 			DirectX::XMFLOAT4X4 shadowTextureMatrix;
 		};
-		LightData m_LightData[MaxLights];
+		std::vector<LightData> m_LightData;
 
 		uint32_t m_LightGridDim = 16;
 
@@ -55,7 +56,7 @@ namespace MyDirectX
 		// shadow
 		ColorBuffer m_LightShadowArray;
 		ShadowBuffer m_LightShadowTempBuffer;
-		Math::Matrix4 m_LightShadowMatrix[MaxLights];
+		std::vector<Math::Matrix4> m_LightShadowMatrix;
 
 		uint32_t m_ShadowDim = 512;
 
@@ -145,14 +146,14 @@ resolution of 1280x720 and a tile size of 16x16 results in a 80x45 (3,600) light
 (for a 32-bit unsigned integer) so the light list would consume 2.88MB of GPU memory. Since we need a separate
 list for transparent and opaque geometry, this would consume a total o 5.76MB.
 	to generate the light grid and the light index list, a group-shared light index list is first generated
-in the compute shader. A global light index list counter is used to keep track of the currrent index into the 
+in the compute shader. A global light index list counter is used to keep track of the current index into the 
 global light index list. The global light index counter is atomically incremented so that no 2 thread groups
 can use the same range in the global light index list. Once the thread group has "reserved" space in the global
 light index list, the group-shared light index list is copied to the global light index list.
 	"1.loop through the global light list and cull the lights against the current tile's culling frustum. If the light
-is inside the frustum, the light index is added to the lcoal light index list."
+is inside the frustum, the light index is added to the local light index list."
 	"2.the current index in the global light index list is incremented by the number of lights that are contained
-in the local light index list. The original value of the globa light index list counter before being incremented
+in the local light index list. The original value of the global light index list counter before being incremented
 is stored in the local counter variable"
 	"3.the light grid G is updated with the current tile's offset and count into the global light index list".
 	"4.finally, the local light index list is copied into the global light index list."
@@ -164,7 +165,7 @@ is stored in the local counter variable"
 
 	> Frustum-Sphere Culling
 	a sphere is considered to be "inside" a plane if it is fully contained in the negative half-space of the plane.
-If a sphere is completly "inside" any of the frustum planes then it is outside of the frustum.
+If a sphere is completely "inside" any of the frustum planes then it is outside of the frustum.
 
 	> Frustum-Cone Culling
 	a cone can be defined by its tip T, a normalized direction vector d, the height of the cone h and 
@@ -176,9 +177,9 @@ the radius of the base r.
 		float3 d;	// direction of the cone
 		float r;	// bottom radius of the cone
 	}
-	to test if a cone is completely contained in the nagative half-space of a plane, only 2 points need to be tested:
+	to test if a cone is completely contained in the negative half-space of a plane, only 2 points need to be tested:
 	1.the tip of the cone;	2.the point that is one the base of the cone that is farthest away from the plane in 
-direciton of f(n)
+direction of f(n)
 	-mf v = x*Dir + y*n , Dot(v, Dir) = 0 ->
 	v = normalize(-Dot(Dir, n)*Dir + n)	<Dir != a*n>
 */

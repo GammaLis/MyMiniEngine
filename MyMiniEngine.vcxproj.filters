@@ -151,9 +151,6 @@
     <ClInclude Include="Core\GpuBuffer.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="Core\Utility.h">
-      <Filter>Core</Filter>
-    </ClInclude>
     <ClInclude Include="Core\Math\BoundingPlane.h">
       <Filter>Core\Math</Filter>
     </ClInclude>
@@ -221,9 +218,6 @@
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\DescriptorHeap.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="Core\LinearAllocator.h">
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\PixelBuffer.h">
@@ -438,6 +432,13 @@
     </ClInclude>
     <ClInclude Include="Game\FrameDescriptorHeap.h">
       <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\LinearAllocator.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Utility.h" />
+    <ClInclude Include="Core\mtqueue.h">
+      <Filter>Core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

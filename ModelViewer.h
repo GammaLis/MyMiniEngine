@@ -117,7 +117,7 @@ namespace MyDirectX
 		virtual void CustomUI(GraphicsContext &context) override;
 
 		void RenderLightShadows(GraphicsContext& gfxContext);
-		void RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4 viewProjMat, ObjectFilter filter = ObjectFilter::kAll);
+		void RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4 &viewProjMat, ObjectFilter filter = ObjectFilter::kAll);
 		void CreateParticleEffects();
 
 		Math::Camera m_Camera;
@@ -140,7 +140,7 @@ namespace MyDirectX
 		Math::Vector3 m_SunDirection;
 		ShadowCamera m_SunShadow;
 
-		D3D12_CPU_DESCRIPTOR_HANDLE m_ExtraTextures[6];
+		D3D12_CPU_DESCRIPTOR_HANDLE m_ExtraTextures[6]{};
 
 		void InitRaytracing();
 		void InitRaytracingViews(ID3D12Device* pDevice);
@@ -165,17 +165,17 @@ namespace MyDirectX
 
 		UserDescriptorHeap m_RaytracingDescHeap;
 		// UAVs & SRVs
-		D3D12_GPU_DESCRIPTOR_HANDLE m_OutColorUAV;
-		D3D12_GPU_DESCRIPTOR_HANDLE m_DepthAndNormalsTable;
-		D3D12_GPU_DESCRIPTOR_HANDLE m_SceneSrvs;
-		D3D12_GPU_DESCRIPTOR_HANDLE m_LightBufferSrv;
+		D3D12_GPU_DESCRIPTOR_HANDLE m_OutColorUAV{};
+		D3D12_GPU_DESCRIPTOR_HANDLE m_DepthAndNormalsTable{};
+		D3D12_GPU_DESCRIPTOR_HANDLE m_SceneSrvs{};
+		D3D12_GPU_DESCRIPTOR_HANDLE m_LightBufferSrv{};
 		// Meshes
-		D3D12_GPU_DESCRIPTOR_HANDLE m_GpuMeshInfo; // Not used now
+		D3D12_GPU_DESCRIPTOR_HANDLE m_GpuMeshInfo{}; // Not used now
 		// Texture srv descriptors
-		D3D12_GPU_DESCRIPTOR_HANDLE m_GpuSceneMaterialSrvs[32];
+		D3D12_GPU_DESCRIPTOR_HANDLE m_GpuSceneMaterialSrvs[32]{};
 
 		RaytracingDispatchRayInputs m_RaytracingInputs[(uint32_t)RaytracingType::Num];
-		D3D12_CPU_DESCRIPTOR_HANDLE m_BVHAttribSrvs[40];
+		D3D12_CPU_DESCRIPTOR_HANDLE m_BVHAttribSrvs[40]{};
 
 		// Ray tracing constants
 		ByteAddressBuffer m_HitConstantBuffer;

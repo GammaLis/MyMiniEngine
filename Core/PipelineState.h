@@ -28,7 +28,7 @@ namespace MyDirectX
 	protected:
 		const wchar_t *m_Name;
 		const RootSignature* m_RootSignature;
-		ID3D12PipelineState* m_PSO;		// 这里并不管理生命周期
+		ID3D12PipelineState* m_PSO;		// do not manage lifetime here
 	};
 
 	class GraphicsPSO : public PSO

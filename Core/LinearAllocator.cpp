@@ -152,9 +152,9 @@ namespace MyDirectX
 		return ret;
 	}
 
-	// -2020-3-28 修改：
+	// -2020-3-28 Note:
 	//	if (m_CurPage == nullptr) return;
-	//	当m_CurPage == nullptr时，m_LargePageList非空，无法提交删除
+	//	When m_CurPage == nullptr, m_LargePageList != nullptr, can't delete
 	void LinearAllocator::CleanupUsedPages(uint64_t fenceID)
 	{
 		if (m_CurPage != nullptr)

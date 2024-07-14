@@ -8,7 +8,9 @@ namespace Utility
 	using namespace concurrency;
 	using namespace std;
 
-	ByteArray NullFile = make_shared<vector<byte>>(vector<byte>());
+	using byte = ::byte;
+
+	ByteArray NullFile = make_shared<vector<byte>>();
 
 	ByteArray DecompressZippedFile(wstring& fileName);
 
@@ -24,7 +26,6 @@ namespace Utility
 			return NullFile;
 
 		// std::basic_istream<charT, Traits>::seekg
-		// 设置当前关联streambuf 对象的输入位置指示器。
 		ByteArray byteArray = make_shared<vector<byte>>(file.seekg(0, ios::end).tellg());
 		file.seekg(0, ios::beg).read((char*)byteArray->data(), byteArray->size());
 		file.close();
@@ -47,7 +48,7 @@ namespace Utility
 	ByteArray Inflate(ByteArray compressedSource, int& err, uint32_t chunkSize = 0x100000)
 	{
 		// create a dynamic buffer to hold compressed blocks
-		vector<unique_ptr<byte>> blocks;
+		vector<unique_ptr<::byte>> blocks;
 
 		z_stream strm = {};
 		strm.data_type = Z_BINARY;

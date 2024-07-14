@@ -7,8 +7,8 @@ CommandQueue::CommandQueue(D3D12_COMMAND_LIST_TYPE type)
 	: m_Type(type), 
 	m_CommandQueue(nullptr), 
 	m_pFence(nullptr), 
-	m_NextFenceValue((uint64_t)type << 56 | 1),			// 高8位存储type信息
-	m_LastCompletedFenceValue((uint64_t)type << 56),
+	m_NextFenceValue((uint64_t)type << CommandTypeBitShift | 1),			// type info in high 8 bits
+	m_LastCompletedFenceValue((uint64_t)type << CommandTypeBitShift),
 	m_AllocatorPool(type)
 {
 }
@@ -32,7 +32,7 @@ void CommandQueue::Create(ID3D12Device* pDevice)
 	
 	ASSERT_SUCCEEDED(pDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_pFence)));
 	m_pFence->SetName(L"CommandListManager::m_pFence");
-	m_pFence->Signal((uint64_t)m_Type << 56);
+	m_pFence->Signal((uint64_t)m_Type << CommandTypeBitShift);
 
 	m_FenceEventHandle = CreateEvent(nullptr, false, false, nullptr);
 	ASSERT(m_FenceEventHandle != nullptr);
@@ -50,7 +50,11 @@ void CommandQueue::ShutDown()
 
 	m_AllocatorPool.Shutdown();
 
-	CloseHandle(m_FenceEventHandle);
+	if (m_FenceEventHandle)
+	{
+		CloseHandle(m_FenceEventHandle);
+		m_FenceEventHandle = nullptr;
+	}
 
 	m_pFence->Release();
 	m_pFence = nullptr;
@@ -70,7 +74,7 @@ uint64_t CommandQueue::IncrementFence()
 
 bool CommandQueue::IsFenceComplete(uint64_t fenceValue)
 {
-	// avoid querying the fence value by testing against the last one seen.
+	// Avoid querying the fence value by testing against the last one seen.
 	// the max() is to protect against an unlikely race condition that could cause the last
 	// completed fence value to regress
 	if (fenceValue > m_LastCompletedFenceValue)
@@ -81,9 +85,7 @@ bool CommandQueue::IsFenceComplete(uint64_t fenceValue)
 
 void CommandQueue::StallForFence(uint64_t fenceValue)
 {
-	// 之前传入参数 CommandListManager *pCmdListManager
-	// CommandQueue& producer = pCmdListManager->GetQueue((D3D12_COMMAND_LIST_TYPE)(fenceValue >> 56));
-	CommandQueue& producer = Graphics::s_CommandManager.GetQueue((D3D12_COMMAND_LIST_TYPE)(fenceValue >> 56));
+	CommandQueue& producer = Graphics::s_CommandManager.GetQueue((D3D12_COMMAND_LIST_TYPE)(fenceValue >> CommandTypeBitShift));
 	m_CommandQueue->Wait(producer.m_pFence, fenceValue);
 }
 
@@ -178,10 +180,12 @@ void CommandListManager::CreateNewCommandList(D3D12_COMMAND_LIST_TYPE type, ID3D
 
 	switch (type)
 	{
+	default:
 	case D3D12_COMMAND_LIST_TYPE_DIRECT:
 		*allocator = m_GraphicsQueue.RequestAllocator();
 		break;
 	case D3D12_COMMAND_LIST_TYPE_BUNDLE:
+		// TODO...
 		break;
 	case D3D12_COMMAND_LIST_TYPE_COMPUTE:
 		*allocator = m_ComputeQueue.RequestAllocator();
