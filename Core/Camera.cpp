@@ -131,9 +131,8 @@ Vector4 Math::CreateInvDeviceZToWorldZTransform(const Matrix4 &ProjMatrix)
     // View.InvDeviceZToWorldZTransform[1] = -ProjMatrix.M[3][2] / ProjMatrix.M[2][2] + 1.0f
     // View.InvDeviceZToWorldZTransform[2] = 0.0f
     // View.InvDeviceZToWorldZTransform[3] = 1.0f
-
-    bool bIsPerspectiveProjection = ProjMatrix.GetW().GetW() < 1.0f;
-    if(bIsPerspectiveProjection)
+    
+    if (bool bIsPerspectiveProjection = ProjMatrix.GetW().GetW() < 1.0f)
     {
         float subtractValue = depthMul / depthAdd;
 
@@ -141,10 +140,10 @@ Vector4 Math::CreateInvDeviceZToWorldZTransform(const Matrix4 &ProjMatrix)
         // This fixes fog not being applied to the black background in the editor.
         subtractValue -= 0.00000001f;
 
-        return Vector4(0.0f, 0.0f, 1.0f / depthAdd, subtractValue);
+        return { 0.0f, 0.0f, 1.0f / depthAdd, subtractValue };
     }
     else
     {
-        return Vector4(1.0f / depthMul, -depthAdd / depthMul + 1.0f, 0.0f, 1.0f);
+        return { 1.0f / depthMul, -depthAdd / depthMul + 1.0f, 0.0f, 1.0f };
     }
 }

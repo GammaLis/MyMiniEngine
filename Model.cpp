@@ -9,9 +9,9 @@
 #include <assimp\postprocess.h>
 
 #ifdef _DEBUG
-#pragma comment(lib, "assimp-vc142-mtd.lib")
+#pragma comment(lib, "assimp-vc143-mtd.lib")
 #else
-#pragma comment(lib, "assimp-vc142-mt.lib")
+#pragma comment(lib, "assimp-vc143-mt.lib")
 #endif
 
 namespace MyDirectX
@@ -19,13 +19,13 @@ namespace MyDirectX
 	using namespace Math;
 	using namespace DirectX::PackedVector;
 
-	// 去除扩展名
+	// Remove file extensions
 	inline std::string ModifyFilePath(const char* str, const std::string &name)
 	{
 		if (*str == '\0')
 			return std::string();
 		
-		const uint32_t Size = 256;
+		constexpr uint32_t Size = 256;
 		char path[Size];
 		uint32_t i = 0;
 		for (auto imax = name.size(); i < imax; ++i)
@@ -35,7 +35,7 @@ namespace MyDirectX
 		path[i++] = '/';
 		path[i++] = '\0';
 
-		// 类似 textures\\xxx.png
+		// e.g. textures\\xxx.png
 		const char* pStart = strrchr(str, '\\');
 		if (pStart == nullptr)
 			pStart = strrchr(str, '/');
@@ -47,8 +47,7 @@ namespace MyDirectX
 
 		strncat_s(path, pStart, Size - 1);
 		
-		// 加载DDS图片需要
-		// 删除文件扩展名
+		// Loading DDS needs remove the file extension
 		char* pch = strrchr(path, '.');
 		while (pch != nullptr && *pch != 0) *(pch++) = 0;
 
@@ -68,8 +67,8 @@ namespace MyDirectX
 	};
 
 	Model::Model()
-		: m_pMesh(nullptr), m_pMaterial(nullptr),
-		m_pVertexData(nullptr), m_pIndexData(nullptr),
+		: m_Meshes(nullptr), m_Materials(nullptr),
+		m_VertexData(nullptr), m_IndexData(nullptr),
 		m_SRVs(nullptr)
 	{
 		Cleanup();
@@ -86,33 +85,13 @@ namespace MyDirectX
 		m_IndexBuffer.Destroy();
 		m_HitShaderMeshInfoBuffer.Destroy();
 
-		if (m_pMesh)
-		{
-			delete[] m_pMesh;
-			m_pMesh = nullptr;
-		}
-		if (m_pMaterial)
-		{
-			delete[] m_pMaterial;
-			m_pMaterial = nullptr;
-		}
-		if (m_pVertexData)
-		{
-			delete[] m_pVertexData;
-			// _aligned_free(m_pVertexData);	// 对应_aligned_malloc
-			m_pVertexData = nullptr;
-		}
-		if (m_pIndexData)
-		{
-			delete[] m_pIndexData;
-			// _aligned_free(m_pIndexData);	// 对应_aligned_malloc
-			m_pIndexData = nullptr;
-		}
-		if (m_SRVs)
-		{
-			delete[] m_SRVs;
-			m_SRVs = nullptr;
-		}
+		m_Meshes = nullptr;
+		m_Materials = nullptr;
+
+		m_VertexData = nullptr;
+		m_IndexData = nullptr;
+
+		m_SRVs = nullptr;
 	}
 
 	void Model::Create(ID3D12Device* pDevice)
@@ -155,24 +134,19 @@ namespace MyDirectX
 		{
 			// Vertex buffer & index buffer
 			{
-				m_VertexBuffer.Create(pDevice, L"VertexBuffer", m_VertexDataByteSize / m_VertexStride, m_VertexStride, m_pVertexData);
-				m_IndexBuffer.Create(pDevice, L"IndexBuffer", m_IndexDataByteSize / sizeof(uint16_t), sizeof(uint16_t), m_pIndexData);
+				m_VertexBuffer.Create(pDevice, L"VertexBuffer", m_VertexDataByteSize / m_VertexStride, m_VertexStride, m_VertexData.get());
+				m_IndexBuffer.Create(pDevice, L"IndexBuffer", m_IndexDataByteSize / kIndexStride, kIndexStride, m_IndexData.get());
 
-				delete[] m_pVertexData;
-				// _aligned_free(m_pVertexData);	// 对应_aligned_malloc
-				m_pVertexData = nullptr;
-
-				delete[] m_pIndexData;
-				// _aligned_free(m_pIndexData);	// 对应_aligned_malloc
-				m_pIndexData = nullptr;
+				m_VertexData = nullptr;
+				m_IndexData = nullptr;
 			}
 
 			// Textures
 			{
-				// 默认加载DDS图片,需要删去图片路径扩展名
+				// Load DDS textures default , need remove the file extension
 				LoadTextures(pDevice);
 				
-				// 采用stb_image加载图片（默认png格式） 
+				// Load textures using std_image (default png texture)
 				// LoadTexturesBySTB_IMAGE(pDevice);
 			}
 
@@ -194,11 +168,12 @@ namespace MyDirectX
 		// usually - if speed is not the most important aspect for you - you'll
 		// probably to request more postprocessing than we do in this example.
 		const aiScene* scene = importer.ReadFile(fileName,
-			aiProcess_CalcTangentSpace |
-			aiProcess_FlipUVs |
-			aiProcess_Triangulate |
-			aiProcess_JoinIdenticalVertices |
-			aiProcess_SortByPType);
+			aiProcess_CalcTangentSpace
+			| aiProcess_FlipUVs
+			| aiProcess_Triangulate
+			// | aiProcess_JoinIdenticalVertices
+			// | aiProcess_SortByPType
+			);
 
 		if (!scene)
 		{
@@ -237,13 +212,13 @@ namespace MyDirectX
 		// Materials
 		{
 			m_MaterialCount = scene->mNumMaterials;
-			m_pMaterial = new Material[m_MaterialCount];
+			m_Materials.reset( new Material[m_MaterialCount] );
 			m_MaterialIsCutout.resize(m_MaterialCount);
-			memset(m_pMaterial, 0, sizeof(Material) * m_MaterialCount);
+			memset(m_Materials.get(), 0, sizeof(Material) * m_MaterialCount);
 			for (size_t matIdx = 0; matIdx < m_MaterialCount; ++matIdx)
 			{
 				const aiMaterial* srcMat = scene->mMaterials[matIdx];
-				Material* dstMat = m_pMaterial + matIdx;
+				Material& dstMat = m_Materials[matIdx];
 
 				// Constants
 				aiColor3D diffuse(1.0f, 1.0f, 1.0f);
@@ -273,11 +248,6 @@ namespace MyDirectX
 				srcMat->Get(AI_MATKEY_SHININESS, shininess);
 				srcMat->Get(AI_MATKEY_SHININESS_STRENGTH, specularStrength);
 
-				// > My test
-				float transparencyFactor = 0.0f;
-				srcMat->Get(AI_MATKEY_TRANSPARENCYFACTOR, transparencyFactor);
-				// Test end <
-
 				srcMat->Get(AI_MATKEY_TEXTURE(aiTextureType_DIFFUSE, 0), texDiffusePath);
 				srcMat->Get(AI_MATKEY_TEXTURE(aiTextureType_SPECULAR, 0), texSpecularPath);
 				srcMat->Get(AI_MATKEY_TEXTURE(aiTextureType_NORMALS, 0), texNormalPath);
@@ -285,127 +255,133 @@ namespace MyDirectX
 				srcMat->Get(AI_MATKEY_TEXTURE(aiTextureType_LIGHTMAP, 0), texLightmapPath);
 				srcMat->Get(AI_MATKEY_TEXTURE(aiTextureType_REFLECTION, 0), texReflectionPath);
 
-				dstMat->diffuse = Vector3(diffuse.r, diffuse.g, diffuse.b);
-				dstMat->specular = Vector3(specular.r, specular.g, specular.b);
-				dstMat->ambient = Vector3(ambient.r, ambient.g, ambient.b);
-				dstMat->emissive = Vector3(emissive.r, emissive.g, emissive.b);
-				dstMat->transparent = Vector3(transparent.r, transparent.g, transparent.b);
-				dstMat->opacity = opacity;
-				dstMat->shininess = shininess;
-				dstMat->specularStrength = specularStrength;
+				dstMat.diffuse = Vector3(diffuse.r, diffuse.g, diffuse.b);
+				dstMat.specular = Vector3(specular.r, specular.g, specular.b);
+				dstMat.ambient = Vector3(ambient.r, ambient.g, ambient.b);
+				dstMat.emissive = Vector3(emissive.r, emissive.g, emissive.b);
+				dstMat.transparent = Vector3(transparent.r, transparent.g, transparent.b);
+				dstMat.opacity = opacity;
+				dstMat.shininess = shininess;
+				dstMat.specularStrength = specularStrength;
 
 				// texture path
-				dstMat->texDiffusePath = ModifyFilePath(texDiffusePath.C_Str(), name);
-				dstMat->texSpecularPath = ModifyFilePath(texSpecularPath.C_Str(), name);
-				dstMat->texNormalPath = ModifyFilePath(texNormalPath.C_Str(), name);
-				dstMat->texEmissivePath = ModifyFilePath(texEmissivePath.C_Str(), name);
-				dstMat->texLightmapPath = ModifyFilePath(texLightmapPath.C_Str(), name);
-				dstMat->texReflectionPath = ModifyFilePath(texReflectionPath.C_Str(), name);
+				dstMat.texDiffusePath = ModifyFilePath(texDiffusePath.C_Str(), name);
+				dstMat.texSpecularPath = ModifyFilePath(texSpecularPath.C_Str(), name);
+				dstMat.texNormalPath = ModifyFilePath(texNormalPath.C_Str(), name);
+				dstMat.texEmissivePath = ModifyFilePath(texEmissivePath.C_Str(), name);
+				dstMat.texLightmapPath = ModifyFilePath(texLightmapPath.C_Str(), name);
+				dstMat.texReflectionPath = ModifyFilePath(texReflectionPath.C_Str(), name);
 
 				// is cutout ?
-				m_MaterialIsCutout[matIdx] = IsCutoutMaterial(dstMat->texDiffusePath);
+				m_MaterialIsCutout[matIdx] = IsCutoutMaterial(dstMat.texDiffusePath);
 
 				aiString matName;
 				srcMat->Get(AI_MATKEY_NAME, matName);
-				dstMat->name = std::string(matName.C_Str());
+				dstMat.name = std::string(matName.C_Str());
 			}
 		}
 
-		/**
-			Mesh
-		*/
+		// Mesh
 		m_MeshCount = scene->mNumMeshes;
-		m_pMesh = new Mesh[m_MeshCount];
-		memset(m_pMesh, 0, sizeof(Mesh) * m_MeshCount);
+		m_VertexDataByteSize = 0;
+		m_IndexDataByteSize = 0;
+		m_Meshes.reset(new Mesh[m_MeshCount]);
+		memset(m_Meshes.get(), 0, sizeof(Mesh) * m_MeshCount);
 		{
 			// First pass, count everything
 			for (unsigned int meshIndex = 0; meshIndex < m_MeshCount; ++meshIndex)
 			{
 				const aiMesh* srcMesh = scene->mMeshes[meshIndex];
-				Mesh* dstMesh = m_pMesh + meshIndex;
+				Mesh& dstMesh = m_Meshes[meshIndex];
 
-				assert(srcMesh->mPrimitiveTypes == aiPrimitiveType::aiPrimitiveType_TRIANGLE);
+				// Clear first
+				dstMesh.attribsEnabled = 0;
+				dstMesh.vertexStride = 0;
 
-				dstMesh->materialIndex = srcMesh->mMaterialIndex;
+				ASSERT(srcMesh->mPrimitiveTypes & aiPrimitiveType::aiPrimitiveType_TRIANGLE);
+
+				dstMesh.materialIndex = srcMesh->mMaterialIndex;
 
 				// Just store everything as float. Can quantize in Model::optimize()
 				// 0.Position
 				// if (srcMesh->HasPositions())	// always true
 				{
-					dstMesh->attribsEnabled |= (unsigned int)AttribMask::attrib_mask_position;
+					dstMesh.attribsEnabled |= (unsigned int)AttribMask::attrib_mask_position;
 
-					auto& attrib_pos = dstMesh->attrib[(unsigned int)Attrib::attrib_position];
-					attrib_pos.offset = dstMesh->vertexStride;
+					auto& attrib_pos = dstMesh.attrib[(unsigned int)Attrib::attrib_position];
+					attrib_pos.offset = dstMesh.vertexStride;
 					attrib_pos.normalized = 0;
 					attrib_pos.components = 3;
 					attrib_pos.format = (unsigned int)AttribFormat::attrib_format_float;
-					dstMesh->vertexStride += sizeof(float) * 3;
+					dstMesh.vertexStride += sizeof(float) * 3;
 				}
 
 				// 1.Texcoord0
-				// if (srcMesh->HasTextureCoords(0))	// 默认含有，统一格式
+				// if (srcMesh->HasTextureCoords(0))	// default
 				{
-					dstMesh->attribsEnabled |= (unsigned int)AttribMask::attrib_mask_texcoord0;
+					dstMesh.attribsEnabled |= (unsigned int)AttribMask::attrib_mask_texcoord0;
 
-					auto& attrib_texcoord0 = dstMesh->attrib[(unsigned int)Attrib::attrib_texcoord0];
-					attrib_texcoord0.offset = dstMesh->vertexStride;
+					auto& attrib_texcoord0 = dstMesh.attrib[(unsigned int)Attrib::attrib_texcoord0];
+					attrib_texcoord0.offset = dstMesh.vertexStride;
 					attrib_texcoord0.normalized = 0;
 					attrib_texcoord0.components = 2;
 					attrib_texcoord0.format = (unsigned int)AttribFormat::attrib_format_float;
-					dstMesh->vertexStride += sizeof(float) * 2;
+					dstMesh.vertexStride += sizeof(float) * 2;
 				}
 
 				// 2.Normal
-				// if (srcMesh->HasNormals())	// 默认含有，统一格式
+				// if (srcMesh->HasNormals())	// default
 				{
-					dstMesh->attribsEnabled |= (unsigned int)AttribMask::attrib_mask_normal;
+					dstMesh.attribsEnabled |= (unsigned int)AttribMask::attrib_mask_normal;
 
-					auto& attrib_normal = dstMesh->attrib[(unsigned int)Attrib::attrib_normal];
-					attrib_normal.offset = dstMesh->vertexStride;
+					auto& attrib_normal = dstMesh.attrib[(unsigned int)Attrib::attrib_normal];
+					attrib_normal.offset = dstMesh.vertexStride;
 					attrib_normal.normalized = 0;
 					attrib_normal.components = 3;
 					attrib_normal.format = (unsigned int)AttribFormat::attrib_format_float;
-					dstMesh->vertexStride += sizeof(float) * 3;
+					dstMesh.vertexStride += sizeof(float) * 3;
 				}
 
 				// 3.Tangent & bitangent
 				// if (srcMesh->HasTangentsAndBitangents())
 				{
 					// Tangent
-					dstMesh->attribsEnabled |= (unsigned int)AttribMask::attrib_mask_tangent;
-					
-					auto &attrib_tangent = dstMesh->attrib[(unsigned int)Attrib::attrib_tangent];
-					attrib_tangent.offset = dstMesh->vertexStride;
-					attrib_tangent.normalized = 0;
-					attrib_tangent.components = 3;
-					attrib_tangent.format = (unsigned int)AttribFormat::attrib_format_float;
-					dstMesh->vertexStride += sizeof(float) * 3;
+					dstMesh.attribsEnabled |= (unsigned int)AttribMask::attrib_mask_tangent;
+					{
+						auto &attrib_tangent = dstMesh.attrib[(unsigned int)Attrib::attrib_tangent];
+						attrib_tangent.offset = dstMesh.vertexStride;
+						attrib_tangent.normalized = 0;
+						attrib_tangent.components = 3;
+						attrib_tangent.format = (unsigned int)AttribFormat::attrib_format_float;
+					}
+					dstMesh.vertexStride += sizeof(float) * 3;
 
 					// Bitangent
-					dstMesh->attribsEnabled |= (unsigned int)AttribMask::attrib_mask_bitangent;
-
-					auto& attrib_bitangent = dstMesh->attrib[(unsigned int)Attrib::attrib_bitangent];
-					attrib_bitangent.offset = dstMesh->vertexStride;
-					attrib_bitangent.normalized = 0;
-					attrib_bitangent.components = 3;
-					attrib_bitangent.format = (unsigned int)AttribFormat::attrib_format_float;
-					dstMesh->vertexStride += sizeof(float) * 3;
+					dstMesh.attribsEnabled |= (unsigned int)AttribMask::attrib_mask_bitangent;
+					{
+						auto& attrib_bitangent = dstMesh.attrib[(unsigned int)Attrib::attrib_bitangent];
+						attrib_bitangent.offset = dstMesh.vertexStride;
+						attrib_bitangent.normalized = 0;
+						attrib_bitangent.components = 3;
+						attrib_bitangent.format = (unsigned int)AttribFormat::attrib_format_float;
+					}
+					dstMesh.vertexStride += sizeof(float) * 3;
 				}
 
-				dstMesh->vertexDataByteOffset = m_VertexDataByteSize;
-				dstMesh->vertexCount = srcMesh->mNumVertices;
-				m_VertexDataByteSize += dstMesh->vertexStride * dstMesh->vertexCount;
+				dstMesh.vertexDataByteOffset = m_VertexDataByteSize;
+				dstMesh.vertexCount = srcMesh->mNumVertices;
+				m_VertexDataByteSize += dstMesh.vertexStride * dstMesh.vertexCount;
 
-				dstMesh->indexDataByteOffset = m_IndexDataByteSize;
-				dstMesh->indexCount = srcMesh->mNumFaces * 3;
-				m_IndexDataByteSize += sizeof(uint16_t) * dstMesh->indexCount;
+				dstMesh.indexDataByteOffset = m_IndexDataByteSize;
+				dstMesh.indexCount = srcMesh->mNumFaces * 3;
+				m_IndexDataByteSize += kIndexStride * dstMesh.indexCount;
 
 			}
 		}
 
 		{
-			// 认为所有 submesh vertexstride 一致（这样才能放在一个VertexBuffer里）
-			m_VertexStride = m_pMesh[0].vertexStride;
+			// All submeshes vertex strides are the same (They can be put in one VertexBuffer)
+			m_VertexStride = m_Meshes[0].vertexStride;
 
 			// Allocate storage
 			/**
@@ -414,71 +390,69 @@ namespace MyDirectX
 			return memory that is usually not sufficiently aligned for __declspec(align(#)) structures or arrays of
 			structures.
 			*/
-			m_pVertexData = new unsigned char[m_VertexDataByteSize];
-			m_pIndexData = new unsigned char[m_IndexDataByteSize];
-			// new 默认内存对齐 ？？
-			// (注：C++17 显式支持对齐 void *operator new (std::size_t count, std::align_val al))
+			m_VertexData.reset( new uint8_t[m_VertexDataByteSize] );
+			m_IndexData.reset( new uint8_t[m_IndexDataByteSize] );
+			// new is memory aligned by default ???
+			// (Note: C++17 supports void *operator new (std::size_t count, std::align_val al))
 			// or
-			// _aligned_malloc&_aligned_free 确保内存对齐	-20-2-26
-			//m_pVertexData = (unsigned char*)_aligned_malloc(m_VertexDataByteSize, 16);
-			//m_pIndexData = (unsigned char*)_aligned_malloc(m_IndexDataByteSize, 16);
+			// _aligned_malloc&_aligned_free, memory is aligned	-20-2-26
+			// m_pVertexData = (unsigned char*)_aligned_malloc(m_VertexDataByteSize, 16);
+			// m_pIndexData = (unsigned char*)_aligned_malloc(m_IndexDataByteSize, 16);
 			
-			// -mf
-			memset(m_pVertexData, 0, m_VertexDataByteSize);
-			memset(m_pIndexData, 0, m_IndexDataByteSize);
+#if 0
+			memset(m_VertexData.get(), 0, m_VertexDataByteSize);
+			memset(m_IndexData.get(), 0, m_IndexDataByteSize);
+#endif
 			// 改用 SIMD指令
 			// 好像不能使用new分配的内存，报错；采用_aligned_malloc没有问题	-20-2-26
-			//__m128 val = _mm_set1_ps(0);
-			//SIMDMemFill(m_pVertexData, val, Math::DivideByMultiple(m_VertexDataByteSize, 16));
-			//SIMDMemFill(m_pIndexData, val, Math::DivideByMultiple(m_IndexDataByteSize, 16));
+			// __m128 val = _mm_set1_ps(0);
+			// SIMDMemFill(m_pVertexData, val, Math::DivideByMultiple(m_VertexDataByteSize, 16));
+			// SIMDMemFill(m_pIndexData, val, Math::DivideByMultiple(m_IndexDataByteSize, 16));
 
 			// second pass, fill in vertex and index data
 			for (unsigned int meshIndex = 0; meshIndex < m_MeshCount; ++meshIndex)
 			{
 				const aiMesh* srcMesh = scene->mMeshes[meshIndex];
-				Mesh* dstMesh = m_pMesh + meshIndex;
+				Mesh& dstMesh = m_Meshes[meshIndex];
 				
 				// 0.position
 				if (srcMesh->HasPositions() && srcMesh->mVertices)	// HasPositions -> always true
 				{
-					float* dstPos = (float*)(m_pVertexData + dstMesh->vertexDataByteOffset +
-						dstMesh->attrib[(unsigned int)Attrib::attrib_position].offset);
-					for (unsigned int v = 0, vMax = dstMesh->vertexCount; v < vMax; ++v)
+					auto *data = GetVertexData<Attrib::attrib_position>(dstMesh);
+					for (unsigned int v = 0, vMax = dstMesh.vertexCount; v < vMax; ++v)
 					{
-						dstPos[0] = srcMesh->mVertices[v].x;
-						dstPos[1] = srcMesh->mVertices[v].y;
-						dstPos[2] = srcMesh->mVertices[v].z;
+						data[0] = srcMesh->mVertices[v].x;
+						data[1] = srcMesh->mVertices[v].y;
+						data[2] = srcMesh->mVertices[v].z;
 
-						dstPos = (float*)((unsigned char*)(dstPos) + dstMesh->vertexStride);
+						data = (float*)((uint8_t*)(data) + dstMesh.vertexStride);
 					}
 				}
 
 				// 1.texcoord0
 				if (srcMesh->HasTextureCoords(0) && srcMesh->mTextureCoords[0])
 				{
-					float *dstTexcoord0 = (float*)(m_pVertexData + dstMesh->vertexDataByteOffset +
-						dstMesh->attrib[(unsigned int)Attrib::attrib_texcoord0].offset);
-					for (unsigned int v = 0, vMax = dstMesh->vertexCount; v < vMax; ++v)
+					auto* data = GetVertexData<Attrib::attrib_texcoord0>(dstMesh);
+					for (unsigned int v = 0, vMax = dstMesh.vertexCount; v < vMax; ++v)
 					{
-						dstTexcoord0[0] = srcMesh->mTextureCoords[0][v].x;
-						dstTexcoord0[1] = srcMesh->mTextureCoords[0][v].y;
+						data[0] = srcMesh->mTextureCoords[0][v].x;
+						data[1] = srcMesh->mTextureCoords[0][v].y;
 
-						dstTexcoord0 = (float*)((unsigned char*)(dstTexcoord0) + dstMesh->vertexStride);
+						data = (float*)((uint8_t*)(data) + dstMesh.vertexStride);
 					}
 				}
 
 				// 2.normal
 				if (srcMesh->HasNormals() && srcMesh->mNormals)
 				{
-					float* dstNormal = (float*)(m_pVertexData + dstMesh->vertexDataByteOffset +
-						dstMesh->attrib[(unsigned int)Attrib::attrib_normal].offset);
-					for (unsigned int v = 0, vMax = dstMesh->vertexCount; v < vMax; ++v)
+					auto* data = GetVertexData<Attrib::attrib_normal>(dstMesh);
+					for (unsigned int v = 0, vMax = dstMesh.vertexCount; v < vMax; ++v)
 					{
-						dstNormal[0] = srcMesh->mNormals[v].x;
-						dstNormal[1] = srcMesh->mNormals[v].y;
-						dstNormal[2] = srcMesh->mNormals[v].z;
+						data[0] = srcMesh->mNormals[v].x;
+						data[1] = srcMesh->mNormals[v].y;
+						data[2] = srcMesh->mNormals[v].z;
 
-						dstNormal = (float*)((unsigned char*)(dstNormal) + dstMesh->vertexStride);
+						data = (float*)((uint8_t*)(data) + dstMesh.vertexStride);
 					}
 				}
 
@@ -486,52 +460,50 @@ namespace MyDirectX
 				if (srcMesh->HasTangentsAndBitangents())
 				{
 					// tangent
-					float* dstTangent = (float*)(m_pVertexData + dstMesh->vertexDataByteOffset +
-						dstMesh->attrib[(unsigned int)Attrib::attrib_tangent].offset);
-					for (unsigned int v = 0, vMax = dstMesh->vertexCount; v < vMax; ++v)
+					auto* data = GetVertexData<Attrib::attrib_tangent>(dstMesh);
+					for (unsigned int v = 0, vMax = dstMesh.vertexCount; v < vMax; ++v)
 					{
 						if (srcMesh->mTangents)
 						{
-							dstTangent[0] = srcMesh->mTangents[v].x;
-							dstTangent[1] = srcMesh->mTangents[v].y;
-							dstTangent[2] = srcMesh->mTangents[v].z;
+							data[0] = srcMesh->mTangents[v].x;
+							data[1] = srcMesh->mTangents[v].y;
+							data[2] = srcMesh->mTangents[v].z;
 						}
 						else
 						{
-							// TO DO: generate tangents/bitangents if missing
-							dstTangent[0] = 1.0f;
-							dstTangent[1] = 0.0f;
-							dstTangent[2] = 0.0f;
+							// TODO: generate tangents/bitangents if missing
+							data[0] = 1.0f;
+							data[1] = 0.0f;
+							data[2] = 0.0f;
 						}
 
-						dstTangent = (float*)((unsigned char*)(dstTangent) + dstMesh->vertexStride);
+						data = (float*)((uint8_t*)(data) + dstMesh.vertexStride);
 					}
 
 					// bitangent
-					float* dstBitangent = (float*)(m_pVertexData + dstMesh->vertexDataByteOffset +
-						dstMesh->attrib[(unsigned int)Attrib::attrib_bitangent].offset);
-					for (unsigned int v = 0, vMax = dstMesh->vertexCount; v < vMax; ++v)
+					data = GetVertexData<Attrib::attrib_bitangent>(dstMesh);
+					for (unsigned int v = 0, vMax = dstMesh.vertexCount; v < vMax; ++v)
 					{
 						if (srcMesh->mBitangents)
 						{
-							dstBitangent[0] = srcMesh->mBitangents[v].x;
-							dstBitangent[1] = srcMesh->mBitangents[v].y;
-							dstBitangent[2] = srcMesh->mBitangents[v].z;
+							data[0] = srcMesh->mBitangents[v].x;
+							data[1] = srcMesh->mBitangents[v].y;
+							data[2] = srcMesh->mBitangents[v].z;
 						}
 						else
 						{
-							// TO DO: generate tangents/bitangents if missing
-							dstBitangent[0] = 1.0f;
-							dstBitangent[1] = 0.0f;
-							dstBitangent[2] = 0.0f;
+							// TODO: generate tangents/bitangents if missing
+							data[0] = 1.0f;
+							data[1] = 0.0f;
+							data[2] = 0.0f;
 						}
 
-						dstBitangent = (float*)((unsigned char*)(dstBitangent) + dstMesh->vertexStride);
+						data = (float*)((uint8_t*)(data) + dstMesh.vertexStride);
 					}
 				}
 
 				// index
-				uint16_t* dstIndex = (uint16_t*)(m_pIndexData + dstMesh->indexDataByteOffset);
+				uint16_t* dstIndex = (uint16_t*)(m_IndexData.get() + dstMesh.indexDataByteOffset);
 				for (unsigned int f = 0, fMax = srcMesh->mNumFaces; f < fMax; ++f)
 				{
 					assert(srcMesh->mFaces[f].mNumIndices == 3);
@@ -549,18 +521,16 @@ namespace MyDirectX
 	// assuming at least 3 floats for position
 	void Model::ComputeMeshBoundingBox(unsigned int meshIndex, BoundingBox& bbox) const
 	{
-		const Mesh* mesh = m_pMesh + meshIndex;
+		const auto &mesh = m_Meshes[meshIndex];
 
-		if (mesh->vertexCount > 0)
+		if (mesh.vertexCount > 0)
 		{
-			unsigned int vertexStride = mesh->vertexStride;
+			unsigned int vertexStride = mesh.vertexStride;
 
-			const float* p = (float*)(m_pVertexData + mesh->vertexDataByteOffset +
-				mesh->attrib[(unsigned int)Attrib::attrib_position].offset);
-			const float* pEnd = (float*)(m_pVertexData + mesh->vertexDataByteOffset +
-				mesh->vertexCount * mesh->vertexStride + mesh->attrib[(unsigned int)Attrib::attrib_position].offset);
+			const auto p = GetVertexData<Attrib::attrib_position>(mesh);
+			const auto pEnd = GetVertexData<Attrib::attrib_position>(mesh, mesh.vertexCount);
 
-			bbox.min = Vector3(FLT_MAX);
+			bbox.min = Vector3( FLT_MAX);
 			bbox.max = Vector3(-FLT_MAX);
 
 			while (p < pEnd)
@@ -588,10 +558,10 @@ namespace MyDirectX
 			bbox.max = Vector3(-FLT_MAX);
 			for (unsigned int meshIndex = 0; meshIndex < m_MeshCount; ++meshIndex)
 			{
-				const Mesh* mesh = m_pMesh + meshIndex;
+				const Mesh& mesh = m_Meshes[meshIndex];
 				
-				bbox.min = Min(bbox.min, mesh->boundingBox.min);
-				bbox.max = Max(bbox.max, mesh->boundingBox.max);
+				bbox.min = Min(bbox.min, mesh.boundingBox.min);
+				bbox.max = Max(bbox.max, mesh.boundingBox.max);
 			}
 		}
 		else
@@ -605,8 +575,8 @@ namespace MyDirectX
 	{
 		for (unsigned int meshIndex = 0; meshIndex < m_MeshCount; ++meshIndex)
 		{
-			Mesh* mesh = m_pMesh + meshIndex;
-			ComputeMeshBoundingBox(meshIndex, mesh->boundingBox);
+			Mesh& mesh = m_Meshes[meshIndex];
+			ComputeMeshBoundingBox(meshIndex, mesh.boundingBox);
 		}
 		ComputeGlobalBoundingBox(m_BoundingBox);
 	}
@@ -620,13 +590,13 @@ namespace MyDirectX
 	{
 		ReleaseTextures();
 
-		m_SRVs = new D3D12_CPU_DESCRIPTOR_HANDLE[m_MaterialCount * 6];
+		m_SRVs.reset( new D3D12_CPU_DESCRIPTOR_HANDLE[m_MaterialCount * kTexturesPerMaterial] );
 
 		const ManagedTexture* matTextures[6] = {};
 
 		for (unsigned int materialIdx = 0; materialIdx < m_MaterialCount; ++materialIdx)
 		{
-			const Material& mat = m_pMaterial[materialIdx];
+			const Material& mat = m_Materials[materialIdx];
 
 			// load diffuse
 			matTextures[0] = Graphics::s_TextureManager.LoadFromFile(pDevice, mat.texDiffusePath, true);
@@ -674,13 +644,13 @@ namespace MyDirectX
 	{
 		ReleaseTextures();
 
-		m_SRVs = new D3D12_CPU_DESCRIPTOR_HANDLE[m_MaterialCount * 6];
+		m_SRVs.reset( new D3D12_CPU_DESCRIPTOR_HANDLE[m_MaterialCount * kTexturesPerMaterial] );
 
-		const ManagedTexture* matTextures[6] = {};
+		const ManagedTexture* matTextures[kTexturesPerMaterial] = {};
 
 		for (unsigned int materialIdx = 0; materialIdx < m_MaterialCount; ++materialIdx)
 		{
-			const Material& mat = m_pMaterial[materialIdx];
+			const Material& mat = m_Materials[materialIdx];
 
 			// load diffuse
 			bool bValid = !mat.texDiffusePath.empty();
@@ -727,12 +697,12 @@ namespace MyDirectX
 			// load reflection
 			// matTextures[5] = Graphics::s_TextureManager.LoadBySTB_IMAGE(pDevice, mat.texReflectionPath, true);
 
-			m_SRVs[materialIdx * 6 + 0] = matTextures[0]->GetSRV();
-			m_SRVs[materialIdx * 6 + 1] = matTextures[1]->GetSRV();
-			m_SRVs[materialIdx * 6 + 2] = matTextures[2]->GetSRV();
-			m_SRVs[materialIdx * 6 + 3] = matTextures[0]->GetSRV();
-			m_SRVs[materialIdx * 6 + 4] = matTextures[0]->GetSRV();
-			m_SRVs[materialIdx * 6 + 5] = matTextures[0]->GetSRV();
+			m_SRVs[materialIdx * kTexturesPerMaterial + 0] = matTextures[0]->GetSRV();
+			m_SRVs[materialIdx * kTexturesPerMaterial + 1] = matTextures[1]->GetSRV();
+			m_SRVs[materialIdx * kTexturesPerMaterial + 2] = matTextures[2]->GetSRV();
+			m_SRVs[materialIdx * kTexturesPerMaterial + 3] = matTextures[0]->GetSRV();
+			m_SRVs[materialIdx * kTexturesPerMaterial + 4] = matTextures[0]->GetSRV();
+			m_SRVs[materialIdx * kTexturesPerMaterial + 5] = matTextures[0]->GetSRV();
 		}
 	}
 
@@ -741,7 +711,7 @@ namespace MyDirectX
 		m_MeshInfoData.resize(m_MeshCount);
 		for (unsigned int meshIndex = 0; meshIndex < m_MeshCount; ++meshIndex)
 		{
-			const Mesh &mesh = m_pMesh[meshIndex];
+			const Mesh &mesh = m_Meshes[meshIndex];
 			auto& meshInfoData = m_MeshInfoData[meshIndex];
 
 			meshInfoData.IndexOffsetBytes = mesh.indexDataByteOffset;

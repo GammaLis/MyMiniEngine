@@ -14,9 +14,9 @@
 #include <assimp/pbrmaterial.h>
 
 #ifdef _DEBUG
-#pragma comment(lib, "assimp-vc142-mtd.lib")
+#pragma comment(lib, "assimp-vc143-mtd.lib")
 #else
-#pragma comment(lib, "assimp-vc142-mt.lib")
+#pragma comment(lib, "assimp-vc143-mt.lib")
 #endif
 
 namespace MyDirectX
@@ -26,10 +26,10 @@ namespace MyDirectX
 
 namespace MFalcor
 {
-	//using MFalcor::Vector3;
-	//using MFalcor::Quaternion;
-	//using MFalcor::Matrix4x4;
-	//using MFalcor::Scene;
+	// using MFalcor::Vector3;
+	// using MFalcor::Quaternion;
+	// using MFalcor::Matrix4x4;
+	// using MFalcor::Scene;
 
 	enum class ImportMode
 	{

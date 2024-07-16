@@ -7,13 +7,20 @@
 #include "ProfilingScope.h"
 #include "UniformBuffers.h"
 
+#include "Camera.h"
+#include "ShadowCamera.h"
+#include "CameraController.h"
+
+#include "Skybox.h"
+#include "Scenes/DebugPass.h"
+
 // Compiled shaders
 #include "DepthViewerVS.h"
 #include "DepthViewerPS.h"
 #include "ModelViewerVS.h"
 #include "ModelViewerPS.h"
 
-// 临时
+// TODO: put somewhere else
 #include "LinearizeDepthCS.h"
 
 /// Raytracing
@@ -33,6 +40,9 @@
 #include "BufferCopyCS.h"
 
 // Reservoirs
+#include "ReservoirSampling.h"
+#include "ReSTIRGI.h"
+
 #include "ClearReservoirs.h"
 #include "ReSTIRWithDirectLighting.h"
 #include "ReSTIR_TraceDiffuse.h"
@@ -95,14 +105,51 @@ struct FReservoir
 };
 constexpr uint32_t c_MaxReservoirs = 1; // number of reservoirs per pixel to allocate
 
+
+using BatchElements = ModelViewer::BatchElements;
+
+void Cull(BatchElements &visibleMeshes, const Math::Camera& camera, const std::vector<const Model*>& models)
+{
+	visibleMeshes.clear();
+
+	const auto& frustumWS = camera.GetWorldSpaceFrustum();
+
+	// High 16bits - ModelId, low 16bits - MeshId (or SubmeshId)
+	uint32_t index = 0;
+	for (uint32_t i = 0, imax = (uint32_t)models.size(); i < imax; i++)
+	{
+		const auto& model = models[i];
+
+		bool bVisible = frustumWS.IntersectBoundingBox(model->GetBoundingBox().min, model->GetBoundingBox().max);
+		if (!bVisible)
+			continue;
+
+		index = i << 16;
+		for (uint32_t j = 0; j < model->m_MeshCount; ++j)
+		{
+			const auto& mesh = model->m_Meshes[j];
+			bVisible = frustumWS.IntersectBoundingBox(mesh.boundingBox.min, mesh.boundingBox.max);
+			if (bVisible)
+			{
+				visibleMeshes.emplace_back(index | j);
+			}
+		}
+	}
+}
+
+
 ModelViewer::ModelViewer(HINSTANCE hInstance, const char *modelName, const wchar_t* title, UINT width, UINT height)
 	: IGameApp(hInstance, title, width, height)
 	, m_RaytracingDescHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 256)
 {
 	m_ModelName = modelName;
 
+	m_Camera.reset(new Math::Camera);
+	m_SunShadow.reset(new ShadowCamera);
 	m_ReSTIRGI.reset(new ReSTIRGI());
 }
+
+ModelViewer::~ModelViewer() { }
 
 /**
 * The keys '0'...'6' can be used to cycle through different modes
@@ -145,13 +192,14 @@ void ModelViewer::Update(float deltaTime)
 	Effects::s_Denoier.SetActive(bNeedDenoising);
 
 	// Update camera params
+	auto &cam = *m_Camera.get();
 	{
-		const auto& prevRotation = m_Camera.GetRotation();
-		const auto& prevPosition = m_Camera.GetPosition();
+		const auto& prevRotation = cam.GetRotation();
+		const auto& prevPosition = cam.GetPosition();
 		m_CameraController->Update(deltaTime);
 
-		const auto& currRotation = m_Camera.GetRotation();
-		const auto& currPosition = m_Camera.GetPosition();
+		const auto& currRotation = cam.GetRotation();
+		const auto& currPosition = cam.GetPosition();
 
 		const auto& dr = XMVectorAbs(currRotation - prevRotation);
 		const auto& dp = currPosition - prevPosition;
@@ -165,7 +213,7 @@ void ModelViewer::Update(float deltaTime)
 		if (bViewportChanged)
 			m_AccumulationIndex = -1;
 
-		m_ViewProjMatrix = m_Camera.GetViewProjMatrix();
+		m_ViewProjMatrix = cam.GetViewProjMatrix();
 	}
 
 	if (raytracingMode != RaytracingMode::ReferencePathTracing)
@@ -208,11 +256,11 @@ void ModelViewer::Update(float deltaTime)
 	// Viewport & Scissor
 	const uint32_t bufferWidth = GfxStates::s_NativeWidth, bufferHeight = GfxStates::s_NativeHeight;
 	
-	// >>> DEBUG (改变Viewport位置，尺寸，Scissor位置，尺寸)
+	//~ Begin DEBUG: (改变Viewport位置，尺寸，Scissor位置，尺寸)
 	// m_MainViewport.TopLeftX = m_MainViewport.TopLeftY = 0.0f;
 	// m_MainViewport.TopLeftX = 10;
 	// m_MainViewport.TopLeftY = 10;
-	// <<< DEBUG end
+	//~ End DEBUG
 	m_MainViewport.Width = (float)bufferWidth;
 	m_MainViewport.Height = (float)bufferHeight;
 	m_MainViewport.MinDepth = 0.0f;
@@ -225,8 +273,8 @@ void ModelViewer::Update(float deltaTime)
 
 	// View uniforms
 	{
-		const auto& viewMat = m_Camera.GetViewMatrix();
-		const auto& projMat = m_Camera.GetProjMatrix();
+		const auto& viewMat = cam.GetViewMatrix();
+		const auto& projMat = cam.GetProjMatrix();
 		const auto& invViewMat = Math::Invert(viewMat);
 		const auto& invProjMat = Math::Invert(projMat);
 #if 0
@@ -245,9 +293,9 @@ void ModelViewer::Update(float deltaTime)
 		Math::Matrix4 screenToWorldMat = invViewMat * screenToViewMat; // Transpose later
 		g_ViewUniformBufferParameters.ViewMatrix = Math::Transpose(viewMat);
 		g_ViewUniformBufferParameters.ProjMatrix = Math::Transpose(projMat);
-		g_ViewUniformBufferParameters.ViewProjMatrix = Math::Transpose(m_Camera.GetViewProjMatrix());
-		g_ViewUniformBufferParameters.PrevViewProjMatrix = Math::Transpose(m_Camera.GetPrevViewProjMatrix());
-		g_ViewUniformBufferParameters.ReprojectMatrix = Math::Transpose(m_Camera.GetReprojectionMatrix());
+		g_ViewUniformBufferParameters.ViewProjMatrix = Math::Transpose(cam.GetViewProjMatrix());
+		g_ViewUniformBufferParameters.PrevViewProjMatrix = Math::Transpose(cam.GetPrevViewProjMatrix());
+		g_ViewUniformBufferParameters.ReprojectMatrix = Math::Transpose(cam.GetReprojectionMatrix());
 		g_ViewUniformBufferParameters.InvViewMatrix = Math::Transpose(invViewMat);
 		g_ViewUniformBufferParameters.InvProjMatrix = Math::Transpose(invProjMat);
 		g_ViewUniformBufferParameters.ScreenToViewMatrix = Math::Transpose(screenToViewMat);
@@ -255,9 +303,9 @@ void ModelViewer::Update(float deltaTime)
 		g_ViewUniformBufferParameters.BufferSizeAndInvSize = Math::Vector4((float)bufferWidth, (float)bufferHeight, 1.0f / (float)bufferWidth, 1.0f /(float)bufferHeight);
 		g_ViewUniformBufferParameters.InvDeviceZToWorldZTransform = Math::CreateInvDeviceZToWorldZTransform(projMat);
 		g_ViewUniformBufferParameters.DebugColor = Math::Vector4(c_BackgroundColor);
-		g_ViewUniformBufferParameters.CamPos = m_Camera.GetPosition();
+		g_ViewUniformBufferParameters.CamPos = cam.GetPosition();
 
-		float farClip = m_Camera.GetFarClip(), nearClip = m_Camera.GetNearClip();
+		float farClip = cam.GetFarClip(), nearClip = cam.GetNearClip();
 		g_ViewUniformBufferParameters.ZNear = nearClip;
 		g_ViewUniformBufferParameters.ZFar = farClip;
 		g_ViewUniformBufferParameters.ZMagic = (farClip - nearClip) / nearClip;
@@ -281,6 +329,8 @@ void ModelViewer::Render()
 	auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
 	auto& normalBuffer = Graphics::s_BufferManager.m_SceneNormalBuffer;
 	auto& shadowBuffer = Graphics::s_BufferManager.m_ShadowBuffer;
+
+	const auto &mainCamera = *m_Camera.get();
 
 	PSConstants psConstants;
 	psConstants._SunDirection = m_SunDirection;
@@ -309,6 +359,36 @@ void ModelViewer::Render()
 		rayTracingMode == RaytracingMode::SSR;
 	// ...
 
+	// Culling first
+	{
+		std::vector<const Model*> models = { m_Model.get() };
+		
+		// Default batch list
+		if (m_DefaultBatchList.empty())
+		{
+			uint32_t index = 0;
+			for (uint32_t modelIndex = 0, modelNum = (uint32_t)models.size(); modelIndex < modelNum; modelIndex++) {
+				const auto model = models[modelIndex];
+				index = modelIndex << 16;
+
+				for (uint32_t meshIndex = 0, meshNum = model->m_MeshCount; meshIndex < meshNum; meshIndex++) {
+					m_DefaultBatchList.emplace_back( index | meshIndex);
+				}
+			}
+		}
+
+		// 0. Main camera
+		// Always update
+		if (m_MainCullingIndex == INDEX_NONE) 
+		{
+			m_MainCullingIndex = static_cast<uint32_t>(m_PassCullingResults.size());
+			m_PassCullingResults.emplace_back();
+		}
+
+		auto &batchList = m_PassCullingResults[m_MainCullingIndex];
+		Cull(batchList, mainCamera, models);
+	}
+
 	GraphicsContext &gfxContext = GraphicsContext::Begin(L"Scene Render");
 
 	// Set the default state for command lists
@@ -321,7 +401,7 @@ void ModelViewer::Render()
 	};
 	pfnSetupGraphicsState();
 
-	// MaxLights 个 shadow pass，分帧进行，一帧一个
+	// 'MaxLights' shadow pass, one pass per frame
 	RenderLightShadows(gfxContext);
 
 	// Z prepass
@@ -339,19 +419,18 @@ void ModelViewer::Render()
 			gfxContext.SetViewportAndScissor(m_MainViewport, m_MainScissor);
 
 			gfxContext.SetPipelineState(m_DepthPSO);
-			RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kOpaque);
+			RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kOpaque, m_MainCullingIndex);
 		}
 
 		// Cutout
 		{
 			gfxContext.SetPipelineState(m_CutoutDepthPSO);
-			RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kCutout);
+			RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kCutout, m_MainCullingIndex);
 		}
 	}
 
 	// 
 	{
-		// 暂时先在这里 计算线性深度 （实际应在SSAO中计算，目前没有实现）
 		// Linearize depth
 		{
 			ProfilingScope profilingScope(L"Compute Linear Depth", gfxContext);
@@ -364,7 +443,7 @@ void ModelViewer::Render()
 			computeContext.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 			computeContext.TransitionResource(linearDepth, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 			
-			float farClip = m_Camera.GetFarClip(), nearClip = m_Camera.GetNearClip();
+			float farClip = mainCamera.GetFarClip(), nearClip = mainCamera.GetNearClip();
 			const float zMagic = (farClip - nearClip) / nearClip;
 			computeContext.SetConstant(0, zMagic);
 			computeContext.SetDynamicDescriptor(1, 0, depthBuffer.GetDepthSRV());
@@ -374,7 +453,7 @@ void ModelViewer::Render()
 		}
 
 		// CS - fill light grid
-		Effects::s_ForwardPlusLighting.FillLightGrid(gfxContext, m_Camera, frameIndex);
+		Effects::s_ForwardPlusLighting.FillLightGrid(gfxContext, mainCamera, frameIndex);
 	}
 
 	// Main render
@@ -389,16 +468,16 @@ void ModelViewer::Render()
 		{
 			ProfilingScope profilingScope(L"Render Shadowmap", gfxContext);
 
-			m_SunShadow.UpdateMatrix(-m_SunDirection, Math::Vector3(0, -500.0f, 0),
+			m_SunShadow->UpdateMatrix(-m_SunDirection, Math::Vector3(0, -500.0f, 0),
 				Math::Vector3(m_CommonStates.ShadowDimX, m_CommonStates.ShadowDimY, m_CommonStates.ShadowDimZ),
 				shadowBuffer.GetWidth(), shadowBuffer.GetHeight(), 16);
 
 			shadowBuffer.BeginRendering(gfxContext);
 
 			gfxContext.SetPipelineState(m_ShadowPSO);
-			RenderObjects(gfxContext, m_SunShadow.GetViewProjMatrix(), ObjectFilter::kOpaque);
+			RenderObjects(gfxContext, m_SunShadow->GetViewProjMatrix(), ObjectFilter::kOpaque);
 			gfxContext.SetPipelineState(m_CutoutShadowPSO);
-			RenderObjects(gfxContext, m_SunShadow.GetViewProjMatrix(), ObjectFilter::kCutout);
+			RenderObjects(gfxContext, m_SunShadow->GetViewProjMatrix(), ObjectFilter::kCutout);
 
 			shadowBuffer.EndRendering(gfxContext);
 		}
@@ -416,31 +495,34 @@ void ModelViewer::Render()
 			gfxContext.SetDynamicConstantBufferView((uint32_t)RSId::kMaterialConstants, sizeof(psConstants), &psConstants);
 			gfxContext.SetDynamicDescriptors((uint32_t)RSId::kCommonSRVs, 0, _countof(m_ExtraTextures), m_ExtraTextures);
 
-			// ->opauqe
+			// Opaques
 			gfxContext.SetPipelineState(m_ModelPSO);
-			RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kOpaque);
+			RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kOpaque, m_MainCullingIndex);
 
-			// ->cutout
+			// Cutouts
 			gfxContext.SetPipelineState(m_CutoutModelPSO);
-			RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kCutout);
+			RenderObjects(gfxContext, m_ViewProjMatrix, ObjectFilter::kCutout, m_MainCullingIndex);
 		}
 	}
 
 	// Skybox
-	m_Skybox.Render(gfxContext, m_Camera);
+	if (m_Skybox)
+	{
+		m_Skybox->Render(gfxContext, mainCamera);
+	}
 
 	// Effects
 	{
 		// Some systems generate a per-pixel velocity buffer to better track dynamic and skinned meshes.
 		// everything is static in our scene, so we generate velocity from camera motion and the depth buffer.
 		// a velocity buffer is necessary for all temporal effects (and motion blur)
-		Effects::s_MotionBlur.GenerateCameraVelocityBuffer(gfxContext, m_Camera, frameIndex, true);
+		Effects::s_MotionBlur.GenerateCameraVelocityBuffer(gfxContext, mainCamera, frameIndex, true);
 
 		Effects::s_TemporalAA.ResolveImage(gfxContext);
 
 		// Particle effects
 		auto& linearDepth = Graphics::s_BufferManager.m_LinearDepth[frameIndex % 2];
-		Effects::s_ParticleEffectManager.Render(gfxContext, m_Camera, colorBuffer, depthBuffer, linearDepth);
+		Effects::s_ParticleEffectManager.Render(gfxContext, mainCamera, colorBuffer, depthBuffer, linearDepth);
 	}
 	
 	// No ZPrepass
@@ -478,11 +560,11 @@ void ModelViewer::Render()
 
 		if (Effects::s_Denoier.IsActive())
 		{
-			m_DebugPass.Render(gfxContext, Effects::s_Denoier.GetDebugOutput());
+			m_DebugPass->Render(gfxContext, Effects::s_Denoier.GetDebugOutput());
 		}
 		else if (m_bEnableReSTIRGI)
 		{
-			m_DebugPass.Render(gfxContext, m_ReSTIRGI->m_Irradiance.GetSRV());
+			m_DebugPass->Render(gfxContext, m_ReSTIRGI->m_Irradiance.GetSRV());
 		}
 	}
 #endif
@@ -606,12 +688,14 @@ void ModelViewer::InitGeometryBuffers()
 void ModelViewer::InitCustom()
 {
 	// Camera
+	auto &mainCamera = *m_Camera.get();
+
 	float modelRadius = Math::Length(m_Model->m_BoundingBox.max - m_Model->m_BoundingBox.min) * 0.5f;
 	const Math::Vector3 eye = (m_Model->m_BoundingBox.min + m_Model->m_BoundingBox.max) * 0.5f + Math::Vector3(modelRadius * 0.5f, 0.0f, 0.0f);
-	m_Camera.SetEyeAtUp(eye, Math::Vector3(Math::kZero), Math::Vector3(Math::kYUnitVector));
-	m_Camera.SetZRange(1.0f, 10000.0f);
-	// m_Camera.Update();	// 若无CameraController，需要手动更新
-	m_CameraController.reset(new CameraController(m_Camera, Math::Vector3(Math::kYUnitVector), *m_Input));
+	mainCamera.SetEyeAtUp(eye, Math::Vector3(Math::kZero), Math::Vector3(Math::kYUnitVector));
+	mainCamera.SetZRange(1.0f, 10000.0f);
+	// m_Camera.Update();	// If no CameraController, need update manually
+	m_CameraController.reset(new CameraController(mainCamera, Math::Vector3(Math::kYUnitVector), *m_Input));
 
 	// Common uniforms
 	{
@@ -637,7 +721,8 @@ void ModelViewer::InitCustom()
 	m_ExtraTextures[5] = forwardPlusLighting.m_LightShadowArray.GetSRV();
 
 	// Skybox
-	m_Skybox.Init(Graphics::s_Device, L"grasscube1024");
+	m_Skybox.reset( new Skybox() );
+	m_Skybox->Init(Graphics::s_Device, L"grasscube1024");
 
 	// Particle effects
 	CreateParticleEffects();
@@ -654,7 +739,10 @@ void ModelViewer::InitCustom()
 	InitRaytracing();
 
 	if (m_bEnableDebug)
-		m_DebugPass.Init();
+	{
+		m_DebugPass.reset( new DebugPass() );
+		m_DebugPass->Init();
+	}
 }
 
 void ModelViewer::CleanCustom()
@@ -663,12 +751,18 @@ void ModelViewer::CleanCustom()
 	CleanRaytracing();
 
 	m_Model->Cleanup();
-	m_Skybox.Shutdown();
+
+	if (m_Skybox)
+	{
+		m_Skybox->Shutdown();
+	}
 
 	if (m_bEnableDebug)
-		m_DebugPass.Cleanup();
+	{
+		m_DebugPass->Cleanup();
+	}
 
-	// Gloabls
+	// Globals
 	{
 		g_ViewUniformBuffer.Destroy();
 	}
@@ -693,7 +787,7 @@ void ModelViewer::CustomUI(GraphicsContext &context)
 }
 
 // Render light shadows
-// 先将shadow深度渲染到Light::m_LightShadowTempBuffer,然后将其CopySubResource到Light::m_LightShadowArray.
+// Draw shadow depth to Light::m_LightShadowTempBuffer first, then CopySubResource to Light::m_LightShadowArray.
 void ModelViewer::RenderLightShadows(GraphicsContext& gfxContext)
 {
 	ProfilingScope profilingScope(L"Render Light Shadows", gfxContext);
@@ -723,7 +817,7 @@ void ModelViewer::RenderLightShadows(GraphicsContext& gfxContext)
 	++LightIndex;
 }
 
-void ModelViewer::RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4 &viewProjMat, ObjectFilter filter)
+void ModelViewer::RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4 &viewProjMat, ObjectFilter filter, uint32_t cullingIndex)
 {
 	using std::wstring;
 	static const wstring RenderOpaqueObjectsString = L"Render Objects Opaque";
@@ -731,7 +825,7 @@ void ModelViewer::RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4
 	static const wstring RenderTransparentObjectsString = L"Render Objects Transparent";
 	static const wstring RenderAllObjectsString = L"Render Objects All";
 	
-	wstring ProfilingString(L"");
+	wstring ProfilingString;
 	if (filter == ObjectFilter::kOpaque)
 		ProfilingString = RenderOpaqueObjectsString;
 	else if (filter == ObjectFilter::kCutout)
@@ -743,25 +837,54 @@ void ModelViewer::RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4
 
 	ProfilingScope profilingScope(ProfilingString, gfxContext);
 
+	// Draw
+
+	const BatchElements *batchList = nullptr;
+	if (cullingIndex == INDEX_NONE)
+		batchList = &m_DefaultBatchList;
+	else 
+		batchList = &m_PassCullingResults[cullingIndex];
+
 	VSConstants vsConstants;
 	vsConstants._ModelToProjection = Math::Transpose(viewProjMat);	// HLSL - mul(float4(pos), mat)
 	// vsConstants._ModelToProjection = (viewProjMat);	// HLSL - mul(mat, float4(pos))
-	vsConstants._ModelToShadow = Math::Transpose(m_SunShadow.GetShadowMatrix());
-	XMStoreFloat3(&vsConstants._CamPos, m_Camera.GetPosition());
+	vsConstants._ModelToShadow = Math::Transpose(m_SunShadow->GetShadowMatrix());
+	XMStoreFloat3(&vsConstants._CamPos, m_Camera->GetPosition());
 
 	gfxContext.SetDynamicConstantBufferView((uint32_t)RSId::kMeshConstants, sizeof(vsConstants), &vsConstants);
 
 	uint32_t curMatIdx = 0xFFFFFFFFul;
 
-	uint32_t vertexStride = m_Model->m_VertexStride;
+	for (uint32_t i = 0, imax = (uint32_t)batchList->size(); i < imax; i++) 
+	{
+		uint32_t index = (*batchList)[i];
+		uint32_t modelIndex = index >> 16, meshIndex = index & 0xFFFF;
 
+		const auto &mesh = m_Model->m_Meshes[meshIndex];
+		Model::DrawParams drawParams = mesh.GetDrawParams();
+
+		if (mesh.materialIndex != curMatIdx)
+		{
+			// filter objects
+			bool bCutoutMat = m_Model->m_MaterialIsCutout[mesh.materialIndex];
+			if (bCutoutMat && !((uint32_t)filter & (uint32_t)ObjectFilter::kCutout) ||
+				!bCutoutMat && !((uint32_t)filter & (uint32_t)ObjectFilter::kOpaque))
+				continue;
+
+			curMatIdx = mesh.materialIndex;
+			gfxContext.SetDynamicDescriptors((uint32_t)RSId::kMaterialSRVs, 0, Model::kTexturesPerMaterial, m_Model->GetSRVs(curMatIdx));
+
+			gfxContext.SetConstants((uint32_t)RSId::kCommonCBV, drawParams.baseVertex, curMatIdx);
+		}
+
+		gfxContext.DrawIndexed(drawParams.indexCount, drawParams.startIndex, drawParams.baseVertex);
+	}
+
+	#if 0
 	for (uint32_t meshIndex = 0; meshIndex < m_Model->m_MeshCount; ++meshIndex)
 	{
-		const Model::Mesh& mesh = m_Model->m_pMesh[meshIndex];
-
-		uint32_t indexCount = mesh.indexCount;
-		uint32_t indexOffset = mesh.indexDataByteOffset / sizeof(uint16_t);
-		uint32_t vertexOffset = mesh.vertexDataByteOffset / vertexStride;
+		const Model::Mesh& mesh = m_Model->m_Meshes[meshIndex];
+		Model::DrawParams drawParams = mesh.GetDrawParams();
 
 		if (mesh.materialIndex != curMatIdx)
 		{
@@ -772,13 +895,14 @@ void ModelViewer::RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4
 				continue;
 
 			curMatIdx = mesh.materialIndex;
-			gfxContext.SetDynamicDescriptors((uint32_t)RSId::kMaterialSRVs, 0, 6, m_Model->GetSRVs(curMatIdx));
+			gfxContext.SetDynamicDescriptors((uint32_t)RSId::kMaterialSRVs, 0, Model::kTexturesPerMaterial, m_Model->GetSRVs(curMatIdx));
 			
-			gfxContext.SetConstants((uint32_t)RSId::kCommonCBV, vertexOffset, curMatIdx);
+			gfxContext.SetConstants((uint32_t)RSId::kCommonCBV, drawParams.baseVertex, curMatIdx);
 		}
 
-		gfxContext.DrawIndexed(indexCount, indexOffset, vertexOffset);
+		gfxContext.DrawIndexed(drawParams.indexCount, drawParams.startIndex, drawParams.baseVertex);
 	}
+	#endif
 
 }
 
@@ -786,7 +910,7 @@ void ModelViewer::CreateParticleEffects()
 {
 	using namespace ParticleEffects;
 	auto& particleEffectManager = Effects::s_ParticleEffectManager;
-	Vector3 camPos = m_Camera.GetPosition();
+	Vector3 camPos = m_Camera->GetPosition();
 
 	ParticleEffectProperties effect;
 	effect.MinStartColor = effect.MaxStartColor = effect.MinEndColor = effect.MaxEndColor = Color(1.0f, 1.0f, 1.0f, 1.0f);
@@ -901,13 +1025,15 @@ void ModelViewer::Raytrace(GraphicsContext& gfxContext)
 	const auto W = colorBuffer.GetWidth();
 	const auto H = colorBuffer.GetHeight();
 
+	auto &mainCamera = *m_Camera.get();
+
 	// Update constants
 	{
 		DynamicCB& inputs = g_DynamicCB;
-		auto& m0 = m_Camera.GetViewProjMatrix();
+		auto& m0 = mainCamera.GetViewProjMatrix();
 		auto& m1 = Math::Transpose(Math::Invert(m0));
 		memcpy(&inputs.cameraToWorld, &m1, sizeof(inputs.cameraToWorld));
-		memcpy(&inputs.worldCameraPosition, &m_Camera.GetPosition(), sizeof(inputs.worldCameraPosition));
+		memcpy(&inputs.worldCameraPosition, &mainCamera.GetPosition(), sizeof(inputs.worldCameraPosition));
 		memcpy(&inputs.backgroundColor, &c_BackgroundColor, sizeof(inputs.backgroundColor));
 		inputs.resolution = { (float)W, (float)H };
 		inputs.frameIndex = m_Gfx->GetFrameCount() & c_MaxFrameIndex;
@@ -918,7 +1044,7 @@ void ModelViewer::Raytrace(GraphicsContext& gfxContext)
 		hitShaderConstants._SunLight = Math::Vector3(1.0f) * m_CommonStates.SunLightIntensity;
 		hitShaderConstants._AmbientLight = Math::Vector3(1.0f) * m_CommonStates.AmbientIntensity;
 		hitShaderConstants._ShadowTexelSize[0] = 1.0f / shadowBuffer.GetWidth();
-		hitShaderConstants._ModelToShadow = Math::Transpose(m_SunShadow.GetShadowMatrix());
+		hitShaderConstants._ModelToShadow = Math::Transpose(m_SunShadow->GetShadowMatrix());
 		hitShaderConstants._MaxBounces = 1;  // Bounce count (direct lighting w/ indirect lighting)
 		hitShaderConstants._IsReflection = false;
 		hitShaderConstants._UseShadowRays = true;
@@ -1719,7 +1845,7 @@ void ModelViewer::InitRaytracingViews(ID3D12Device* pDevice)
 	// material textures
 	for (uint32_t matId = 0; matId < numMaterials; ++matId)
 	{
-		const auto& curMat = m_Model->m_pMaterial[matId];
+		const auto& curMat = m_Model->m_Materials[matId];
 		const auto& srcTexHandles = m_Model->GetSRVs(matId);
 
 		auto dstHandle = m_RaytracingDescHeap.GetHandleAtOffset(descOffset);
@@ -1767,7 +1893,7 @@ void ModelViewer::InitRaytracingAS(ID3D12Device* pDevice)
 	UINT64 scratchBufferSizeNeeded = TLPreBuildInfo.ScratchDataSizeInBytes;
 	for (uint32_t i = 0; i < numMeshes; ++i)
 	{
-		const auto& mesh = m_Model->m_pMesh[i];
+		const auto& mesh = m_Model->m_Meshes[i];
 
 		D3D12_RAYTRACING_GEOMETRY_DESC& desc = geometryDescs[i];
 		desc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
@@ -2140,7 +2266,7 @@ void ModelViewer::InitRaytracingStateObjects(ID3D12Device *pDevice)
 			byte* pShaderRecord = i * shaderRecordSizeInBytes + pShaderTable;
 			memcpy(pShaderRecord, pHitGroupIdentifierData, shaderIdentifierSize);
 
-			uint32_t materialIdx = model.m_pMesh[i].materialIndex;
+			uint32_t materialIdx = model.m_Meshes[i].materialIndex;
 			memcpy(pShaderRecord + offsetToDescriptorHandle, &m_GpuSceneMaterialSrvs[materialIdx].ptr, sizeof(m_GpuSceneMaterialSrvs[materialIdx].ptr));
 
 			MaterialRootConstant material;

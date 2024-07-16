@@ -64,7 +64,7 @@ namespace Math
         // Transforms homogeneous coordinates from world space to view space.  In this case, view space is defined as +X is
         // to the right, +Y is up, and -Z is forward.  This has to match what the projection matrix expects, but you might
         // also need to know what the convention is if you work in view space in a shader.
-        // 符合 右手坐标系统 Z轴向外
+        // Right-hand coordinate system, Z is pointing outside
         Matrix4 m_ViewMatrix;        // i.e. "World-to-View" matrix
 
         // The projection matrix transforms view space to clip space.  Once division by W has occurred, the final coordinates

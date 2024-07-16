@@ -12,7 +12,7 @@ namespace MyDirectX
 	{
 	public:
 		Model();
-		~Model();
+		virtual ~Model();
 
 		void Cleanup();
 
@@ -20,9 +20,9 @@ namespace MyDirectX
 		virtual void CreateFromAssimp(ID3D12Device* pDevice, const std::string &fileName);
 		virtual void Load() {  }
 
-		// attributes
-		// 暂定8个
-		static const unsigned MaxAttrib = 8;
+		// Attributes
+		// Currently default to 8
+		static constexpr unsigned kMaxAttrib = 8;
 		enum class AttribMask
 		{
 			attrib_mask_0 = (1 << 0),
@@ -34,7 +34,7 @@ namespace MyDirectX
 			attrib_mask_6 = (1 << 6),
 			attrib_mask_7 = (1 << 7),
 
-			// friendly name aliases
+			// Friendly name aliases
 			attrib_mask_position = attrib_mask_0,
 			attrib_mask_texcoord0 = attrib_mask_1,
 			attrib_mask_normal = attrib_mask_2,
@@ -53,7 +53,7 @@ namespace MyDirectX
 			attrib_6 = 6,
 			attrib_7 = 7,
 
-			// friendly name aliases
+			// Friendly name aliases
 			attrib_position = attrib_0,
 			attrib_texcoord0 = attrib_1,
 			attrib_normal = attrib_2,
@@ -87,31 +87,59 @@ namespace MyDirectX
 			uint16_t normalized;	// if true, integer formats are interpreted as [-1, 1] or [0, 1]
 			uint16_t components;	// 1-4
 			uint16_t format;
-		};		
+		};
+
+		struct DrawParams 
+		{
+			uint32_t indexCount; // number of indices 
+			uint32_t startIndex; // offset to first index in index buffer
+			uint32_t baseVertex; // offset to first vertex in vertex buffer
+		};
+
+		struct DrawInstanceParams 
+		{
+			uint32_t indexCount; // number of indices 
+			uint32_t startIndex; // offset to first index in index buffer
+			uint32_t baseVertex; // offset to first vertex in vertex buffer
+
+			uint32_t instanceCount{1};
+			uint32_t baseInstance{0};
+		};
 
 		// mesh
+		static constexpr uint32_t kIndexStride = sizeof(uint16_t);
 		struct Mesh
 		{
 			BoundingBox boundingBox;
 
 			unsigned int materialIndex;
 
-			// 顶点属性
+			// Vertex attributes
 			unsigned int attribsEnabled;
 			unsigned int vertexStride;
-			VAttrib attrib[MaxAttrib];
+			VAttrib attrib[kMaxAttrib];
 
 			unsigned vertexDataByteOffset;
 			unsigned vertexCount;
 			unsigned indexDataByteOffset;
 			unsigned indexCount;
-		};
-		Mesh *m_pMesh;
 
-		// material
+			DrawParams GetDrawParams() const
+			{
+				DrawParams params;
+				params.indexCount = indexCount;
+				params.startIndex = indexDataByteOffset / kIndexStride;
+				params.baseVertex = vertexDataByteOffset / vertexStride;
+				return params;
+			}
+		};
+		std::unique_ptr<Mesh[]> m_Meshes;
+
+		// Material
+		static constexpr uint32_t kTexturesPerMaterial = 6;
 		struct Material
 		{
-			// constants
+			// Constants
 			Math::Vector3 diffuse;
 			Math::Vector3 specular;
 			Math::Vector3 ambient;
@@ -121,7 +149,7 @@ namespace MyDirectX
 			float shininess;			// specular exponent
 			float specularStrength;		// multiplier on top of specular color
 
-			// textures (纹理文件路径)
+			// Textures
 			std::string texDiffusePath;
 			std::string texSpecularPath;
 			std::string texNormalPath;
@@ -131,11 +159,20 @@ namespace MyDirectX
 
 			std::string name;
 		};
-		Material* m_pMaterial;
+		std::unique_ptr<Material[]> m_Materials;
 		std::vector<bool> m_MaterialIsCutout;
 
-		unsigned char* m_pVertexData = nullptr;
-		unsigned char* m_pIndexData = nullptr;
+		std::unique_ptr<uint8_t[]> m_VertexData;
+		std::unique_ptr<uint8_t[]> m_IndexData;
+
+		template <Attrib attrib, typename T = float>
+		T* GetVertexData(const Mesh &mesh, uint32_t vertexIndex = 0) const
+		{
+			auto* data = m_VertexData.get();
+			data += mesh.vertexDataByteOffset + vertexIndex * mesh.vertexStride + mesh.attrib[(uint32_t)attrib].offset;
+			return reinterpret_cast<T*>(data);
+		}
+
 		StructuredBuffer m_VertexBuffer;
 		ByteAddressBuffer m_IndexBuffer;
 		uint32_t m_VertexStride = 0;
@@ -161,7 +198,7 @@ namespace MyDirectX
 
 		D3D12_CPU_DESCRIPTOR_HANDLE* GetSRVs(uint32_t materialIdx, uint32_t subIdx = 0) const
 		{
-			return m_SRVs + (materialIdx * 6 + subIdx);
+			return m_SRVs.get()  + (materialIdx * kTexturesPerMaterial + subIdx);
 		}
 
 		D3D12_CPU_DESCRIPTOR_HANDLE GetDefaultSRV() const
@@ -189,7 +226,7 @@ namespace MyDirectX
 		void LoadTextures(ID3D12Device *pDevice);
 		void LoadTexturesBySTB_IMAGE(ID3D12Device* pDevice);
 
-		D3D12_CPU_DESCRIPTOR_HANDLE* m_SRVs;
+		std::unique_ptr<D3D12_CPU_DESCRIPTOR_HANDLE[]> m_SRVs;
 		D3D12_CPU_DESCRIPTOR_HANDLE m_DefaultSRV;
 
 		std::string name;

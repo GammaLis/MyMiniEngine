@@ -648,7 +648,7 @@ namespace MFalcor
 	{
 	#if !USE_VIEW_UNIFORMS
 		CBPerCamera cbPerCamera;
-		cbPerCamera._ViewProjMat = viewProjMat;	// viewProjMat 不用转置，存储时已经转置
+		cbPerCamera._ViewProjMat = viewProjMat;	// 'viewProjMat' needn't transpose, has transposed in savings
 		cbPerCamera._CamPos = camPos;
 		gfx.SetDynamicConstantBufferView(rootIdx, sizeof(CBPerCamera), &cbPerCamera);
 	#else
@@ -925,7 +925,7 @@ namespace MFalcor
 
 		computeContext.SetDynamicConstantBufferView((UINT)DeferredCSRSId::CommonLights, sizeof(CommonLightSettings), &m_CommonLights);
 
-		const uint32_t numCascades = CascadedShadowMap::s_NumCascades;
+		constexpr uint32_t numCascades = CascadedShadowMap::s_NumCascades;
 		Math::Matrix4 cascadedShadowMats[numCascades];
 		for (uint32_t i = 0; i < numCascades; ++i)
 		{
@@ -1130,7 +1130,7 @@ namespace MFalcor
 		
 		CBPerCamera cbPerCamera;
 		uint32_t numCascades = m_CascadedShadowMap.s_NumCascades;
-		// TODO: 目前只渲染了一级阴影， 没有进行剔除
+		// TODO: Only Cascade 1, no cullings yet
 		for (uint32_t i = 0; i < 1; ++i)
 		{
 			// clear depth
@@ -1218,6 +1218,11 @@ namespace MFalcor
 			// 但是因为Math::Matrix4 将0000视作一行，MMath::Matrix4x4 将0123视作一列，所以其实矩阵没变，
 			// 所以MMath 矩阵乘法 类似 (V^T * P^T) = (P * V)^T
 			// 这里相乘仍用 行向量 的矩阵左乘(向量在左)
+
+			// MMath::Cast is doing Math::Matrix4 transpose (0000 | 1111 | 2222 | 3333)->(0123 | 0123 | ...),
+			// But because Math::Matrix4 see 0000 as one row, MMath::Matrix4x4 see 0123 as one column, so it's the same.
+			// So MMath multiply is like (V^T * P^T) = (P * V)^T
+			// It's still use 'Row vector's Left Matrix Multiply'.
 		csConstants._InvViewProjMat = MMATH::inverse(csConstants._ViewProjMat);
 		csConstants._ViewMat = viewMat;
 		csConstants._ProjMat = projMat;
@@ -1690,11 +1695,11 @@ namespace MFalcor
 			const BoundingBox& worldBB = meshBB.Transform(transform);
 			instanceBBs.push_back(worldBB);
 
-			// 单次拷贝
+			// Copy a single
 			// m_BoundsDynamicBuffer.CopyToGpu((void*)&worldBB, sizeof(BoundingBox), instanceIndex);
 			// ++instanceIndex;
 		}
-		// 整体拷贝
+		// Copy as total
 		m_BoundsDynamicBuffer.CopyToGpu(instanceBBs.data(), sizeof(BoundingBox) * numInstance);
 
 		m_SceneBB = instanceBBs.front();

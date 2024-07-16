@@ -1,6 +1,7 @@
 #include "Skybox.h"
 #include "Graphics.h"
 #include "MyBasicGeometry.h"
+#include "Camera.h"
 #include "TextureManager.h"
 #include "CommandContext.h"
 #include "ProfilingScope.h"

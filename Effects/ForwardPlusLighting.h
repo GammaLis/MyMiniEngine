@@ -58,6 +58,8 @@ namespace MyDirectX
 		ShadowBuffer m_LightShadowTempBuffer;
 		std::vector<Math::Matrix4> m_LightShadowMatrix;
 
+		std::vector<Math::Matrix4> m_PointLightShadowMatrix;
+
 		uint32_t m_ShadowDim = 512;
 
 		// root signature

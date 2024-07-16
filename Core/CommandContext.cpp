@@ -398,7 +398,7 @@ void CommandContext::TransitionResource(GpuResource& resource, D3D12_RESOURCE_ST
 		barrierDesc.Transition.StateBefore = oldState;
 		barrierDesc.Transition.StateAfter = newState;
 
-		//check to see if we already started the transition
+		// Check to see if we already started the transition
 		if (newState == resource.m_TransitioningState)
 		{
 			barrierDesc.Flags = D3D12_RESOURCE_BARRIER_FLAG_END_ONLY;
@@ -422,7 +422,7 @@ void CommandContext::TransitionResource(GpuResource& resource, D3D12_RESOURCE_ST
 
 void CommandContext::BeginResourceTransition(GpuResource& resource, D3D12_RESOURCE_STATES newState, bool flushImmediate)
 {
-	// if it's already transitioning, finish that transition
+	// If it's already transitioning, finish that transition
 	if (resource.m_TransitioningState != (D3D12_RESOURCE_STATES)-1)
 		TransitionResource(resource, resource.m_TransitioningState);
 

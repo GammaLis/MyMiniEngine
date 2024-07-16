@@ -3,7 +3,11 @@
 #include "RootSignature.h"
 #include "PipelineState.h"
 #include "GpuBuffer.h"
-#include "Camera.h"
+
+namespace Math 
+{
+	class Camera;
+}
 
 namespace MyDirectX
 {

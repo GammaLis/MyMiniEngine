@@ -1,23 +1,24 @@
 ﻿#pragma once
 #include "IGameApp.h"
-#include "Camera.h"
-#include "ShadowCamera.h"
-#include "CameraController.h"
 #include "DescriptorHeap.h"
 #include "ColorBuffer.h"
 #include "DynamicUploadBuffer.h"
 #include "GameInput.h"
-#include "Skybox.h"
 #include "ModelViewerRayInputs.h"
-#include "Scenes/DebugPass.h"
 
-/// Raytracing
-#include "ReservoirSampling.h"
-#include "ReSTIRGI.h"
+namespace Math 
+{
+	class Camera;
+}
 
 namespace MyDirectX
 {
 	class GraphicsContext;
+	class CameraController;
+	class ShadowCamera;
+
+	class DebugPass;
+	class Skybox;
 	class ReSTIRGI;
 
 	enum class RSId
@@ -85,6 +86,8 @@ namespace MyDirectX
 	{
 	public:
 		ModelViewer(HINSTANCE hInstance, const char *modelName, const wchar_t* title = L"Hello, World!", UINT width = SCR_WIDTH, UINT height = SCR_HEIGHT);
+		// std::unique_ptr deleter is invoked, T is incomplete
+		~ModelViewer();
 
 		virtual void Update(float deltaTime) override;
 		virtual void Render() override;
@@ -103,9 +106,12 @@ namespace MyDirectX
 		};
 		CommonStates m_CommonStates;
 
-		static const UINT c_MaxRayRecursion = 2;
-		static const UINT c_MaxPayloadSize = 64;
-		static const UINT c_MaxAttributeSize = 8;
+		static constexpr UINT c_MaxRayRecursion = 2;
+		static constexpr UINT c_MaxPayloadSize = 64;
+		static constexpr UINT c_MaxAttributeSize = 8;
+		static constexpr UINT INDEX_NONE = std::numeric_limits<UINT>::max();
+
+		using BatchElements = std::vector<uint32_t>;
 
 	private:
 		virtual void InitPipelineStates() override;
@@ -117,10 +123,18 @@ namespace MyDirectX
 		virtual void CustomUI(GraphicsContext &context) override;
 
 		void RenderLightShadows(GraphicsContext& gfxContext);
-		void RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4 &viewProjMat, ObjectFilter filter = ObjectFilter::kAll);
+		void RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4 &viewProjMat, ObjectFilter filter = ObjectFilter::kAll, uint32_t cullingIndex = INDEX_NONE);
 		void CreateParticleEffects();
 
-		Math::Camera m_Camera;
+		/**
+		* Ref: std::unique_ptr
+		* https://en.cppreference.com/w/cpp/memory/unique_ptr
+		* 
+		* std::unique_ptr may be constructed for an incomplete type T, such as to facilitate the use as a handle in the pImpl idiom. 
+		* If the default deleter is used, T must be complete at the point in code where the deleter is invoked, which happens in the destructor, 
+		* move assignment operator, and reset member function of std::unique_ptr.
+		*/
+		std::unique_ptr<Math::Camera> m_Camera;
 		std::unique_ptr<CameraController> m_CameraController;
 		Math::Matrix4 m_ViewProjMatrix;
 
@@ -133,12 +147,12 @@ namespace MyDirectX
 		GraphicsPSO m_ShadowPSO{ L"Shadow PSO" };
 		GraphicsPSO m_CutoutShadowPSO{ L"Cutout Shadow PSO" };
 
-		// 临时设置，后面需要移到别处 -20-2-21
+		// TODO: put somewhere else, -20-2-21
 		RootSignature m_LinearDepthRS;
 		ComputePSO m_LinearDepthCS;
 
 		Math::Vector3 m_SunDirection;
-		ShadowCamera m_SunShadow;
+		std::unique_ptr<ShadowCamera> m_SunShadow;
 
 		D3D12_CPU_DESCRIPTOR_HANDLE m_ExtraTextures[6]{};
 
@@ -173,6 +187,15 @@ namespace MyDirectX
 		D3D12_GPU_DESCRIPTOR_HANDLE m_GpuMeshInfo{}; // Not used now
 		// Texture srv descriptors
 		D3D12_GPU_DESCRIPTOR_HANDLE m_GpuSceneMaterialSrvs[32]{};
+		
+		// Default all elements
+		BatchElements m_DefaultBatchList;
+		// Batch list per pass
+		std::vector<BatchElements> m_PassCullingResults;
+		// Fixed indices
+		uint32_t m_MainCullingIndex{ INDEX_NONE };
+		uint32_t m_MainLightCullingIndex{ INDEX_NONE };
+		uint32_t m_PointLightCullingIndex{ INDEX_NONE };
 
 		RaytracingDispatchRayInputs m_RaytracingInputs[(uint32_t)RaytracingType::Num];
 		D3D12_CPU_DESCRIPTOR_HANDLE m_BVHAttribSrvs[40]{};
@@ -205,10 +228,10 @@ namespace MyDirectX
 		bool m_bEnableReSTIRGI = true;
 		
 		// Skybox
-		Skybox m_Skybox;
+		std::unique_ptr<Skybox> m_Skybox;
 
 		// DEBUG
-		DebugPass m_DebugPass;
+		std::unique_ptr<DebugPass> m_DebugPass;
 		bool m_bEnableDebug = false;
 
 		const char* m_ModelName = nullptr;

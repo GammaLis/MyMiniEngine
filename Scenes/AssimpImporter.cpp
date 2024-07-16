@@ -52,32 +52,32 @@ bool AssimpImporter::ProcessScenes(const aiScene* scene, const InstanceMatrices&
 	ImporterData importerData(scene, instanceMatrices);
 
 	// materials
-	// ´´½¨ MaterialÔ­ÐÍ
+	// Material
 	if (scene->HasMaterials())
 		ProcessMaterials(scene, importerData);
 
-	// ´´½¨ SceneGraph £¨´ËÊ±¸÷¸öNode MeshInstanceÎª¿Õ£©
+	// SceneGraph (Node MeshInstance is empty yetï¼‰
 	if (CreateSceneGraph(importerData) == false)
 	{
 		Utility::Printf("Can't create lists for model %s\n", m_FilePath);
 		return false;
 	}
 
-	// ´´½¨ MeshÔ­ÐÍ
+	// Mesh
 	if (CreateMeshes(importerData) == false)
 	{
 		Utility::Printf("Can't create meshes for model %s\n", m_FilePath);
 		return false;
 	}
 
-	// Êµ¼ÊÉú³É ¸÷¸öNode MeshInstance
+	// Node MeshInstance
 	if (AddMeshes(importerData, scene->mRootNode) == false)
 	{
 		Utility::Printf("Can't add meshes for model %s.\n", m_FilePath);
 		return false;
 	}
 
-	// ÔÝÂÔ -2020-4-4
+	// TODO: -2020-4-4
 	// if (CreateAnimations(data) == false) {  }
 
 	if (CreateCamera(importerData, m_ImportMode) == false)
@@ -385,7 +385,7 @@ bool AssimpImporter::AddToScene(ID3D12Device* pDevice, Scene* pScene)
 	uint32_t drawCount = CreateMeshData(pScene);
 	CreateVertexBuffer(pDevice, pScene);
 	CreateIndexBuffer(pDevice, pScene);
-	// InstanceBufferÑÓºó´´½¨£¬Scene::Finalize()ÀïÃæ¿ÉÄÜ¶ÔInstance½øÐÐÅÅÐòµÈ´¦Àí
+	// InstanceBuffer creating delayed, Scene::Finalize() may sort
 	// CreateInstanceBuffer(pDevice, pScene, drawCount);
 	CalculateMeshBoundingBoxes(pScene);
 	pScene->Finalize(pDevice);
@@ -421,7 +421,7 @@ Scene::SharedPtr AssimpImporter::GetScene(ID3D12Device* pDevice)
 	return m_Scene;
 }
 
-// SceneGraph Ìí¼Ó Node
+// SceneGraph Add Node
 size_t AssimpImporter::AddNode(const Node& node)
 {
 	ASSERT(node.parentIndex == Scene::kInvalidNode || node.parentIndex < m_SceneGraph.size());
@@ -435,9 +435,8 @@ size_t AssimpImporter::AddNode(const Node& node)
 	return newNodeId;
 }
 
-// Ìí¼ÓMeshInstance
-// SceneGraph nodeÌí¼Ó MeshInstance Id
-// Mesh Ìí¼Ó Node Id
+// Add MeshInstance
+// SceneGraph node Add MeshInstance Id
 void AssimpImporter::AddMeshInstance(size_t nodeID, size_t meshID)
 {
 	ASSERT(meshID < m_Meshes.size());
@@ -446,7 +445,7 @@ void AssimpImporter::AddMeshInstance(size_t nodeID, size_t meshID)
 	m_Dirty = true;
 }
 
-// Ìí¼Ó Mesh Ô­ÐÍ£¨Çø·Ö MeshInstance£©
+// Add Mesh (Differs from MeshInstance)
 size_t AssimpImporter::AddMesh(const Mesh& mesh)
 {
 	const auto& prevMesh = m_Meshes.empty() ? MeshSpec() : m_Meshes.back();
@@ -631,7 +630,7 @@ bool AssimpImporter::CreateMeshes(ImporterData& data)
 		newMesh.pNormals = (Vector3*)curMesh->mNormals;
 		newMesh.pTangents = (Vector3*)curMesh->mTangents;
 		newMesh.pBitangents = (Vector3*)curMesh->mBitangents;
-		// texCoordsÒÑ±»Ïú»Ù£¡
+		// texCoords is destroyed!
 	#if 0
 		if (curMesh->HasTextureCoords(0))
 		{
@@ -646,7 +645,7 @@ bool AssimpImporter::CreateMeshes(ImporterData& data)
 		newMesh.pUVs = !texCoords.empty() ? texCoords.data() : nullptr;
 
 		// bones
-		std::vector<UVector4> boneIds;		// ²»ÄÜ·ÅÔÚ if()ÀïÃæ£¬»á±»Ïú»Ù£¡
+		std::vector<UVector4> boneIds;		// can't be in 'if()', note lifetime
 		std::vector<Vector4> boneWeights;
 		if (curMesh->HasBones())
 		{
@@ -751,7 +750,7 @@ void AssimpImporter::LoadBones(const aiMesh* curMesh, const ImporterData& data,
 	}
 }
 
-// Êµ¼ÊÉú³É ¸÷¸öNode MeshInstance
+// Add Node MeshInstance
 bool AssimpImporter::AddMeshes(ImporterData& data, aiNode* pNode)
 {
 	size_t nodeId = data.GetSceneNode(pNode);
@@ -878,7 +877,7 @@ void AssimpImporter::LoadTextures(aiMaterial* curMat, Material* dstMat)
 		if (!path.empty())
 		{
 			std::string texName = path;
-			if (path.rfind('.') != path.npos)	// `default`ÎÆÀí Ã»ÓÐ".format"
+			if (path.rfind('.') != path.npos)	// `default` textures have no ".format"
 			{
 				texName = StringUtils::GetFileNameWithNoExtensions(path);
 				texName = m_FileName + "/" + texName;

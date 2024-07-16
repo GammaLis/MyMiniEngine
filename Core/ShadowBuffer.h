@@ -8,7 +8,7 @@ namespace MyDirectX
 	class ShadowBuffer : public DepthBuffer
 	{
 	public:
-		ShadowBuffer() {}
+		ShadowBuffer() = default;
 
 		void Create(ID3D12Device* pDevice, const std::wstring& name, uint32_t width, uint32_t height,
 			DXGI_FORMAT format = DXGI_FORMAT_D16_UNORM,
@@ -24,4 +24,3 @@ namespace MyDirectX
 		D3D12_RECT m_Scissor{};
 	};
 }
-
