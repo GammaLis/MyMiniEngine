@@ -1,4 +1,5 @@
 #include "ShadowUtility.h"
+#include "Camera.h"
 
 namespace MyDirectX
 {
@@ -213,13 +214,16 @@ namespace MyDirectX
 			XMMATRIX newViewProjMat = newViewMat * orthoProjMat;
 			// XMMATRIX newViewProjMat = FrustumViewMat * orthoProjMat;	// ͳһViewSpace
 			
-			// debug
-			//Vector3 localCorner[8];
-			//for (uint32_t i = 0; i < 8; ++i)
-			//{
-			//	XMVECTOR corner = XMVector3TransformCoord(XMVECTOR(worldCorners[i]), newViewProjMat);
-			//	localCorner[i] = Vector3(corner);
-			//}
+			//~ Begin debug
+		#if 0
+			Vector3 localCorner[8];
+			for (uint32_t i = 0; i < 8; ++i)
+			{
+				XMVECTOR corner = XMVector3TransformCoord(XMVECTOR(worldCorners[i]), newViewProjMat);
+				localCorner[i] = Vector3(corner);
+			}
+		#endif
+			//~ End
 
 			newViewProjMat = newViewProjMat * TextureSpaceMat;
 

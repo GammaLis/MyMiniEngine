@@ -47,6 +47,7 @@ namespace Math
 
         INLINE operator XMMATRIX() const { return (const XMMATRIX&)m_mat; }
 
+        INLINE Matrix3 operator* ( Scalar scl ) const { return Matrix3(scl * GetX(), scl * GetY(), scl * GetZ()); }
         INLINE Vector3 operator* ( Vector3 vec ) const { return Vector3( XMVector3TransformNormal(vec, *this) ); }
         INLINE Matrix3 operator* ( const Matrix3& mat ) const { return Matrix3( *this * mat.GetX(), *this * mat.GetY(), *this * mat.GetZ() ); }
 

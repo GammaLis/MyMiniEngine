@@ -79,6 +79,9 @@ namespace MyDirectX
 		{
 			Math::Vector3 min;
 			Math::Vector3 max;
+
+			Math::Vector3 Center() const { return (min + max) * 0.5f; }
+			Math::Vector3 Extent() const { return (max - min) * 0.5f; }
 		};
 
 		struct VAttrib

@@ -440,6 +440,9 @@
     <ClInclude Include="Core\mtqueue.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="Core\Task.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -681,6 +684,12 @@
     </ClCompile>
     <ClCompile Include="Game\FrameDescriptorHeap.cpp">
       <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Math\BoundingSphere.cpp">
+      <Filter>Core\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Task.cpp">
+      <Filter>Core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

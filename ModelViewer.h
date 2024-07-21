@@ -196,6 +196,8 @@ namespace MyDirectX
 		uint32_t m_MainCullingIndex{ INDEX_NONE };
 		uint32_t m_MainLightCullingIndex{ INDEX_NONE };
 		uint32_t m_PointLightCullingIndex{ INDEX_NONE };
+		// Main light shadow culling efficiency is quite low
+		bool m_bCullMainLightShadow = false;
 
 		RaytracingDispatchRayInputs m_RaytracingInputs[(uint32_t)RaytracingType::Num];
 		D3D12_CPU_DESCRIPTOR_HANDLE m_BVHAttribSrvs[40]{};

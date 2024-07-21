@@ -11,6 +11,8 @@
 #include "ShadowCamera.h"
 #include "CameraController.h"
 
+#include "Task.h"
+
 #include "Skybox.h"
 #include "Scenes/DebugPass.h"
 
@@ -48,6 +50,7 @@
 #include "ReSTIR_TraceDiffuse.h"
 
 using namespace MyDirectX;
+using namespace Timo;
 
 /// Uniforms
 using namespace MyDirectX::UniformBuffers;
@@ -67,7 +70,7 @@ struct alignas(16) PSConstants
 	float _ShadowTexelSize[4];
 
 	float _InvTileDim[4];
-	uint32_t _TileCount[4];	// x,y有效，后面字节对齐
+	uint32_t _TileCount[4];	// xy + zw padding
 	uint32_t _FirstLightIndex[4];
 
 	uint32_t _FrameIndexMod2;
@@ -108,11 +111,11 @@ constexpr uint32_t c_MaxReservoirs = 1; // number of reservoirs per pixel to all
 
 using BatchElements = ModelViewer::BatchElements;
 
-void Cull(BatchElements &visibleMeshes, const Math::Camera& camera, const std::vector<const Model*>& models)
+void Cull(BatchElements &visibleMeshes, const Math::BaseCamera& camera, const std::vector<const Model*>& models)
 {
 	visibleMeshes.clear();
 
-	const auto& frustumWS = camera.GetWorldSpaceFrustum();
+	auto& frustumWS = camera.GetWorldSpaceFrustum();
 
 	// High 16bits - ModelId, low 16bits - MeshId (or SubmeshId)
 	uint32_t index = 0;
@@ -359,10 +362,10 @@ void ModelViewer::Render()
 		rayTracingMode == RaytracingMode::SSR;
 	// ...
 
+	std::vector<const Model*> models = { m_Model.get() };
+
 	// Culling first
-	{
-		std::vector<const Model*> models = { m_Model.get() };
-		
+	{	
 		// Default batch list
 		if (m_DefaultBatchList.empty())
 		{
@@ -472,13 +475,31 @@ void ModelViewer::Render()
 				Math::Vector3(m_CommonStates.ShadowDimX, m_CommonStates.ShadowDimY, m_CommonStates.ShadowDimZ),
 				shadowBuffer.GetWidth(), shadowBuffer.GetHeight(), 16);
 
+			// Culling
+			{
+				if (m_MainLightCullingIndex == INDEX_NONE) 
+				{
+					m_MainLightCullingIndex = static_cast<uint32_t>(m_PassCullingResults.size());
+					m_PassCullingResults.emplace_back();
+				}
+				// One cascade yet!
+				if (m_bCullMainLightShadow)
+				{
+					auto &batchList = m_PassCullingResults[m_MainLightCullingIndex];
+					Cull(batchList, *m_SunShadow.get(), models);
+				}
+			}
+
+			// Render
 			shadowBuffer.BeginRendering(gfxContext);
+			{
+				uint32_t mainLightCullingIndex = m_bCullMainLightShadow ? m_MainLightCullingIndex : INDEX_NONE;
 
-			gfxContext.SetPipelineState(m_ShadowPSO);
-			RenderObjects(gfxContext, m_SunShadow->GetViewProjMatrix(), ObjectFilter::kOpaque);
-			gfxContext.SetPipelineState(m_CutoutShadowPSO);
-			RenderObjects(gfxContext, m_SunShadow->GetViewProjMatrix(), ObjectFilter::kCutout);
-
+				gfxContext.SetPipelineState(m_ShadowPSO);
+				RenderObjects(gfxContext, m_SunShadow->GetViewProjMatrix(), ObjectFilter::kOpaque, mainLightCullingIndex);
+				gfxContext.SetPipelineState(m_CutoutShadowPSO);
+				RenderObjects(gfxContext, m_SunShadow->GetViewProjMatrix(), ObjectFilter::kCutout, mainLightCullingIndex);
+			}
 			shadowBuffer.EndRendering(gfxContext);
 		}
 
@@ -687,6 +708,14 @@ void ModelViewer::InitGeometryBuffers()
 
 void ModelViewer::InitCustom()
 {
+	g_TaskContext.Init(2);
+	g_TaskContext.Execute([](TaskParams) {
+		Utility::Printf("Task inited!!!\n");
+	} );
+	g_TaskContext.Execute([](TaskParams){
+		Utility::Printf("Task inited 2 from another thread!!!\n");
+	} );
+
 	// Camera
 	auto &mainCamera = *m_Camera.get();
 
@@ -721,7 +750,7 @@ void ModelViewer::InitCustom()
 	m_ExtraTextures[5] = forwardPlusLighting.m_LightShadowArray.GetSRV();
 
 	// Skybox
-	m_Skybox.reset( new Skybox() );
+	m_Skybox.reset(new Skybox());
 	m_Skybox->Init(Graphics::s_Device, L"grasscube1024");
 
 	// Particle effects
@@ -743,6 +772,8 @@ void ModelViewer::InitCustom()
 		m_DebugPass.reset( new DebugPass() );
 		m_DebugPass->Init();
 	}
+
+	g_TaskContext.Wait();
 }
 
 void ModelViewer::CleanCustom()
@@ -1806,7 +1837,7 @@ void ModelViewer::InitRaytracingViews(ID3D12Device* pDevice)
 		DescriptorHandle vertexBufferSRV = m_RaytracingDescHeap.Alloc();
 		CreateVertexBufferByteAddressSRV(pDevice, m_Model->m_VertexBuffer, vertexBufferSRV);
 		// pDevice->CopyDescriptorsSimple(1, vertexBufferSRV.GetCpuHandle(), m_Model->GetVertexBufferSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		// ERROR::SRV须和shader声明一致
+		// ERROR::SRV must match shader declarations
 
 		// Others
 		{

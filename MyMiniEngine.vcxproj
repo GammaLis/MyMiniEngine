@@ -130,8 +130,10 @@
     <ClInclude Include="Game\Texture3D.h" />
     <ClInclude Include="Game\VoronoiTextureGenerator.h" />
     <ClInclude Include="Game\Voxelization.h" />
+    <ClInclude Include="Core\Task.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Core\Math\BoundingSphere.cpp" />
     <ClCompile Include="Core\ProfilingScope.cpp" />
     <ClCompile Include="Effects\Denoiser.cpp" />
     <ClCompile Include="Effects\TemporalEffects.cpp" />
@@ -211,6 +213,7 @@
     <ClCompile Include="Game\Texture3D.cpp" />
     <ClCompile Include="Game\VoronoiTextureGenerator.cpp" />
     <ClCompile Include="Game\Voxelization.cpp" />
+    <ClCompile Include="Core\Task.cpp" />
     <ClCompile Include="WinMain.cpp" />
   </ItemGroup>
   <ItemGroup>

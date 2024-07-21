@@ -1,5 +1,6 @@
 #include "MyBasicGeometry.h"
 
+using namespace DirectX;
 using namespace MyDirectX::Geometry;
 
 void MyBasicGeometry::BasicBox(float width, float height, float depth, Mesh& mesh)
@@ -181,7 +182,7 @@ void MyBasicGeometry::BasicSphere(float radius, unsigned sliceCount, unsigned st
 
 void MyBasicGeometry::BasicCylinder(float bottomRadius, float topRadius, float height, unsigned slickCount, unsigned stackCount, Mesh& mesh)
 {
-	// ‘› ±ø’÷√
+	// TODO...
 }
 
 void MyBasicGeometry::BasicGrid(float width, float depth, unsigned m, unsigned n, Mesh& mesh)

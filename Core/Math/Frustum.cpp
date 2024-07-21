@@ -21,8 +21,8 @@ void Frustum::ConstructPerspectiveFrustum( float HTan, float VTan, float NearCli
 {
     const float NearX = HTan * NearClip;
     const float NearY = VTan * NearClip;
-    const float FarX = HTan * FarClip;
-    const float FarY = VTan * FarClip;
+    const float FarX  = HTan * FarClip;
+    const float FarY  = VTan * FarClip;
 
     // Define the frustum corners
     m_FrustumCorners[ kNearLowerLeft  ] = Vector3(-NearX, -NearY, -NearClip);    // Near lower left
@@ -40,35 +40,34 @@ void Frustum::ConstructPerspectiveFrustum( float HTan, float VTan, float NearCli
     const float NVz = -NVy * VTan;
 
     // Define the bounding planes
-    m_FrustumPlanes[kNearPlane]        = BoundingPlane( 0.0f, 0.0f, -1.0f, -NearClip );
-    m_FrustumPlanes[kFarPlane]        = BoundingPlane( 0.0f, 0.0f,  1.0f,   FarClip );
-    m_FrustumPlanes[kLeftPlane]        = BoundingPlane(  NHx, 0.0f,   NHz,      0.0f );
-    m_FrustumPlanes[kRightPlane]    = BoundingPlane( -NHx, 0.0f,   NHz,      0.0f );
-    m_FrustumPlanes[kTopPlane]        = BoundingPlane( 0.0f, -NVy,   NVz,      0.0f );
-    m_FrustumPlanes[kBottomPlane]    = BoundingPlane( 0.0f,  NVy,   NVz,      0.0f );
+    m_FrustumPlanes[kNearPlane  ] = BoundingPlane( 0.0f, 0.0f, -1.0f, -NearClip );
+    m_FrustumPlanes[kFarPlane   ] = BoundingPlane( 0.0f, 0.0f,  1.0f,   FarClip );
+    m_FrustumPlanes[kLeftPlane  ] = BoundingPlane(  NHx, 0.0f,   NHz,      0.0f );
+    m_FrustumPlanes[kRightPlane ] = BoundingPlane( -NHx, 0.0f,   NHz,      0.0f );
+    m_FrustumPlanes[kTopPlane   ] = BoundingPlane( 0.0f, -NVy,   NVz,      0.0f );
+    m_FrustumPlanes[kBottomPlane] = BoundingPlane( 0.0f,  NVy,   NVz,      0.0f );
 }
 
 void Frustum::ConstructOrthographicFrustum( float Left, float Right, float Top, float Bottom, float Front, float Back )
 {
     // Define the frustum corners
-    m_FrustumCorners[ kNearLowerLeft  ] = Vector3(Left,   Bottom,    -Front);    // Near lower left
-    m_FrustumCorners[ kNearUpperLeft  ] = Vector3(Left,   Top,        -Front);    // Near upper left
-    m_FrustumCorners[ kNearLowerRight ] = Vector3(Right,  Bottom,    -Front);    // Near lower right
-    m_FrustumCorners[ kNearUpperRight ] = Vector3(Right,  Top,        -Front);    // Near upper right
-    m_FrustumCorners[ kFarLowerLeft   ] = Vector3(Left,   Bottom,     -Back);    // Far lower left
-    m_FrustumCorners[ kFarUpperLeft   ] = Vector3(Left,   Top,         -Back);    // Far upper left
-    m_FrustumCorners[ kFarLowerRight  ] = Vector3(Right,  Bottom,     -Back);    // Far lower right
-    m_FrustumCorners[ kFarUpperRight  ] = Vector3(Right,  Top,         -Back);    // Far upper right
+    m_FrustumCorners[ kNearLowerLeft  ] = Vector3(Left,   Bottom,   -Front);    // Near lower left
+    m_FrustumCorners[ kNearUpperLeft  ] = Vector3(Left,   Top,      -Front);    // Near upper left
+    m_FrustumCorners[ kNearLowerRight ] = Vector3(Right,  Bottom,   -Front);    // Near lower right
+    m_FrustumCorners[ kNearUpperRight ] = Vector3(Right,  Top,      -Front);    // Near upper right
+    m_FrustumCorners[ kFarLowerLeft   ] = Vector3(Left,   Bottom,   -Back );    // Far lower left
+    m_FrustumCorners[ kFarUpperLeft   ] = Vector3(Left,   Top,      -Back );    // Far upper left
+    m_FrustumCorners[ kFarLowerRight  ] = Vector3(Right,  Bottom,   -Back );    // Far lower right
+    m_FrustumCorners[ kFarUpperRight  ] = Vector3(Right,  Top,      -Back );    // Far upper right
 
     // Define the bounding planes
-    m_FrustumPlanes[kNearPlane]        = BoundingPlane(  0.0f,  0.0f, -1.0f, -Front );
-    m_FrustumPlanes[kFarPlane]        = BoundingPlane(  0.0f,  0.0f,  1.0f,   Back );
-    m_FrustumPlanes[kLeftPlane]        = BoundingPlane(  1.0f,  0.0f,  0.0f,  -Left );
-    m_FrustumPlanes[kRightPlane]    = BoundingPlane( -1.0f,  0.0f,  0.0f,  Right );
-    m_FrustumPlanes[kTopPlane]        = BoundingPlane(  0.0f, -1.0f,  0.0f, Bottom );
-    m_FrustumPlanes[kBottomPlane]    = BoundingPlane(  0.0f,  1.0f,  0.0f,   -Top );
+    m_FrustumPlanes[kNearPlane  ] = BoundingPlane(  0.0f,  0.0f, -1.0f, -Front );
+    m_FrustumPlanes[kFarPlane   ] = BoundingPlane(  0.0f,  0.0f,  1.0f,   Back );
+    m_FrustumPlanes[kLeftPlane  ] = BoundingPlane(  1.0f,  0.0f,  0.0f,  -Left );
+    m_FrustumPlanes[kRightPlane ] = BoundingPlane( -1.0f,  0.0f,  0.0f,  Right );
+    m_FrustumPlanes[kTopPlane   ] = BoundingPlane(  0.0f, -1.0f,  0.0f,    Top ); // FIX: Bottom -> Top
+    m_FrustumPlanes[kBottomPlane] = BoundingPlane(  0.0f,  1.0f,  0.0f,-Bottom ); // FIX: Top -> Bottom
 }
-
 
 Frustum::Frustum( const Matrix4& ProjMat )
 {
@@ -82,12 +81,12 @@ Frustum::Frustum( const Matrix4& ProjMat )
     if (ProjMatF[3] == 0.0f && ProjMatF[7] == 0.0f && ProjMatF[11] == 0.0f && ProjMatF[15] == 1.0f)
     {
         // Orthographic
-        float Left     = (-1.0f - ProjMatF[12]) * RcpXX;
+        float Left      = (-1.0f - ProjMatF[12]) * RcpXX;
         float Right     = ( 1.0f - ProjMatF[12]) * RcpXX;
-        float Top     = ( 1.0f - ProjMatF[13]) * RcpYY;
-        float Bottom = (-1.0f - ProjMatF[13]) * RcpYY;
+        float Top       = ( 1.0f - ProjMatF[13]) * RcpYY;
+        float Bottom    = (-1.0f - ProjMatF[13]) * RcpYY;
         float Front     = ( 0.0f - ProjMatF[14]) * RcpZZ;
-        float Back   = ( 1.0f - ProjMatF[14]) * RcpZZ;
+        float Back      = ( 1.0f - ProjMatF[14]) * RcpZZ;
 
         // Check for reverse Z here.  The bounding planes need to point into the frustum.
         if (Front < Back)
@@ -113,4 +112,76 @@ Frustum::Frustum( const Matrix4& ProjMat )
 
         ConstructPerspectiveFrustum( RcpXX, RcpYY, NearClip, FarClip );
     }
+}
+
+bool Frustum::IntersectSphere(BoundingSphere sphere) const
+{
+    float radius = sphere.GetRadius();
+    for (int i = 0; i < 6; ++i)
+    {
+        if (m_FrustumPlanes[i].DistanceFromPoint(sphere.GetCenter()) + radius < 0.0f)
+            return false;
+    }
+    return true;
+}
+
+bool Frustum::IntersectBoundingBox(const Vector3 minBound, const Vector3 maxBound) const
+{
+    for (int i = 0; i < 6; ++i)
+    {
+        BoundingPlane p = m_FrustumPlanes[i];
+        Vector3 farCorner = Select(minBound, maxBound, p.GetNormal() > Vector3(kZero));
+        if (p.DistanceFromPoint(farCorner) < 0.0f)
+            return false;
+    }
+
+    return true;
+}
+
+namespace Math
+{
+
+Frustum operator* (const OrthogonalTransform& xform, const Frustum& frustum)
+{
+    Frustum result;
+
+    for (int i = 0; i < 8; ++i)
+        result.m_FrustumCorners[i] = xform * frustum.m_FrustumCorners[i];
+
+for (int i = 0; i < 6; ++i)
+        result.m_FrustumPlanes[i] = xform * frustum.m_FrustumPlanes[i];
+
+    return result;
+}
+
+Frustum operator* (const AffineTransform& xform, const Frustum& frustum)
+{
+    Frustum result;
+
+    for (int i = 0; i < 8; ++i)
+        result.m_FrustumCorners[i] = xform * frustum.m_FrustumCorners[i];
+
+    Matrix4 XForm = Transpose(Invert(Matrix4(xform)));
+
+    for (int i = 0; i < 6; ++i)
+        result.m_FrustumPlanes[i] = BoundingPlane(XForm * Vector4(frustum.m_FrustumPlanes[i]));
+
+    return result;
+}
+
+inline Frustum operator* (const Matrix4& mtx, const Frustum& frustum)
+{
+    Frustum result;
+
+    for (int i = 0; i < 8; ++i)
+        result.m_FrustumCorners[i] = Vector3(mtx * frustum.m_FrustumCorners[i]);
+
+    Matrix4 XForm = Transpose(Invert(mtx));
+
+    for (int i = 0; i < 6; ++i)
+        result.m_FrustumPlanes[i] = BoundingPlane(XForm * Vector4(frustum.m_FrustumPlanes[i]));
+
+    return result;
+}
+
 }

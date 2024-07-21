@@ -15,8 +15,8 @@
 
 #include "pch.h"
 
-using namespace DirectX;
-using std::vector;
+using DirectX::XMFLOAT2;
+using DirectX::XMFLOAT3;
 
 namespace MyDirectX
 {
@@ -44,21 +44,17 @@ namespace MyDirectX
 
 		struct Mesh
 		{
-			vector<Vertex> vertices;
-			vector<int> indices;
+			std::vector<Vertex> vertices;
+			std::vector<int> indices;
 		};
 
 		class MyBasicGeometry
 		{
 		public:
 			static void BasicBox(float width, float height, float depth, Mesh& mesh);
-
 			static void BasicSphere(float radius, unsigned sliceCount, unsigned stackCount, Mesh& mesh);
-
 			static void BasicCylinder(float bottomRadius, float topRadius, float height, unsigned slickCount, unsigned stackCount, Mesh& mesh);
-
 			static void BasicGrid(float width, float depth, unsigned m, unsigned n, Mesh& mesh);
-
 			static void BasicFullScreenQuad(Mesh& mesh);
 		};
 	}

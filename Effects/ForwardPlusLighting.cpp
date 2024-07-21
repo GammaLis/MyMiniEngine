@@ -27,9 +27,12 @@ namespace MyDirectX
 		Matrix4 _ViewProjMat; 
 	};
 
+	ForwardPlusLighting::ForwardPlusLighting() = default;
+	ForwardPlusLighting::~ForwardPlusLighting() = default;
+
 	void ForwardPlusLighting::Init(ID3D12Device* pDevice)
 	{
-		// root signature
+		// Root signature
 		{
 			m_FillLightRS.Reset(3, 0);
 			m_FillLightRS[0].InitAsConstantBuffer(0);
@@ -112,6 +115,10 @@ namespace MyDirectX
 			return Normalize(Vector3(randGaussian(), randGaussian(), randGaussian()));
 		};
 
+		// Point light shadow
+		m_PointLightShadowCamera.reset(new Math::Camera[6]);
+
+		bool bPointLightShadowSet = false;
 		for (uint32_t n = 0; n < MaxLights; ++n)
 		{
 			Vector3 pos = randVecUniform() * posScale + posBias;
@@ -158,6 +165,32 @@ namespace MyDirectX
 			// WARNING: Can't be Math::Matrix4 - SIMD commands need 16 byte alignment !!!
 			// m_LightData[n].shadowTextureMatrix = DirectX::XMMATRIX(Transpose(shadowTextureMatrix));
 			DirectX::XMStoreFloat4x4(&m_LightData[n].shadowTextureMatrix, DirectX::XMMATRIX(Transpose(shadowTextureMatrix)));
+
+			if (type == 0 && !bPointLightShadowSet) 
+			{
+				static Vector3 Dirs[6]  = 
+				{
+					 Vector3(Math::kXUnitVector), 
+					-Vector3(Math::kXUnitVector), 
+
+					 Vector3(Math::kZUnitVector),
+					-Vector3(Math::kZUnitVector),
+
+					 Vector3(Math::kYUnitVector),
+					-Vector3(Math::kYUnitVector),
+				};
+				
+				for (uint32_t f = 0; f < 6; f++) 
+				{
+					auto &pointShadowCamera = m_PointLightShadowCamera[f];
+
+					pointShadowCamera.SetEyeAtUp(pos, pos + Dirs[f], f < 4 ? Vector3(kYUnitVector) : Vector3(kXUnitVector) );
+					pointShadowCamera.SetPerspectiveMatrix(Math::XM_PIDIV2, 1.0f, lightRadius * 0.05f, lightRadius * 1.0f);
+					pointShadowCamera.Update();
+				}
+
+				bPointLightShadowSet = true;
+			}
 		}
 
 		// 
@@ -178,12 +211,12 @@ namespace MyDirectX
 			}
 		}
 
-		// create light buffer
+		// Create light buffer
 		m_LightBuffer.Create(pDevice, L"m_LightBuffer", MaxLights, sizeof(LightData), m_LightData.data());
 
-		// assumes max resolution of 1920x1080
+		// Assumes max resolution of 1920x1080
 		uint32_t maxWidth = 1920, maxHeight = 1080;
-		// light grid cells max num
+		// Light grid cells max num
 		uint32_t lightGridCells = Math::DivideByMultiple(maxWidth, MinLightGridDim) * Math::DivideByMultiple(maxHeight, MinLightGridDim);
 		uint32_t lightGridSizeBytes = lightGridCells * (4 + MaxLights * 4);
 		m_LightGrid.Create(pDevice, L"m_LightGrid", lightGridSizeBytes, 1, nullptr);
@@ -214,7 +247,7 @@ namespace MyDirectX
 
 		ColorBuffer& linearDepth = Graphics::s_BufferManager.m_LinearDepth[frameIndex % 2];
 		ColorBuffer& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
-		DepthBuffer& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;		
+		DepthBuffer& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
 
 		context.TransitionResource(m_LightBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		context.TransitionResource(linearDepth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -222,17 +255,17 @@ namespace MyDirectX
 		context.TransitionResource(m_LightGrid, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		context.TransitionResource(m_LightGridBitMask, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-		// rootIndex 1 - 2 SRVs
+		// RootIndex 1 - 2 SRVs
 		context.SetDynamicDescriptor(1, 0, m_LightBuffer.GetSRV());
 
-		// context.SetDynamicDescriptor(1, 1, linearDepth.GetSRV());
+		// Context.SetDynamicDescriptor(1, 1, linearDepth.GetSRV());
 		context.SetDynamicDescriptor(1, 1, depthBuffer.GetDepthSRV());
 
-		// rootIndex 2 - 2 UAVs
+		// RootIndex 2 - 2 UAVs
 		context.SetDynamicDescriptor(2, 0, m_LightGrid.GetUAV());
 		context.SetDynamicDescriptor(2, 1, m_LightGridBitMask.GetUAV());
 
-		// assumes 1920x1080 resolution
+		// Assumes 1920x1080 resolution
 		uint32_t tileCountX = Math::DivideByMultiple(colorBuffer.GetWidth(), m_LightGridDim);
 		uint32_t tileCountY = Math::DivideByMultiple(colorBuffer.GetHeight(), m_LightGridDim);
 
@@ -248,7 +281,7 @@ namespace MyDirectX
 		csConstants._TileCount = tileCountX;
 		csConstants._ViewProjMat = Math::Transpose(camera.GetViewProjMatrix());
 
-		// rootIndex 0 - 1 CBV
+		// RootIndex 0 - 1 CBV
 		context.SetDynamicConstantBufferView(0, sizeof(csConstants), &csConstants);
 
 		context.Dispatch(tileCountX, tileCountY, 1);

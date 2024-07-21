@@ -22,6 +22,12 @@ namespace MyDirectX
 		static constexpr unsigned MaxLights = 128;
 		static constexpr unsigned MinLightGridDim = 8;
 
+		ForwardPlusLighting();
+		~ForwardPlusLighting();
+
+		ForwardPlusLighting(const ForwardPlusLighting&) = delete;
+		ForwardPlusLighting(ForwardPlusLighting&&) = delete;
+
 		void Init(ID3D12Device *pDevice);
 		void Shutdown();
 		
@@ -59,6 +65,25 @@ namespace MyDirectX
 		std::vector<Math::Matrix4> m_LightShadowMatrix;
 
 		std::vector<Math::Matrix4> m_PointLightShadowMatrix;
+
+		// Use of forward declaration of 'Math::Camera':
+		// ERROR::error C2338: static_assert failed: 'can't delete an incomplete type'
+		/**
+		* Ref: https://developercommunity.visualstudio.com/t/unique-ptr-cant-delete-an-incomplete-type/1371585
+		*	The problem doesn't arise from destruction of the object, but construction. The C++ Standard mandates that 
+		* object constructors "potentially invoke" destructors of subobjects, which means they are considered to be used 
+		* and must therefore be defined and well-formed even if never actually called. This is sensible considering that 
+		* when construction of some objects throws an exception, subobjects already constructed must be destroyed before
+		* allowing the exception to propagate out of a complete object's constructor.
+		*	The workaround is straightforward. You must handle any constructors - notably including the default constructor
+		* which is currently defined implicitly.
+		*/ 
+		std::unique_ptr<Math::Camera[]> m_PointLightShadowCamera;
+		
+		// ERROR::error C2036: 'Math::Camera *': unknown size
+		// Ref: https://github.com/microsoft/STL/issues/2720
+		// Now that C++20 has made vector's destructor constexpr, it must be instantiated by this potential use
+		// std::vector<Math::Camera> m_PointLightShadowCamera;
 
 		uint32_t m_ShadowDim = 512;
 

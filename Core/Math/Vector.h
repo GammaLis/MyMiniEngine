@@ -77,6 +77,7 @@ namespace Math
     public:
         INLINE Vector4() {}
         INLINE Vector4( float x, float y, float z, float w ) { m_vec = XMVectorSet(x, y, z, w); }
+        INLINE Vector4(const XMFLOAT4& v) { m_vec = XMLoadFloat4(&v); }
         INLINE Vector4( Vector3 xyz, float w ) { m_vec = XMVectorSetW(xyz, w); }
         INLINE Vector4( const Vector4& v ) { m_vec = v; }
         INLINE Vector4( const Scalar& s ) { m_vec = s; }
@@ -99,6 +100,7 @@ namespace Math
         INLINE void SetY( Scalar y ) { m_vec = XMVectorPermute<0,5,2,3>(m_vec, y); }
         INLINE void SetZ( Scalar z ) { m_vec = XMVectorPermute<0,1,6,3>(m_vec, z); }
         INLINE void SetW( Scalar w ) { m_vec = XMVectorPermute<0,1,2,7>(m_vec, w); }
+        INLINE void SetXYZ(Vector3 xyz) { m_vec = XMVectorPermute<0, 1, 2, 7>(xyz, m_vec); }
 
         INLINE Vector4 operator- () const { return Vector4(XMVectorNegate(m_vec)); }
         INLINE Vector4 operator+ ( Vector4 v2 ) const { return Vector4(XMVectorAdd(m_vec, v2)); }
@@ -122,10 +124,15 @@ namespace Math
         XMVECTOR m_vec;
     };
 
-    INLINE Vector3::Vector3( Vector4 v )
+    INLINE Vector3::Vector3( Vector4 v ) : m_vec((XMVECTOR)v)
+    {
+    }
+
+    // For W != 1, divide XYZ by W.  If W == 0, do nothing
+    INLINE Vector3 MakeHomogeneous(Vector4 v)
     {
         Scalar W = v.GetW();
-        m_vec = XMVectorSelect( XMVectorDivide(v, W), v, XMVectorEqual(W, SplatZero()) );
+        return Vector3(XMVectorSelect(XMVectorDivide(v, W), v, XMVectorEqual(W, SplatZero())));
     }
 
     class BoolVector

@@ -3,8 +3,9 @@
 using namespace MyDirectX;
 using namespace Math;
 
-void ShadowCamera::UpdateMatrix(Math::Vector3 lightDirection, 
-	Math::Vector3 shadowCenter, Math::Vector3 shadowBounds, 
+void ShadowCamera::UpdateMatrix(const Math::Vector3 &lightDirection, 
+	const Math::Vector3 &shadowCenter, 
+	const Math::Vector3 &shadowBounds, 
 	uint32_t bufferWidth, uint32_t bufferHeight, uint32_t bufferPrecision)
 {
 	SetLookDirection(lightDirection, Vector3(kZUnitVector));
@@ -19,13 +20,13 @@ void ShadowCamera::UpdateMatrix(Math::Vector3 lightDirection,
 	//
 
 	// transform to view space
-	shadowCenter = ~GetRotation() * shadowCenter;
+	auto newShadowCenter = ~GetRotation() * shadowCenter;
 	// scale to texel units, truncate fractional part, and scale back to world units
-	shadowCenter = Floor(shadowCenter * quantizeScale) / quantizeScale;
+	newShadowCenter = Floor(newShadowCenter * quantizeScale) / quantizeScale;
 	// transform back into world space
-	shadowCenter = GetRotation() * shadowCenter;
+	newShadowCenter = GetRotation() * newShadowCenter;
 
-	SetPosition(shadowCenter);
+	SetPosition(newShadowCenter);
 
 	SetProjMatrix(Matrix4::MakeScale(Vector3(2.0f, 2.0f, 1.0f) * rcpDimensions));
 
