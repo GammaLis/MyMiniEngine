@@ -1,12 +1,18 @@
 #include "ModelViewerRS.hlsli"
 #include "LightGrid.hlsli"
 
+#define FIX_CUBEMAP_SAMPLING 1
+#define FIX_CUBEMAP_HAND_DIFFERENCE 1
+
 cbuffer PSConstants	: register(b0)
 {
 	float3 _SunDirection;		// 0 - 4 floats
 	float3 _SunColor;			// 4 - 4 floats
 	float3 _AmbientColor;		// 8 - 4 floats
+	float4 _PointLightShadowOffsetSize[6];
 	float2 _ShadowTexelSize;	// 12 - 4 floats
+	float4 _PointLightShadowAtlasSize;
+	float4 _PointLightMiscs;	// x - zMagic, z,w - InvDepthTransform
 
 	float4 _InvTileDim;
 	uint4 _TileCount;
@@ -29,7 +35,8 @@ Texture2D<float> _TexShadow : register(t11);	// directional light shadowmap
 StructuredBuffer<LightData> _LightBuffer: register(t12);
 ByteAddressBuffer _LightGrid			: register(t13);
 ByteAddressBuffer _LightGridBitMask		: register(t14);
-Texture2DArray<float> _LightShadowArray	: register(t15);	// non-directional light shadowmaps
+Texture2DArray<float> _LightShadowArray	: register(t15);	// non-directional light shadowmap
+Texture2D<float> _PointLightShadow		: register(t16);
 
 struct VSOutput
 {
@@ -51,7 +58,6 @@ struct PSOutput
 
 /**
  * rsqrt - returns the reciprocal of the square root of the specified value
- * 平方根倒数
  * 1 / sqrt(x)
  *
  * rcp - component-wise reciprocal
@@ -269,6 +275,102 @@ float3 ApplyConeShadowedLight(
         );
 }
 
+// Ref: Seamless Cube Map Filtering, http://www.ludicon.com/castano/blog/articles/seamless-cube-map-filtering/
+float3 FixCubeLookup(float3 v, float cubeSize)
+{
+	float3 vAbs = abs(v);
+	float M = max(vAbs.x, max(vAbs.y, vAbs.z));
+	float scale = (cubeSize - 1) / cubeSize;
+	if (vAbs.x != M) v.x *= scale;
+	if (vAbs.y != M) v.y *= scale;
+	if (vAbs.z != M) v.z *= scale;
+	return v;
+}
+
+// Convert texture coordinates on a cubemap face to cubemap sampling coordinates:
+// Ref:
+// Implementing a Cube Map Lookup Function, https://www.gamedev.net/forums/topic/687535-implementing-a-cube-map-lookup-function/
+// Cubemap Texture, https://www.khronos.org/opengl/wiki/Cubemap_Texture
+// Cubemap Texture, https://learn.microsoft.com/zh-cn/windows/win32/direct3d9/cubic-environment-mapping?redirectedfrom=MSDN
+float3 CubemapToUv(float3 v, out float sampleDepth)
+{
+	float3 vAbs = abs(v);
+	float2 uv;
+	float  face, ma;
+	if (vAbs.z >= vAbs.x && vAbs.z >= vAbs.y)
+	{
+		face = v.z < 0.0 ? 5.0 : 4.0;
+		ma = 0.5 / vAbs.z;
+		uv = float2( v.z < 0.0 ? -v.x : v.x, -v.y );
+		// FIXME: It's right hand system now? Need to fix it. -2024-07-28
+#if FIX_CUBEMAP_HAND_DIFFERENCE
+		uv.x = -uv.x;
+#endif
+		sampleDepth = vAbs.z;
+	}
+	else if (vAbs.y >= vAbs.x)
+	{
+		face = v.y < 0.0 ? 3.0 : 2.0;
+		ma = 0.5 / vAbs.y;
+		uv = float2( v.x, v.y < 0.0 ? -v.z : v.z );
+#if FIX_CUBEMAP_HAND_DIFFERENCE
+		// uv.y = -uv.y;
+#endif
+		sampleDepth = vAbs.y;
+	}
+	else
+	{
+		face = v.x < 0.0 ? 1.0 : 0.0;
+		ma = 0.5 / vAbs.x;
+		uv = float2( v.x < 0.0 ? v.z : -v.z, -v.y );
+#if FIX_CUBEMAP_HAND_DIFFERENCE
+		uv.x = -uv.x;
+#endif
+		sampleDepth = vAbs.x;
+	}
+	uv = uv * ma + 0.5;
+	return float3(uv, face); 
+}
+
+// Ref: Common.hlsl
+// Inverse operation of ConvertFromDeviceZ()
+float ConvertToDeviceZ(float SceneDepth)
+{
+	SceneDepth = -abs(SceneDepth); // Z axis is out
+	// Perspective
+	// 1.0f / ((SceneDepth + _View.InvDeviceZToWorldZTransform.w) * _View.InvDeviceZToWorldZTransform.z);
+	return -(1.0f / SceneDepth + _PointLightMiscs.w) / _PointLightMiscs.z;
+}
+
+float SampleCube(float3 v, out float sampleDepth)
+{
+	float3 uvw = CubemapToUv(v, sampleDepth);
+	const uint faceIndex = min( uvw.z, 5 );
+	const float4 offsetSize = _PointLightShadowOffsetSize[faceIndex];
+	float2 sampleUv = (uvw.xy * offsetSize.zw + offsetSize.xy) * _PointLightShadowAtlasSize.zw;
+	float  shadowDepth = _PointLightShadow.SampleLevel(s_PointClampSampler, sampleUv, 0).x; // s_DefaultSampler
+	return shadowDepth;
+}
+
+float GetShadowPointLight(float3 v)
+{
+	float sampleDepth = 0.0f;	
+	float3 uvw = CubemapToUv(v, sampleDepth);
+
+	const float sampleDeviceZ = ConvertToDeviceZ(sampleDepth);
+	const uint faceIndex = min( uvw.z, 5 );
+
+	const float4 offsetSize = _PointLightShadowOffsetSize[faceIndex];
+	float2 sampleUv = (uvw.xy * offsetSize.zw + offsetSize.xy) * _PointLightShadowAtlasSize.zw;
+	float shadow = _PointLightShadow.SampleCmpLevelZero(s_ShadowSampler, sampleUv, sampleDeviceZ);
+	return shadow;
+}
+
+float GetLinearDepth(float deviceDepth, float zMagic)
+{
+	return 1.0 / (1.0 + deviceDepth * zMagic);
+}
+
 // options for F+ variants and optimizations
 #if 0 // SM6.0
 #define _WAVE_OP
@@ -386,7 +488,37 @@ void ShadeLights(inout float3 colorSum, uint2 pixelPos,
 		{
 			uint lightIndex = _LightGrid.Load(tileLightLoadOffset);
 			LightData lightData = _LightBuffer[lightIndex];
-			colorSum += ApplyPointLight(POINT_LIGHT_ARGS);
+
+			// Point light shadow
+			float shadow = 1.0;
+			if (lightIndex == 0)
+			{
+				float3 v = worldPos - lightData.pos;
+				float dist2 = dot(v, v);
+				if (dist2 < lightData.radiusSq)
+				{
+#if FIX_CUBEMAP_SAMPLING
+					v = FixCubeLookup(v, _PointLightShadowOffsetSize[0].z);
+#endif
+
+#if 0
+					float sampleDepth = v.z;
+					float depth = SampleCube( v, sampleDepth );
+					if (depth > 0)
+					{
+						depth = GetLinearDepth(depth, _PointLightMiscs.x);
+						depth = depth*depth * lightData.radiusSq;
+						const float Bias = 5.0;
+						shadow = depth + Bias < sampleDepth*sampleDepth ? 0.0f : 1.0f;
+						// shadow *= depth;
+					}
+#else
+					shadow = GetShadowPointLight(v);
+#endif
+				}					
+			}
+			
+			colorSum += ApplyPointLight(POINT_LIGHT_ARGS) * shadow;
 		}
 
 		// cone 
@@ -407,9 +539,10 @@ void ShadeLights(inout float3 colorSum, uint2 pixelPos,
 		}
 	#endif 
 
-		// debug
+		//~ Begin: Debug
 		// float countFactor = (tileLightCountSphere + tileLightCountCone + tileLightCountConeShadowed) / 32.0;
 		// colorSum = lerp(float3(0, 1, 0), float3(1, 0, 0), countFactor);
+		//~ End
 	}
 }
 
@@ -515,5 +648,5 @@ PSOutput main(VSOutput i)
  *	Row-major and column-major packing order has no influence on the packing
  *order of constructors (which always follows row-major ordering)
  *	the order of the data in a matrix can be declared at compile time or the compiler
- *will order the data at runtime for the most effcient use.	
+ *will order the data at runtime for the most efficient use.	
  */

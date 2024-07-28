@@ -142,6 +142,47 @@ namespace MyDirectX
 			float coneInner = (rng.NextFloat() * 0.2f + 0.025f) * Math::Pi;
 			float coneOuter = coneInner + rng.NextFloat() * 0.1f * Math::Pi;
 
+			if (type == 0 && !bPointLightShadowSet) 
+			{
+				pos = Vector3(100.0f, 100.0f, 100.0f);
+				color = color * 10.0f;
+				m_PointLightSphere = Math::BoundingSphere( pos, lightRadius );
+
+				static Vector3 Dirs[6]  = 
+				{
+					Vector3(Math::kXUnitVector), 
+				   -Vector3(Math::kXUnitVector), 
+					Vector3(Math::kYUnitVector),
+				   -Vector3(Math::kYUnitVector),
+					Vector3(Math::kZUnitVector),
+				   -Vector3(Math::kZUnitVector),
+			   };
+
+				static Vector3 UpDir[6] =
+				{
+					Vector3(kYUnitVector),
+					Vector3(kYUnitVector),
+				   -Vector3(kZUnitVector),
+					Vector3(kZUnitVector),
+					Vector3(kYUnitVector),
+					Vector3(kYUnitVector),					
+				};
+				
+				for (uint32_t f = 0; f < 6; f++) 
+				{
+					auto &pointShadowCamera = m_PointLightShadowCamera[f];
+
+					float fov = Math::ATan( float(DefaultAtlasTileSize) / float(DefaultAtlasTileSize-0.5) ) * 2.0f ; // Math::XM_PIDIV2;
+					pointShadowCamera.SetEyeAtUp(pos, pos + Dirs[f], UpDir[f] );
+					pointShadowCamera.SetPerspectiveMatrix(fov, 1.0f, lightRadius * 0.005f, lightRadius * 1.0f);
+					pointShadowCamera.Update();
+
+					m_PointLightShadowMatrix.emplace_back( pointShadowCamera.GetViewProjMatrix() );
+				}
+
+				bPointLightShadowSet = true;
+			}
+
 			if (type == 1 || type == 2)
 			{
 				// emphasize cone lights
@@ -165,32 +206,6 @@ namespace MyDirectX
 			// WARNING: Can't be Math::Matrix4 - SIMD commands need 16 byte alignment !!!
 			// m_LightData[n].shadowTextureMatrix = DirectX::XMMATRIX(Transpose(shadowTextureMatrix));
 			DirectX::XMStoreFloat4x4(&m_LightData[n].shadowTextureMatrix, DirectX::XMMATRIX(Transpose(shadowTextureMatrix)));
-
-			if (type == 0 && !bPointLightShadowSet) 
-			{
-				static Vector3 Dirs[6]  = 
-				{
-					 Vector3(Math::kXUnitVector), 
-					-Vector3(Math::kXUnitVector), 
-
-					 Vector3(Math::kZUnitVector),
-					-Vector3(Math::kZUnitVector),
-
-					 Vector3(Math::kYUnitVector),
-					-Vector3(Math::kYUnitVector),
-				};
-				
-				for (uint32_t f = 0; f < 6; f++) 
-				{
-					auto &pointShadowCamera = m_PointLightShadowCamera[f];
-
-					pointShadowCamera.SetEyeAtUp(pos, pos + Dirs[f], f < 4 ? Vector3(kYUnitVector) : Vector3(kXUnitVector) );
-					pointShadowCamera.SetPerspectiveMatrix(Math::XM_PIDIV2, 1.0f, lightRadius * 0.05f, lightRadius * 1.0f);
-					pointShadowCamera.Update();
-				}
-
-				bPointLightShadowSet = true;
-			}
 		}
 
 		// 
@@ -226,6 +241,9 @@ namespace MyDirectX
 
 		m_LightShadowArray.CreateArray(pDevice, L"m_LightShadowArray", m_ShadowDim, m_ShadowDim, MaxLights, DXGI_FORMAT_R16_UNORM);
 		m_LightShadowTempBuffer.Create(pDevice, L"m_LightShadowTempBuffer", m_ShadowDim, m_ShadowDim);
+
+		const uint32_t atlasSize = DefaultAtlasDim;
+		m_LightShadowAtlas.Create(pDevice, L"m_LightShadowAtlas", atlasSize, atlasSize, ShadowAtlasFormat);
 	}
 
 	void ForwardPlusLighting::FillLightGrid(GraphicsContext& gfxContext, const Math::Camera& camera, uint64_t frameIndex)
@@ -298,5 +316,6 @@ namespace MyDirectX
 
 		m_LightShadowArray.Destroy();
 		m_LightShadowTempBuffer.Destroy();
+		m_LightShadowAtlas.Destroy();
 	}
 }

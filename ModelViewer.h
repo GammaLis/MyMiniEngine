@@ -124,6 +124,7 @@ namespace MyDirectX
 
 		void RenderLightShadows(GraphicsContext& gfxContext);
 		void RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4 &viewProjMat, ObjectFilter filter = ObjectFilter::kAll, uint32_t cullingIndex = INDEX_NONE);
+		void RenderMultiViewportObjects(GraphicsContext& gfxContext, const std::vector<Math::Matrix4> &viewProjMats, const BatchElements &renderBatch, ObjectFilter filter = ObjectFilter::kAll);
 		void CreateParticleEffects();
 
 		/**
@@ -146,6 +147,7 @@ namespace MyDirectX
 		GraphicsPSO m_CutoutModelPSO{ L"Cutout Color PSO" };
 		GraphicsPSO m_ShadowPSO{ L"Shadow PSO" };
 		GraphicsPSO m_CutoutShadowPSO{ L"Cutout Shadow PSO" };
+		GraphicsPSO m_PointLightShadowPSO{ L"Point Light Shadow PSO"};
 
 		// TODO: put somewhere else, -20-2-21
 		RootSignature m_LinearDepthRS;
@@ -154,7 +156,7 @@ namespace MyDirectX
 		Math::Vector3 m_SunDirection;
 		std::unique_ptr<ShadowCamera> m_SunShadow;
 
-		D3D12_CPU_DESCRIPTOR_HANDLE m_ExtraTextures[6]{};
+		D3D12_CPU_DESCRIPTOR_HANDLE m_ExtraTextures[7] = {};
 
 		void InitRaytracing();
 		void InitRaytracingViews(ID3D12Device* pDevice);

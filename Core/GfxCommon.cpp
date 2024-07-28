@@ -63,7 +63,7 @@ float GfxStates::s_HDRPaperWhite = 200.0f;
 float GfxStates::s_MaxDisplayLuminance = 1000.0f;
 
 // https://en.wikipedia.org/wiki/Bicubic_interpolation
-// BicubicUpsample A - 通常 -0.5 -0.75
+// BicubicUpsample A - Commonly -0.5 -0.75
 float GfxStates::s_BicubicUpsampleWeight = -0.75f;		// -1.0 - 0.25		stepSize - 0.25
 float GfxStates::s_SharpeningSpread = 1.0f;				// 0.7 - 2.0		stepSize - 0.1
 float GfxStates::s_SharpeningRotation = 45.0f;			// 0.0 - 90.0		stepSize - 15.0f
@@ -188,7 +188,7 @@ void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferW
 	m_Histogram.Create(pDevice, L"Histogram", 256, 4);
 
 	// bloom and tone mapping
-	// MS-MiniEngine 自己注释
+	// MS-MiniEngine's comment
 	// divisible by 128 so that after dividing by 16, we still have multiples of 8x8 tiles
 	// the bloom dimensions must be at least 1/4 natives resolution to avoid undersampling
 	//uint32_t kBloomWidth = bufferWidth > 2560 ? Math::AlignUp(bufferWidth / 4, 128) : 640;
@@ -328,7 +328,7 @@ void ShaderManager::CreateFromByteCode()
 	m_BasicTrianglePS = CD3DX12_SHADER_BYTECODE(BasicTrianglePS, sizeof(BasicTrianglePS));
 }
 
-// 暂时不用这个函数，无法解决#include问题 -20-1-21
+// TODO: Compile shaders from files
 void ShaderManager::CompileShadersFromFile()
 {
 #ifdef _DEBUG

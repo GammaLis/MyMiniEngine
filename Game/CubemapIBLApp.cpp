@@ -47,7 +47,7 @@ void CubemapIBLApp::Init(const std::wstring& fileName, UINT width, UINT height, 
 		auto filePath = fileName;
 		auto pos = filePath.rfind('.');
 		if (pos != std::wstring::npos)
-			filePath = filePath.substr(0, pos);	// È¥³ýÀ©Õ¹Ãû
+			filePath = filePath.substr(0, pos);	// remove extensions
 		const auto texture = Graphics::s_TextureManager.LoadFromFile(pDevice, filePath);
 		m_SRV = texture->GetSRV();
 

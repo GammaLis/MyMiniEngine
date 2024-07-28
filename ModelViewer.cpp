@@ -21,6 +21,7 @@
 #include "DepthViewerPS.h"
 #include "ModelViewerVS.h"
 #include "ModelViewerPS.h"
+#include "PointLightShadowVS.h"
 
 // TODO: put somewhere else
 #include "LinearizeDepthCS.h"
@@ -62,12 +63,20 @@ struct VSConstants
 	XMFLOAT3 _CamPos;
 };
 
+struct PointLightShadowVSConstants
+{
+	Math::Matrix4 _ModelToProjection[6];
+};
+
 struct alignas(16) PSConstants
 {
 	Math::Vector3 _SunDirection;
 	Math::Vector3 _SunLight;
 	Math::Vector3 _AmbientLight;
+	Math::Vector4 _PointLightShadowOffsetSize[6];
 	float _ShadowTexelSize[4];
+	float _PointLightShadowSize[4]; // xy - size, zw - 1/size
+	float _PointLightMiscs[4];
 
 	float _InvTileDim[4];
 	uint32_t _TileCount[4];	// xy + zw padding
@@ -111,11 +120,11 @@ constexpr uint32_t c_MaxReservoirs = 1; // number of reservoirs per pixel to all
 
 using BatchElements = ModelViewer::BatchElements;
 
-void Cull(BatchElements &visibleMeshes, const Math::BaseCamera& camera, const std::vector<const Model*>& models)
+static void Cull(BatchElements &visibleMeshes, const Math::BaseCamera& camera, const std::vector<const Model*>& models)
 {
 	visibleMeshes.clear();
 
-	auto& frustumWS = camera.GetWorldSpaceFrustum();
+	const auto& frustumWS = camera.GetWorldSpaceFrustum();
 
 	// High 16bits - ModelId, low 16bits - MeshId (or SubmeshId)
 	uint32_t index = 0;
@@ -138,6 +147,39 @@ void Cull(BatchElements &visibleMeshes, const Math::BaseCamera& camera, const st
 			}
 		}
 	}
+}
+
+static void Cull(BatchElements& visibleMeshes, const std::vector<const Math::BaseCamera*> &cameras, const std::vector<const Model*>& models, uint32_t cameraStart = 0)
+{
+	uint32_t cameraMask = 0;
+
+	// High 16bits - ModelId, low 16bits - MeshId (or SubmeshId)
+	uint32_t index = 0;
+	uint32_t numMeshes = 0;
+	for (uint32_t i = 0, imax = (uint32_t)visibleMeshes.size(); i < imax; i++)
+	{
+		uint32_t vi = visibleMeshes[i];
+		uint32_t modelIndex = (vi >> 16) & 0x0FFF, meshIndex = vi & 0xFFFF;
+
+		const auto &model = models[modelIndex];
+		const auto &mesh = model->m_Meshes[meshIndex];
+		
+		// Camera mask
+		for (uint32_t c = 0, cmax = (uint32_t)cameras.size(); c < cmax; c++) 
+		{
+			auto& frustumWS = cameras[c]->GetWorldSpaceFrustum();
+			bool bVisible = frustumWS.IntersectBoundingBox(mesh.boundingBox.min, mesh.boundingBox.max);
+			if (bVisible)
+			{
+				visibleMeshes[i] |= (1 << (c+cameraStart)) << 28; // 16 + 12
+			}
+		}
+	}
+}
+
+static Math::Vector4 GetSizeAndInvSize(float w, float h)
+{
+	return Math::Vector4(w, h, 1.0f/w, 1.0f/h);
 }
 
 
@@ -259,7 +301,7 @@ void ModelViewer::Update(float deltaTime)
 	// Viewport & Scissor
 	const uint32_t bufferWidth = GfxStates::s_NativeWidth, bufferHeight = GfxStates::s_NativeHeight;
 	
-	//~ Begin DEBUG: (改变Viewport位置，尺寸，Scissor位置，尺寸)
+	//~ Begin DEBUG: (Viewport ToyLeft XY, Size, Scissor ToyLeft XY, Size)
 	// m_MainViewport.TopLeftX = m_MainViewport.TopLeftY = 0.0f;
 	// m_MainViewport.TopLeftX = 10;
 	// m_MainViewport.TopLeftY = 10;
@@ -325,6 +367,14 @@ void ModelViewer::Update(float deltaTime)
 	computeContext.Finish();
 }
 
+static void Cast(Math::Vector4 &v, const D3D12_VIEWPORT &vp)
+{
+	v.SetX(vp.TopLeftX);
+	v.SetY(vp.TopLeftY);
+	v.SetZ(vp.Width);
+	v.SetW(vp.Height);
+}
+
 void ModelViewer::Render()
 {
 	auto frameIndex = m_Gfx->GetFrameCount();
@@ -340,10 +390,40 @@ void ModelViewer::Render()
 	psConstants._SunLight = Math::Vector3(1.0f) * m_CommonStates.SunLightIntensity;
 	psConstants._AmbientLight = Math::Vector3(1.0f) * m_CommonStates.AmbientIntensity;
 
+	const auto &forwardPlusLighting = Effects::s_ForwardPlusLighting;
+
+	// Point light shadows
+	uint32_t numPointLightShadowVPs = (uint32_t)forwardPlusLighting.m_ShadowAtlasVPs.size();
+	for (uint32_t i = 0; i < numPointLightShadowVPs; i++)
+	{
+		Cast( psConstants._PointLightShadowOffsetSize[i], forwardPlusLighting.m_ShadowAtlasVPs[i]); 
+	}
+	for (uint32_t i = numPointLightShadowVPs; i < 6; i++)
+	{
+		psConstants._PointLightShadowOffsetSize[i] = Math::Vector4(Math::kZero);
+	}
+	constexpr auto AtlasSize = forwardPlusLighting.DefaultAtlasDim;
+	psConstants._PointLightShadowSize[0] = AtlasSize;
+	psConstants._PointLightShadowSize[1] = AtlasSize;
+	psConstants._PointLightShadowSize[2] = 1.0f / AtlasSize;
+	psConstants._PointLightShadowSize[3] = 1.0f / AtlasSize;
+	{
+		const auto &cam0 = forwardPlusLighting.m_PointLightShadowCamera[0]; 
+		auto n = cam0.GetNearClip();
+		auto f = cam0.GetFarClip();
+		const float zMagic = (f - n) / n;
+
+		// Inv device to world transform
+		auto invDeviceTransform = Math::CreateInvDeviceZToWorldZTransform(cam0.GetProjMatrix());
+		
+		psConstants._PointLightMiscs[0] = zMagic;
+		psConstants._PointLightMiscs[2] = invDeviceTransform.GetZ();
+		psConstants._PointLightMiscs[3] = invDeviceTransform.GetW();
+	}
+
 	psConstants._ShadowTexelSize[0] = 1.0f / shadowBuffer.GetWidth();
 	psConstants._ShadowTexelSize[1] = 1.0f / shadowBuffer.GetHeight();
 
-	const auto& forwardPlusLighting = Effects::s_ForwardPlusLighting;
 	psConstants._InvTileDim[0] = 1.0f / (float)forwardPlusLighting.m_LightGridDim;
 	psConstants._InvTileDim[1] = 1.0f / (float)forwardPlusLighting.m_LightGridDim;
 
@@ -611,7 +691,7 @@ void ModelViewer::InitPipelineStates()
 	// CubeMapSamplerDesc.MaxLOD = 6.0f;
 
 	// Root signature
-	m_RootSig.Reset((UINT)RSId::kNum, 3);
+	m_RootSig.Reset((UINT)RSId::kNum, 4);
 	m_RootSig[(UINT)RSId::kMeshConstants].InitAsConstantBuffer(0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
 	m_RootSig[(UINT)RSId::kMaterialConstants].InitAsConstantBuffer(0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 	m_RootSig[(UINT)RSId::kMaterialSRVs].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 10, 0, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -622,6 +702,7 @@ void ModelViewer::InitPipelineStates()
 	m_RootSig.InitStaticSampler(10, DefaultSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
 	m_RootSig.InitStaticSampler(11, Graphics::s_CommonStates.SamplerShadowDesc, D3D12_SHADER_VISIBILITY_PIXEL);
 	m_RootSig.InitStaticSampler(12, CubeMapSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
+	m_RootSig.InitStaticSampler(13, Graphics::s_CommonStates.SamplerPointClampDesc, D3D12_SHADER_VISIBILITY_PIXEL);
 	m_RootSig.Finalize(Graphics::s_Device, L"ModelViewer", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	DXGI_FORMAT colorFormat = Graphics::s_BufferManager.m_SceneColorBuffer.GetFormat();
@@ -641,7 +722,7 @@ void ModelViewer::InitPipelineStates()
 
 	// PSOs
 	// Depth pso
-	// 只渲染深度，允许深度读写，不需PixelShader，不需颜色绘制
+	// Only draw depth, depth read/write, no pixel shader
 	m_DepthPSO.SetRootSignature(m_RootSig);
 	m_DepthPSO.SetInputLayout(_countof(inputElements), inputElements);
 	m_DepthPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
@@ -664,6 +745,11 @@ void ModelViewer::InitPipelineStates()
 	m_ShadowPSO.SetRenderTargetFormats(0, nullptr, shadowFormat);
 	m_ShadowPSO.Finalize(Graphics::s_Device);
 
+	m_PointLightShadowPSO = m_ShadowPSO;
+	m_PointLightShadowPSO.SetVertexShader(PointLightShadowVS, sizeof(PointLightShadowVS));
+	m_PointLightShadowPSO.SetRenderTargetFormats(0, nullptr, ForwardPlusLighting::ShadowAtlasFormat);
+	m_PointLightShadowPSO.Finalize(Graphics::s_Device);
+
 	// Shadows with alpha testing
 	m_CutoutShadowPSO = m_ShadowPSO;
 	m_CutoutShadowPSO.SetPixelShader(DepthViewerPS, sizeof(DepthViewerPS));
@@ -685,7 +771,7 @@ void ModelViewer::InitPipelineStates()
 	m_CutoutModelPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerTwoSided);
 	m_CutoutModelPSO.Finalize(Graphics::s_Device);
 
-	// FIXME: 临时设置，后面需要放到别处 -20-2-21
+	// FIXME: Put this somewhere else -20-2-21
 	// Linear depth
 	m_LinearDepthRS.Reset(3, 0);
 	m_LinearDepthRS[0].InitAsConstants(0, 1);
@@ -748,6 +834,7 @@ void ModelViewer::InitCustom()
 	m_ExtraTextures[3] = forwardPlusLighting.m_LightGrid.GetSRV();
 	m_ExtraTextures[4] = forwardPlusLighting.m_LightGridBitMask.GetSRV();
 	m_ExtraTextures[5] = forwardPlusLighting.m_LightShadowArray.GetSRV();
+	m_ExtraTextures[6] = forwardPlusLighting.m_LightShadowAtlas.GetDepthSRV();
 
 	// Skybox
 	m_Skybox.reset(new Skybox());
@@ -817,6 +904,74 @@ void ModelViewer::CustomUI(GraphicsContext &context)
 	textContext.End();
 }
 
+
+void UpdateViewportAndScissor(D3D12_VIEWPORT &viewport, RECT &scissor,
+	FLOAT x, FLOAT y, FLOAT w, FLOAT h, FLOAT d0 = 0.0f, FLOAT d1 = 1.0f)
+{
+	viewport.TopLeftX = x; viewport.TopLeftY = y;
+	viewport.Width = w; viewport.MaxDepth = h;
+	viewport.MinDepth = d0; viewport.MaxDepth = d1;
+
+	scissor.left = static_cast<LONG>(x); scissor.right = static_cast<LONG>(x + w);
+	scissor.top = static_cast<LONG>(y); scissor.bottom = static_cast<LONG>(y + h);
+}
+
+D3D12_VIEWPORT GetViewport(float x, float y, float w, float h, float d0 = 0.0f, float d1 = 1.0f)
+{
+	return { x, y, w, h, d0, d1 };
+}
+
+RECT GetScissor(int x, int y, int w, int h) 
+{
+	RECT scissor;
+	scissor.left = static_cast<LONG>(x); scissor.right = static_cast<LONG>(x + w);
+	scissor.top = static_cast<LONG>(y); scissor.bottom = static_cast<LONG>(y + h);
+	return scissor;
+}
+
+namespace Math
+{
+	float DistanceSquared(const Vector3 &a, const Vector3 &b)
+	{
+		Vector3 d = b - a;
+		return Dot(d, d);
+	}
+
+	bool Intersect(const BoundingSphere &sphere, const Vector3 &min, const Vector3 &max)
+	{
+		auto c = sphere.GetCenter();
+		auto r = sphere.GetRadius();
+		Vector3 closestPointInAabb = Math::Min( Math::Max(c, min), max);
+		float d2 = DistanceSquared(c, closestPointInAabb);
+		return d2 < r * r;
+	}
+}
+
+void GetCubemapViewports(std::vector<D3D12_VIEWPORT> &viewports, std::vector<RECT> &scissors, uint32_t shadowMapSize)
+{
+	auto vp = GetViewport(0.0f, 0.0f, shadowMapSize, shadowMapSize);
+	viewports.assign(6, vp);
+
+	auto sci = GetScissor(0, 0, (int)shadowMapSize, (int)shadowMapSize);
+	scissors.assign(6, sci);
+
+	for (int i = 0; i < 6; i++)
+	{
+		int xoff = i % 4, yoff = i / 4;
+		xoff *= shadowMapSize; 
+		yoff *= shadowMapSize;
+
+		viewports[i].TopLeftX += float(xoff);
+		viewports[i].TopLeftY += float(yoff);
+
+		scissors[i].left += xoff;
+		scissors[i].right += xoff;
+		scissors[i].top += yoff;
+		scissors[i].bottom += yoff; 
+	}
+}
+
+
 // Render light shadows
 // Draw shadow depth to Light::m_LightShadowTempBuffer first, then CopySubResource to Light::m_LightShadowArray.
 void ModelViewer::RenderLightShadows(GraphicsContext& gfxContext)
@@ -828,6 +983,91 @@ void ModelViewer::RenderLightShadows(GraphicsContext& gfxContext)
 	auto& forwardPlusLighting = Effects::s_ForwardPlusLighting;
 	if (LightIndex >= forwardPlusLighting.MaxLights)
 		return;
+
+	std::vector<const Model*> models{ m_Model.get() };
+	// Point light first
+	{
+		// Cull
+		if (m_PointLightCullingIndex == INDEX_NONE)
+		{
+			m_PointLightCullingIndex = static_cast<uint32_t>( m_PassCullingResults.size() );
+			m_PassCullingResults.emplace_back();
+		}
+
+		auto &batchList = m_PassCullingResults[m_PointLightCullingIndex];
+		if (batchList.empty()) 
+		{
+			uint32_t numMeshes = 0;
+
+			// High 16bits - ModelId, low 16bits - MeshId (or SubmeshId)
+			uint32_t index = 0;
+			const auto &pointSphere = forwardPlusLighting.m_PointLightSphere;
+			for (uint32_t i = 0, imax = (uint32_t)models.size(); i < imax; i++)
+			{
+				const auto& model = models[i];
+				index = i << 16;
+				if (Math::Intersect(pointSphere, model->GetBoundingBox().min, model->GetBoundingBox().max)) 
+				{
+					for (uint32_t j = 0; j < model->m_MeshCount; j++)
+					{
+						const auto mesh = model->m_Meshes[j];
+						if (Math::Intersect(pointSphere, mesh.boundingBox.min, mesh.boundingBox.max))
+						{
+							batchList.emplace_back(index | j);
+						}
+					}
+				}
+				numMeshes += model->m_MeshCount;
+			}			
+		}
+
+		static uint32_t kFace = 0;
+		if (kFace < 6)
+		{
+			constexpr uint32_t FacesPerFrame = 1;
+			std::vector<const Math::BaseCamera*> cameras(FacesPerFrame, nullptr);
+			for (uint32_t i = 0, imax = FacesPerFrame; i < imax; i++)
+			{
+				cameras[i] = &forwardPlusLighting.m_PointLightShadowCamera[i + kFace];
+			}
+			Cull(batchList, cameras, models, kFace);
+
+			kFace++;
+		}
+		else if (kFace == 6)
+		{
+			// Render
+			std::vector<D3D12_VIEWPORT> &viewports = forwardPlusLighting.m_ShadowAtlasVPs; 
+			std::vector<RECT> &scissors = forwardPlusLighting.m_ShadowAtlasScissors;;
+			if (viewports.empty() || scissors.empty())
+			{
+				GetCubemapViewports(viewports, scissors, ForwardPlusLighting::DefaultAtlasTileSize);
+			}
+			
+			gfxContext.TransitionResource(forwardPlusLighting.m_LightShadowAtlas, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
+
+			gfxContext.ClearDepth(forwardPlusLighting.m_LightShadowAtlas);
+			gfxContext.SetDepthStencilTarget(forwardPlusLighting.m_LightShadowAtlas.GetDSV());
+
+			gfxContext.SetViewports(viewports);
+			gfxContext.SetScissors(scissors);
+
+			// No need
+			// gfxContext.SetRootSignature(m_RootSig);
+			gfxContext.SetPipelineState(m_PointLightShadowPSO);
+
+			RenderMultiViewportObjects(gfxContext, forwardPlusLighting.m_PointLightShadowMatrix, batchList, ObjectFilter::kOpaque);
+
+			gfxContext.TransitionResource(forwardPlusLighting.m_LightShadowAtlas, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+			//~ Begin: Debug - comment this
+			kFace++;
+			//~ End
+		}
+		
+		if (kFace <= 6)
+			return;
+	}
 
 	forwardPlusLighting.m_LightShadowTempBuffer.BeginRendering(gfxContext);
 	{
@@ -889,7 +1129,7 @@ void ModelViewer::RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4
 	for (uint32_t i = 0, imax = (uint32_t)batchList->size(); i < imax; i++) 
 	{
 		uint32_t index = (*batchList)[i];
-		uint32_t modelIndex = index >> 16, meshIndex = index & 0xFFFF;
+		uint32_t modelIndex = (index >> 16) & 0x0FFF, meshIndex = index & 0xFFFF;
 
 		const auto &mesh = m_Model->m_Meshes[meshIndex];
 		Model::DrawParams drawParams = mesh.GetDrawParams();
@@ -935,6 +1175,63 @@ void ModelViewer::RenderObjects(GraphicsContext& gfxContext, const Math::Matrix4
 	}
 	#endif
 
+}
+
+void ModelViewer::RenderMultiViewportObjects(GraphicsContext& gfxContext, const std::vector<Math::Matrix4> &viewProjMats, const BatchElements& renderBatch, ObjectFilter filter)
+{
+	using std::wstring;
+	static const wstring RenderOpaqueObjectsString = L"Render MV Objects Opaque";
+	static const wstring RenderCutoutObjectsString = L"Render MV Objects Cutout";
+	static const wstring RenderTransparentObjectsString = L"Render MV Objects Transparent";
+	static const wstring RenderAllObjectsString = L"Render MV Objects All";
+
+	wstring ProfilingString;
+	if (filter == ObjectFilter::kOpaque)
+		ProfilingString = RenderOpaqueObjectsString;
+	else if (filter == ObjectFilter::kCutout)
+		ProfilingString = RenderCutoutObjectsString;
+	else if (filter == ObjectFilter::kTransparent)
+		ProfilingString = RenderTransparentObjectsString;
+	else if (filter == ObjectFilter::kAll)
+		ProfilingString = RenderAllObjectsString;
+
+	ProfilingScope profilingScope(ProfilingString, gfxContext);
+
+	// Draw
+
+	const uint32_t numViewports = static_cast<uint32_t>(viewProjMats.size());
+
+	PointLightShadowVSConstants vsConstants;
+	uint32_t cbSize = sizeof(Math::Matrix4) * numViewports;
+	memcpy_s(&vsConstants, cbSize, viewProjMats.data(), cbSize);
+	
+	gfxContext.SetDynamicConstantBufferView((uint32_t)RSId::kMeshConstants, sizeof(vsConstants), &vsConstants);
+
+	uint32_t curMatIdx = 0xFFFFFFFFul;
+
+	for (uint32_t i = 0, imax = (uint32_t)renderBatch.size(); i < imax; i++)
+	{
+		uint32_t index = renderBatch[i];
+		uint32_t modelIndex = (index >> 16) & 0x0FFF, meshIndex = index & 0xFFFF;
+
+		const auto& mesh = m_Model->m_Meshes[meshIndex];
+		Model::DrawParams drawParams = mesh.GetDrawParams();
+
+		if (mesh.materialIndex != curMatIdx)
+		{
+			// filter objects
+			bool bCutoutMat = m_Model->m_MaterialIsCutout[mesh.materialIndex];
+			if (bCutoutMat && !((uint32_t)filter & (uint32_t)ObjectFilter::kCutout) ||
+				!bCutoutMat && !((uint32_t)filter & (uint32_t)ObjectFilter::kOpaque))
+				continue;
+
+			curMatIdx = mesh.materialIndex;
+			gfxContext.SetDynamicDescriptors((uint32_t)RSId::kMaterialSRVs, 0, Model::kTexturesPerMaterial, m_Model->GetSRVs(curMatIdx));
+
+			gfxContext.SetConstants((uint32_t)RSId::kCommonCBV, drawParams.baseVertex, curMatIdx);
+		}
+		gfxContext.DrawIndexedInstanced(drawParams.indexCount, numViewports, drawParams.startIndex, drawParams.baseVertex, 0);
+	}
 }
 
 void ModelViewer::CreateParticleEffects()
@@ -1062,7 +1359,7 @@ void ModelViewer::Raytrace(GraphicsContext& gfxContext)
 	{
 		DynamicCB& inputs = g_DynamicCB;
 		auto& m0 = mainCamera.GetViewProjMatrix();
-		auto& m1 = Math::Transpose(Math::Invert(m0));
+		const auto& m1 = Math::Transpose(Math::Invert(m0));
 		memcpy(&inputs.cameraToWorld, &m1, sizeof(inputs.cameraToWorld));
 		memcpy(&inputs.worldCameraPosition, &mainCamera.GetPosition(), sizeof(inputs.worldCameraPosition));
 		memcpy(&inputs.backgroundColor, &c_BackgroundColor, sizeof(inputs.backgroundColor));
@@ -1685,7 +1982,7 @@ void SetPipelineStateStackSize(LPCWSTR raygen, LPCWSTR closestHit, LPCWSTR miss,
 
 void AllocateBufferSrv(ID3D12Device *pDevice, ID3D12Resource& resource, UserDescriptorHeap &descHeap)
 {
-	auto& descHandle = descHeap.Alloc(1);
+	auto descHandle = descHeap.Alloc(1);
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
@@ -1699,7 +1996,7 @@ void AllocateBufferSrv(ID3D12Device *pDevice, ID3D12Resource& resource, UserDesc
 
 void AllocateBufferUav(ID3D12Device* pDevice, ID3D12Resource& resource, UserDescriptorHeap& descHeap)
 {
-	auto& descHandle = descHeap.Alloc(1);
+	auto descHandle = descHeap.Alloc(1);
 	
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;

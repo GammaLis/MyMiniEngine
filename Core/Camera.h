@@ -104,6 +104,7 @@ namespace Math
         float GetNearClip() const { return m_NearClip; }
         float GetFarClip() const { return m_FarClip; }
         float GetClearDepth() const { return m_ReverseZ ? 0.0f : 1.0f; }
+        bool  IsReverseZ() const { return m_ReverseZ; }
 
         // Vector used by shaders to convert depth buffer samples into z coordinates in world space
         Vector4 m_InvDeviceZToWorldZTransform;

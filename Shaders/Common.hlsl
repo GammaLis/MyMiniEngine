@@ -364,7 +364,7 @@ float ConvertToDeviceZ(float SceneDepth)
 	[flatten]
 	if (_View.ProjMatrix[3][3] < 1.0f)
 	{
-		// Perpective
+		// Perspective
 		// 1.0f / ((SceneDepth + _View.InvDeviceZToWorldZTransform.w) * _View.InvDeviceZToWorldZTransform.z);
 		return (1.0f / SceneDepth - _View.InvDeviceZToWorldZTransform.w) / _View.InvDeviceZToWorldZTransform.z;
 	}

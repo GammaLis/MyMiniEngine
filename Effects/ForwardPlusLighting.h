@@ -21,6 +21,9 @@ namespace MyDirectX
 	public:
 		static constexpr unsigned MaxLights = 128;
 		static constexpr unsigned MinLightGridDim = 8;
+		static constexpr unsigned DefaultAtlasDim = 1024;
+		static constexpr unsigned DefaultAtlasTileSize = 256;
+		static constexpr DXGI_FORMAT ShadowAtlasFormat = DXGI_FORMAT_D32_FLOAT;
 
 		ForwardPlusLighting();
 		~ForwardPlusLighting();
@@ -56,8 +59,8 @@ namespace MyDirectX
 		ByteAddressBuffer m_LightGrid;
 
 		ByteAddressBuffer m_LightGridBitMask;
-		uint32_t m_FirstConeLight;
-		uint32_t m_FirstConeShadowedLight;
+		uint32_t m_FirstConeLight{0};
+		uint32_t m_FirstConeShadowedLight{0};
 
 		// shadow
 		ColorBuffer m_LightShadowArray;
@@ -79,6 +82,10 @@ namespace MyDirectX
 		* which is currently defined implicitly.
 		*/ 
 		std::unique_ptr<Math::Camera[]> m_PointLightShadowCamera;
+		Math::BoundingSphere m_PointLightSphere{};
+		DepthBuffer m_LightShadowAtlas;
+		std::vector<D3D12_VIEWPORT> m_ShadowAtlasVPs;
+		std::vector<RECT> m_ShadowAtlasScissors;
 		
 		// ERROR::error C2036: 'Math::Camera *': unknown size
 		// Ref: https://github.com/microsoft/STL/issues/2720

@@ -1260,6 +1260,9 @@
     <FxCompile Include="Shaders\VisibilityBuffer\VisibilityComputeCS.hlsl">
       <Filter>Shaders\VisibilityBuffer</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\PointLightShadowVS.hlsl">
+      <Filter>Shaders\ModelViewer</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MyMiniEngine.rc">

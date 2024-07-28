@@ -124,6 +124,20 @@ namespace MyDirectX
 
         return bSupported;
     }
+
+    bool IsVPAndRTArrayIndexSupported(IDXGIAdapter *pAdapter)
+    {
+        ComPtr<ID3D12Device> pDevice;
+        D3D12_FEATURE_DATA_D3D12_OPTIONS featureSupportData{};
+
+        bool bSupported = true;
+        if (SUCCEEDED( D3D12CreateDevice(pAdapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&pDevice)) ))
+        {
+            bSupported = SUCCEEDED(pDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &featureSupportData, sizeof(featureSupportData)));
+            bSupported = bSupported && featureSupportData.VPAndRTArrayIndexFromAnyShaderFeedingRasterizerSupportedWithoutGSEmulation;
+        }
+        return bSupported;
+    }
 #pragma endregion
 
     Graphics::Graphics(DXGI_FORMAT backBufferFormat, D3D_FEATURE_LEVEL minFeatureLevel,
@@ -1002,31 +1016,31 @@ namespace MyDirectX
         context.TransitionResource(overlayBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         context.SetDynamicDescriptor(0, 0, overlayBuffer.GetSRV());
 
-        // >>> Debug
+        //~ Begin: Debug
     #if 0
-        // 显示 Default字体纹理 （调试使用） -20-1-28
+        // Debug Default font texture
         // auto& textRenderer = Effect::s_TextRenderer;
         // context.SetDynamicDescriptor(0, 0, textRenderer.GetDefaultFontTexture());
         
-        // 显示 LinearDepth [n, f] / f    -20-2-18
+        // Debug LinearDepth [n, f] / f
         // auto& linearDepth = s_BufferManager.m_LinearDepth[m_FrameIndex % 2];
         // context.SetDynamicDescriptor(0, 0, linearDepth.GetSRV());
 
-        // 显示 BloomBuffer   -20-2-24
+        // Debug BloomBuffer
         // auto& bloomBuffer = s_BufferManager.m_aBloomUAV1[1];
         // context.TransitionResource(bloomBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         // context.SetDynamicDescriptor(0, 0, bloomBuffer.GetSRV());
     #endif
-        // <<< Debug end
+        //~ End
 
         context.SetPipelineState(GfxStates::s_bEnableHDROutput ? m_BlendUIHDRPSO : m_BlendUIPSO);
         // context.SetConstants(1, 1.0f / GfxStates::s_NativeWidth, 1.0f / GfxStates::s_NativeHeight);
-        // NOTE: m_BlendUIPSO旧有参数为_RcpDestDim，没有用到
+        // NOTE: m_BlendUIPSO's old param '_RcpDestDim', not used yet
         context.SetConstants(1, GfxStates::s_HDRPaperWhite / 10000.0f, (float)GfxStates::s_MaxDisplayLuminance);
         context.Draw(3);
     }
 
-    // ** TODO: 有待修改   -2021-4-17
+    // ** TODO: Update me
     void Graphics::PreparePresentLDR()
     {
         GraphicsContext &context = GraphicsContext::Begin(L"Present");

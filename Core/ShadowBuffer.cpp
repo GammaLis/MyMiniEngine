@@ -15,7 +15,7 @@ void ShadowBuffer::Create(ID3D12Device* pDevice, const std::wstring& name, uint3
 	m_Viewport.MinDepth = 0.0f;
 	m_Viewport.MaxDepth = 1.0f;
 
-	// preventing drawing to the boundary pixels so that we don't have to worry about shadow stretching
+	// Preventing drawing to the boundary pixels so that we don't have to worry about shadow stretching
 	m_Scissor.left = 1;
 	m_Scissor.top = 1;
 	m_Scissor.right = (LONG)width - 2;

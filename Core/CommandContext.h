@@ -223,6 +223,8 @@ namespace MyDirectX
 		void SetScissor(UINT left, UINT top, UINT right, UINT bottom);
 		void SetViewportAndScissor(const D3D12_VIEWPORT& vp, const D3D12_RECT& rect);
 		void SetViewportAndScissor(UINT x, UINT y, UINT w, UINT h);
+		void SetViewports(const std::vector<D3D12_VIEWPORT> &viewports);
+		void SetScissors(const std::vector<RECT> &scissors);
 		void SetStencilRef(UINT stencilRef);
 		void SetBlendFactor(Color blendFactor);
 		void SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY topology);

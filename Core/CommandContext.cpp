@@ -673,6 +673,16 @@ void GraphicsContext::SetViewportAndScissor(UINT x, UINT y, UINT w, UINT h)
 	SetScissor(x, y, x + w, y + h);
 }
 
+void GraphicsContext::SetViewports(const std::vector<D3D12_VIEWPORT> &viewports)
+{
+	m_CommandList->RSSetViewports((UINT)viewports.size(), viewports.data());
+}
+
+void GraphicsContext::SetScissors(const std::vector<RECT> &scissors)
+{
+	m_CommandList->RSSetScissorRects((UINT)scissors.size(), scissors.data());
+}
+
 void GraphicsContext::SetStencilRef(UINT stencilRef)
 {
 	m_CommandList->OMSetStencilRef(stencilRef);

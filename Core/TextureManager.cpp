@@ -171,7 +171,7 @@ namespace MyDirectX
 		switch (numChannels)
 		{
 		case 3:		
-			// 3 通道，存储类似 0x FF R(8) G(8) B(8)
+			// 3 channels, 0x FF R(8) G(8) B(8)
  			for (uint32_t byteIdx = 0; byteIdx < numBytes; byteIdx += 3)
 			{
 				// 0x | ff | filePtr[0] | filePtr[1] | filePtr[2]
@@ -231,7 +231,7 @@ namespace MyDirectX
 
 		ASSERT(fileSize >= header.pitch * BytesPerPixel(header.format) * header.height + sizeof(Header),
 			"Raw PIX image dump has an invalid file size");
-		// 这里的pitch似乎不是rowPitchBytes？上面是pitch * BytesPerPixel	??? -2021-3-8	MS-Graphic Samples-Texture.cpp
+		// The 'pitch' is not 'rowPitchBytes'? Above is pitch * BytesPerPixel	??? -2021-3-8	MS-Graphic Samples-Texture.cpp
 		Create2D(pDevice, header.pitch * BytesPerPixel(header.format), header.width, header.height, header.format, (uint8_t*)memBuffer + sizeof(Header));
 	}
 
@@ -286,7 +286,7 @@ namespace MyDirectX
 		m_hCpuDescriptorHandle = TextureManager::GetDefaultTexture(detaultTex);
 	}
 
-	// 默认 不可用纹理
+	// Default to 'Invalid'
 	void ManagedTexture::SetToInvalidTexture()
 	{
 		m_hCpuDescriptorHandle = TextureManager::GetMagentaTex2D().GetSRV();
@@ -349,7 +349,7 @@ namespace MyDirectX
 		return std::make_pair(newTexture, true);
 	}
 
-	// fileName需含扩展名
+	// fileName including extensions
 	ManagedTexture* TextureManager::FindOrLoadTextureWithFallback(const std::wstring& fileName, EDefaultTexture fallback, bool forceSRGB)
 	{
 		ManagedTexture* tex = nullptr;
@@ -362,7 +362,7 @@ namespace MyDirectX
 				key += L"_SRGB";
 
 			// Search for an existing managed texture
-			auto& iter = m_TextureCache.find(key);
+			auto iter = m_TextureCache.find(key);
 			if (iter != m_TextureCache.end())
 			{
 				// If a texture was already created make sure it has finished loading before
@@ -421,7 +421,9 @@ namespace MyDirectX
 
 		Utility::ByteArray ba = Utility::ReadFileSync(m_RootPath + fileName);
 		if (ba->size() == 0 || !tex->CreateDDSFromMemory(pDevice, ba->data(), ba->size(), sRGB))
+		{
 			tex->SetToInvalidTexture();
+		}
 		else
 		{
 			tex->GetResource()->SetName(fileName.c_str());
@@ -499,7 +501,7 @@ namespace MyDirectX
 			return tex;
 		}
 
-		// 直接使用stbi_load
+		// Use stbi_load
 		/**
 		std::wstring path = (m_RootPath + fileName);
 		size_t len = path.size() + 1;

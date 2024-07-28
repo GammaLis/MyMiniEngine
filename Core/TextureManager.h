@@ -119,8 +119,9 @@ namespace MyDirectX
 	class TextureManager
 	{
 	public:
+		static void InitDefaultTextures(ID3D12Device* pDevice);
+		
 		void Init(const std::wstring& textureLibRoot);
-		void InitDefaultTextures(ID3D12Device* pDevice);
 		void Shutdown();
 
 		std::pair<ManagedTexture*, bool> FindOrLoadTexture(const std::wstring& fileName, bool forceSRGB = false);

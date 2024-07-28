@@ -127,7 +127,7 @@ namespace MyDirectX
             auto iter = s_RootSignatureHashMap.find(hashCode);
 
             // reserve space so the next inquiry will find that someone got here first
-            // map里面没有，首次编译
+            // Not in map, first time compile
             if (iter == s_RootSignatureHashMap.end())
             {
                 RSRef = s_RootSignatureHashMap[hashCode].GetAddressOf();
@@ -146,7 +146,7 @@ namespace MyDirectX
                 pOutBlob.GetAddressOf(), pErrorBlob.GetAddressOf()));
 
 #if 0
-            // 打印错误信息
+            // Print errors
             HRESULT hr = D3D12SerializeRootSignature(&rootDesc, D3D_ROOT_SIGNATURE_VERSION_1,
                 pOutBlob.GetAddressOf(), pErrorBlob.GetAddressOf());
             if (FAILED(hr))
@@ -166,21 +166,10 @@ namespace MyDirectX
         else
         {
             while (*RSRef == nullptr)
-                std::this_thread::yield();  // 将当前线程CPU “时间片”让渡给其他线程（其他线程会争抢此“时间片”）
+                std::this_thread::yield();
             m_Signature = *RSRef;
         }
 
         m_Finalized = TRUE;
     }
 }
-
-/**
-    std::this_thread::yield()
-    比如线程需要等待某个操作完成，如果直接使用一个循环不断判断这个操作是否完成就会使得这个线程占满CPU时间，
-这会造成资源浪费。这时候可以判断一次操作是否完成，如果没有完成就调用yield交出时间片，过一会儿再来判断是否完成，
-这样这个线程占用CPU时间会大大减少。举例：
-    while(!isDone());   // Bad
-    while(!isDone()) yield(); // Good
-
-    https://www.zhihu.com/question/52892878/answer/132533818
-*/

@@ -149,14 +149,15 @@ void Skybox::Render(GraphicsContext& gfx, const Math::Camera& camera)
 
 	gfx.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	gfx.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
 	gfx.SetRenderTarget(colorBuffer.GetRTV(), depthBuffer.GetDSV());
 	gfx.SetViewportAndScissor(0, 0, colorBuffer.GetWidth(), colorBuffer.GetHeight());
 	
+	gfx.SetRootSignature(m_SkyboxRS);
 	gfx.SetPipelineState(m_SkyboxPSO);
 	gfx.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	gfx.SetVertexBuffer(0, m_SkyVB.VertexBufferView());
 	gfx.SetIndexBuffer(m_SkyIB.IndexBufferView());
-	gfx.SetRootSignature(m_SkyboxRS);
 	
 	CBPerCamera cbPerCamera;
 	cbPerCamera._ViewMat = XMMatrixTranspose(camera.GetViewMatrix());

@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "pch.h"
 #include "GpuBuffer.h"
 #include "ColorBuffer.h"
@@ -101,11 +101,11 @@ namespace MyDirectX
 
 		// reversed-Z [0, 1] - [far, near]
 		// linear-Z f*n / (n + (f-n)*z')
-		// Êµ¼Ê¼ÆËãÊ±£¬=1 / (1 + (f-n)/n * z')	(ºöÂÔ·Ö×Óf)	-20-2-20	[n/f, 1] -> ½üËÆ [0, 1]
+		// The value = 1 / (1 + (f-n)/n * z')	(ignore 'f')	-20-2-20	[n/f, 1] -> approximately [0, 1]
 		ColorBuffer m_LinearDepth[2];		// normalized planar distance (0 at eye, 1 at far plane) computed from the SceneDepthBuffer
 
 		// Temporal effects
-		ColorBuffer m_TemporalColor[2];		// ÓÌÔ¥ÊÇ½«Ïà¹Ø×ÊÔ´Í³Ò»¹ÜÀí»¹ÊÇ¸÷¸öÐ§¹û¸÷×Ô¹ÜÀí£¿£¿£¿ -20-2-19 --> Í³Ò»¹ÜÀí¸üºÃ£¡ -21-10-3
+		ColorBuffer m_TemporalColor[2];
 		ColorBuffer m_TemporalMinBound;
 		ColorBuffer m_TemporalMaxBound;
 
@@ -226,7 +226,7 @@ namespace MyDirectX
 		RootSignature GenerateMipsRS;
 		// ComputePSO GenerateMipsLinearPSO[4];
 		// ComputePSO GenerateMipsGammaPSO[4];
-		// TODO: Default -> Power_Of_Two£¬Linear
+		// TODO: Default -> Power_Of_Two, Linear
 		ComputePSO GenerateMipsPSO;
 		// TODO: 3D texture, now only support Power_Of_Two size
 		RootSignature Generate3DTexMipsRS;
