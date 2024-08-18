@@ -35,7 +35,7 @@ namespace MyDirectX
 	struct alignas(16) MaterialData
 	{
 		float4 baseColor = float4(1.0f, 1.0f, 1.0f, 1.0f);		// base color (RGB) and opacity (A)
-		// 一个union最多只能有一个初始值
+		// A union has at most one initial value 
 		union
 		{
 			float4 metallicRoughness = float4(1.0f, 1.0f, 1.0f, 1.0f);	// occlusion (R), metallic (G), roughness (B)
@@ -111,11 +111,11 @@ namespace MyDirectX
 		using ConstSharedPtrRef = const SharedPtr&;
 		using SharedConstPtr = std::shared_ptr<const Material>;
 
-		static const uint32_t TextureNum = 5;
+		static constexpr uint32_t TextureNum = 5;
 
 		static SharedPtr Create(const std::string& name) { return SharedPtr(new Material(name)); }
 
-		Material(const std::string& name) : m_Name{ name } {  }
+		Material(const std::string& name = "") : m_Name{ name } {  }
 
 		~Material() = default;
 
@@ -125,13 +125,13 @@ namespace MyDirectX
 		bool operator== (const Material& other) const;
 		bool operator!= (const Material& other) const;
 
-		std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> GetDescriptors()
+		std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> GetDescriptors() const
 		{
 			std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> srvs;
 
 			srvs.push_back(m_Textures.baseColorSRV);
 
-			D3D12_CPU_DESCRIPTOR_HANDLE curSrv;
+			D3D12_CPU_DESCRIPTOR_HANDLE curSrv{};
 			curSrv = m_Textures.metalRoughSRV.ptr != D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN ?
 				m_Textures.metalRoughSRV : m_Textures.baseColorSRV;
 			srvs.push_back(curSrv);
@@ -181,7 +181,7 @@ namespace MyDirectX
 				m_Textures.normalMapSRV = normalMapSRV;
 
 				bool bUseTexture = normalMapSRV.ptr != D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
-				SetFlags(PACK_NORMAL_MAP_TYPE(m_MatData.flags, bUseTexture ? NormalMapRGB : NormalMapUnused));	// 目前只考虑NormalMapRGB
+				SetFlags(PACK_NORMAL_MAP_TYPE(m_MatData.flags, bUseTexture ? NormalMapRGB : NormalMapUnused));	// NormalMapRGB only currently
 			}
 		}
 		D3D12_CPU_DESCRIPTOR_HANDLE GetNormalMap() const { return m_Textures.normalMapSRV; }

@@ -1477,7 +1477,7 @@ void ModelViewer::RaytraceBarycentricsSSR(CommandContext& context)
 	context.FlushResourceBarriers();
 
 	ID3D12GraphicsCommandList* pCmdList = context.GetCommandList();
- 	ComPtr<ID3D12GraphicsCommandList4> pRaytracingCmdList;
+	ComPtr<ID3D12GraphicsCommandList4> pRaytracingCmdList;
 	pCmdList->QueryInterface(IID_PPV_ARGS(&pRaytracingCmdList));
 
 	ID3D12DescriptorHeap* pDescHeaps[] = { m_RaytracingDescHeap.GetHeapPointer() };

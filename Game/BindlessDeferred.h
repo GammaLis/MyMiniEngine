@@ -63,9 +63,9 @@ namespace MyDirectX
 		void CreateRenderTargets(ID3D12Device *pDevice);
 		void CreateDecals(ID3D12Device* pDevice);
 
-		static const uint32_t s_NumDecals = 3;
-		static const uint32_t s_NumDecalTextures = 2 * 2 + 1;
-		static const uint32_t s_DeferredTileSize = 16;
+		static constexpr uint32_t s_NumDecals = 3;
+		static constexpr uint32_t s_NumDecalTextures = 2 * 2 + 1;
+		static constexpr uint32_t s_DeferredTileSize = 16;
 
 		// decals
 		UserDescriptorHeap m_DecalTextureHeap;

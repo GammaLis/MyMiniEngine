@@ -1,5 +1,5 @@
 #define HLSL
-#include "../../ModelViewerRaytracing.h"
+#include "../../Game/ModelViewerRaytracing.h"
 
 [shader("miss")]
 void Miss(inout RayPayload payload)

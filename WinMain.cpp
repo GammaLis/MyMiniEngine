@@ -9,7 +9,7 @@
 
 #define IMPLEMENTED_BVH 6
 
-#define IMPLEMENTED IMPLEMENTED_MODELVIEWER
+#define IMPLEMENTED IMPLEMENTED_SCENEVIEWER
 
 #include "MyBaseApp.h"
 #include "Utility.h"
@@ -35,8 +35,8 @@ namespace DX12 = MyDirectX;
 
 /**
 *	TODO:
-*	ERROR C2102: “&”要求左值	==>	https://stackoverflow.com/questions/65315241/how-can-i-fix-requires-l-value
-*	The problem is that pattern is actually not conformant（一致，符合）. The fix is to use:
+*	ERROR C2102: “&” requires l-value	==>	https://stackoverflow.com/questions/65315241/how-can-i-fix-requires-l-value
+*	The problem is that pattern is actually not conformant. The fix is to use:
 		auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		m_commandList->ResourceBarrier(1, &barrier);
 
@@ -131,11 +131,3 @@ int main(int argc, const char* argv[])
 
 	return ret;
 }
-
-/**
-	alignment
-	align(C++)		https://docs.microsoft.com/en-us/cpp/cpp/align-cpp?view=vs-2019
-	alignment		https://docs.microsoft.com/en-us/cpp/cpp/alignment-cpp-declarations?view=vs-2019
-	_aligned_malloc https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/aligned-malloc?view=vs-2019
-	operator new	https://en.cppreference.com/w/cpp/memory/new/operator_new
-*/ 

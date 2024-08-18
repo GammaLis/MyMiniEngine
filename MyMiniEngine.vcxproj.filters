@@ -235,7 +235,7 @@
     <ClInclude Include="Core\DynamicDescriptorHeap.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="IGameApp.h">
+    <ClInclude Include="Game\IGameApp.h">
       <Filter>Game</Filter>
     </ClInclude>
     <ClInclude Include="Core\GfxCommon.h">
@@ -244,7 +244,7 @@
     <ClInclude Include="Core\SamplerManager.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="Model.h">
+    <ClInclude Include="Game\Model.h">
       <Filter>Game</Filter>
     </ClInclude>
     <ClInclude Include="Core\DDSTextureLoader.h">
@@ -253,7 +253,7 @@
     <ClInclude Include="Core\dds.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="FileUtility.h">
+    <ClInclude Include="Utilities\FileUtility.h">
       <Filter>Game</Filter>
     </ClInclude>
     <ClInclude Include="Core\TextureManager.h">
@@ -262,7 +262,7 @@
     <ClInclude Include="Core\TextRenderer.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="ModelViewer.h">
+    <ClInclude Include="Game\ModelViewer.h">
       <Filter>Game</Filter>
     </ClInclude>
     <ClInclude Include="Core\stb_image.h">
@@ -271,10 +271,10 @@
     <ClInclude Include="Effects\ForwardPlusLighting.h">
       <Filter>Effects</Filter>
     </ClInclude>
-    <ClInclude Include="GameInput.h">
+    <ClInclude Include="Game\GameInput.h">
       <Filter>Game</Filter>
     </ClInclude>
-    <ClInclude Include="CameraController.h">
+    <ClInclude Include="Game\CameraController.h">
       <Filter>Game</Filter>
     </ClInclude>
     <ClInclude Include="Core\ShadowBuffer.h">
@@ -319,7 +319,7 @@
     <ClInclude Include="Core\Skybox.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="CommonCompute.h">
+    <ClInclude Include="CommonCompute\CommonCompute.h">
       <Filter>CommonCompute</Filter>
     </ClInclude>
     <ClInclude Include="Core\stb_image_write.h">
@@ -376,7 +376,7 @@
     <ClInclude Include="Game\ClusteredLighting.h">
       <Filter>Scenes</Filter>
     </ClInclude>
-    <ClInclude Include="ShadowUtility.h">
+    <ClInclude Include="Utilities\ShadowUtility.h">
       <Filter>Scenes</Filter>
     </ClInclude>
     <ClInclude Include="Scenes\DebugPass.h">
@@ -400,7 +400,7 @@
     <ClInclude Include="Core\HlslCompat.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="ModelViewerRaytracing.h">
+    <ClInclude Include="Game\ModelViewerRaytracing.h">
       <Filter>Game</Filter>
     </ClInclude>
     <ClInclude Include="Game\Voxelization.h">
@@ -535,7 +535,7 @@
     <ClCompile Include="Core\DynamicDescriptorHeap.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="IGameApp.cpp">
+    <ClCompile Include="Game\IGameApp.cpp">
       <Filter>Game</Filter>
     </ClCompile>
     <ClCompile Include="Core\GfxCommon.cpp">
@@ -544,13 +544,13 @@
     <ClCompile Include="Core\SamplerManager.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="Model.cpp">
+    <ClCompile Include="Game\Model.cpp">
       <Filter>Game</Filter>
     </ClCompile>
     <ClCompile Include="Core\DDSTextureLoader.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="FileUtility.cpp">
+    <ClCompile Include="Utilities\FileUtility.cpp">
       <Filter>Game</Filter>
     </ClCompile>
     <ClCompile Include="Core\TextureManager.cpp">
@@ -559,16 +559,16 @@
     <ClCompile Include="Core\TextRenderer.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="ModelViewer.cpp">
+    <ClCompile Include="Game\ModelViewer.cpp">
       <Filter>Game</Filter>
     </ClCompile>
     <ClCompile Include="Effects\ForwardPlusLighting.cpp">
       <Filter>Effects</Filter>
     </ClCompile>
-    <ClCompile Include="GameInput.cpp">
+    <ClCompile Include="Game\GameInput.cpp">
       <Filter>Game</Filter>
     </ClCompile>
-    <ClCompile Include="CameraController.cpp">
+    <ClCompile Include="Game\CameraController.cpp">
       <Filter>Game</Filter>
     </ClCompile>
     <ClCompile Include="Core\ShadowBuffer.cpp">
@@ -610,7 +610,7 @@
     <ClCompile Include="Core\Skybox.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="CommonCompute.cpp">
+    <ClCompile Include="CommonCompute\CommonCompute.cpp">
       <Filter>CommonCompute</Filter>
     </ClCompile>
     <ClCompile Include="CommonCompute\SHBasics.cpp">
@@ -640,7 +640,7 @@
     <ClCompile Include="Game\ClusteredLighting.cpp">
       <Filter>Scenes</Filter>
     </ClCompile>
-    <ClCompile Include="ShadowUtility.cpp">
+    <ClCompile Include="Utilities\ShadowUtility.cpp">
       <Filter>Scenes</Filter>
     </ClCompile>
     <ClCompile Include="Game\OceanViewer.cpp">

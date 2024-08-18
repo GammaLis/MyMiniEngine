@@ -20,7 +20,7 @@ namespace MyDirectX
 	using namespace DirectX::PackedVector;
 
 	// Remove file extensions
-	inline std::string ModifyFilePath(const char* str, const std::string &name)
+	static std::string ModifyFilePath(const char* str, const std::string &name)
 	{
 		if (*str == '\0')
 			return std::string();

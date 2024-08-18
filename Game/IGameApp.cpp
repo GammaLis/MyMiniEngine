@@ -59,7 +59,7 @@ bool IGameApp::Init()
 
 	m_Gfx->Init(hwnd, m_Width, m_Height);
 
-	// 添加 GameInput Init
+	// Add GameInput Init
 	m_Input->Init(hwnd);
 
 	InitAssets();
@@ -104,7 +104,7 @@ void IGameApp::RenderUI()
 
 void IGameApp::Cleanup()
 {
-	// 确保GPU完成绘制
+	// Be sure GPU finished drawing
 	m_Gfx->Terminate();
 
 	CleanCustom();
@@ -123,7 +123,7 @@ int IGameApp::Run()
 	MSG msg = {};
 	while (msg.message != WM_QUIT)
 	{
-		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))	// 这里不要写成hwnd
+		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))	// Note: not 'hwnd'
 		{
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
@@ -137,9 +137,7 @@ int IGameApp::Run()
 			Update(deltaTime);
 
 			Render();
-
-			// 不在这里定义，子类自定义	-20-3-1
-			// Effects::s_PostEffects.Render();
+			
 			PostProcess();
 
 			RenderUI();
@@ -315,7 +313,7 @@ void IGameApp::InitPipelineStates()
 	m_BasicTriangleRS.Finalize(Graphics::s_Device, L"BasicTriangleRS", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	const auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
-	// 或者 直接画到 backbuffer
+	// or directly use backbuffer
 	// const auto& colorBuffer = m_Gfx->GetRenderTarget();
 	const auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
 	DXGI_FORMAT colorFormat = colorBuffer.GetFormat();
@@ -328,10 +326,10 @@ void IGameApp::InitPipelineStates()
 		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
 
 		// DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_FORMAT_R10G10B10A2_UNORM
-		// 测试不同格式，
-		// DXGI_FORMAT_B8G8R8A8_UNORM		对应 XMCOLOR
-		// DXGI_FORMAT_R10G10B10A2_UNORM	对应 XMXDECN4
-		// DXGI_FORMAT_R32G32B32A32_FLOAT	对应 XMFLOAT4
+		// Choose different format
+		// DXGI_FORMAT_B8G8R8A8_UNORM		// XMCOLOR
+		// DXGI_FORMAT_R10G10B10A2_UNORM		// XMXDECN4
+		// DXGI_FORMAT_R32G32B32A32_FLOAT	// XMFLOAT4
 	};
 
 	m_BasicTrianglePSO.SetRootSignature(m_BasicTriangleRS);	// m_EmptyRS
@@ -352,12 +350,12 @@ void IGameApp::RenderTriangle()
 	GraphicsContext& gfxContext = GraphicsContext::Begin(L"Scene Render");
 	
 	auto &colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
-	// 或者 直接画到 backbuffer
+	// Or directly use backbuffer
 	// auto& colorBuffer = m_Gfx->GetRenderTarget();
 
 	auto bufferWidth = colorBuffer.GetWidth(), bufferHeight = colorBuffer.GetHeight();
 
-	// 这里需要 flushImmediate，ClearRenderTargetView 需要rt处于D3D12_RESOURCE_STATE_RENDER_TARGET状态
+	// Need flushImmediate. ClearRenderTargetView need state 'D3D12_RESOURCE_STATE_RENDER_TARGET'.
 	gfxContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 
 	gfxContext.SetRootSignature(m_BasicTriangleRS);	// m_EmptyRS
@@ -377,12 +375,10 @@ void IGameApp::RenderTriangle()
 	gfxContext.SetRenderTargets(_countof(rtvs), rtvs);
 	gfxContext.SetViewportAndScissor(0, 0, bufferWidth, bufferHeight);
 
-	// 对应 m_BasicTriangleRS，b0,t0, 如果使用m_EmptyRS，注释以下
 	gfxContext.SetConstantBuffer(0, m_ConstantBuffer.GetGpuVirtualAddress());
-	// 不用SetDescriptorTable，需要首先手动设置SetDescriptorHeap，而这个由CommandContext管理比较好
+	// Use CommandContext to set DescriptorHeap
 	// gfxContext.SetDescriptorHeap()
 	// gfxContext.SetDescriptorTable()
-	// 使用SetDynamicDescriptor更加方便
 	gfxContext.SetDynamicDescriptor(1, 0, m_Model->GetDefaultSRV());
 
 	auto vertexBufferView = m_Model->m_VertexBuffer.VertexBufferView();
@@ -391,7 +387,7 @@ void IGameApp::RenderTriangle()
 	gfxContext.SetIndexBuffer(indexBufferView);
 	gfxContext.DrawIndexed(m_Model->m_IndexCount);
 
-	// 如果直接 画到 backbuffer，注释下面
+	// Or directly use backbuffer
 	// gfxContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_PRESENT);
 
 	gfxContext.Finish();

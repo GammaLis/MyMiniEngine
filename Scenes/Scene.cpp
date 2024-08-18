@@ -5,6 +5,12 @@
 #include "Graphics.h"
 #include "CommandContext.h"
 
+#include "Camera.h"
+#include "CameraController.h"
+#include "BindlessDeferred.h"
+#include "ClusteredLighting.h"
+#include "Utilities/ShadowUtility.h"
+
 // compiled shader bytecode
 #include "WireframeVS.h"
 #include "WireframePS.h"
@@ -173,6 +179,14 @@ namespace MFalcor
 		pScene->InitDescriptors(pDevice);
 		return pScene;
 	}
+
+	Scene::SharedPtr Scene::Create()
+	{
+		return std::make_shared<Scene>();
+	}
+
+	Scene::Scene() = default;
+	Scene::~Scene() = default;
 
 	bool Scene::Init(ID3D12Device* pDevice, const std::string& filePath, SceneViewer *sceneViewer, const InstanceMatrices& instances)
 	{
@@ -408,14 +422,15 @@ namespace MFalcor
 
 		// shadows
 		{
-			m_CascadedShadowMap.Init(pDevice, -Math::Vector3(m_CommonLights.sunDirection), *m_Camera);
+			m_CascadedShadowMap.reset(new CascadedShadowMap());
+			m_CascadedShadowMap->Init(pDevice, -Math::Vector3(m_CommonLights.sunDirection), *m_Camera);
 
 			// opaque
 			m_OpaqueShadowPSO = m_DepthPSO;
 			m_OpaqueShadowPSO.SetRootSignature(m_CommonIndirectRS);
 			m_OpaqueShadowPSO.SetVertexShader(IndirectDepthVS, sizeof(IndirectDepthVS));
 			m_OpaqueShadowPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerShadow);
-			m_OpaqueShadowPSO.SetRenderTargetFormats(0, nullptr, m_CascadedShadowMap.m_LightShadowTempBuffer.GetFormat());
+			m_OpaqueShadowPSO.SetRenderTargetFormats(0, nullptr, m_CascadedShadowMap->m_LightShadowTempBuffer.GetFormat());
 			m_OpaqueShadowPSO.Finalize(pDevice);
 
 			// mask
@@ -427,7 +442,8 @@ namespace MFalcor
 
 		// bindless deferred
 		{
-			m_BindlessDeferred.Init(pDevice, this);
+			m_BindlessDeferred.reset(new BindlessDeferred());
+			m_BindlessDeferred->Init(pDevice, this);
 
 			// opaque models
 			m_OpaqueGBufferPSO = m_OpaqueModelPSO;
@@ -494,7 +510,7 @@ namespace MFalcor
 				}
 			}
 
-			auto &visibilityBuffer = m_BindlessDeferred.m_VisibilityBuffer;
+			auto &visibilityBuffer = m_BindlessDeferred->m_VisibilityBuffer;
 			m_VisibilityBufferPSO.SetRootSignature(m_VisibilityRS);
 			m_VisibilityBufferPSO.SetInputLayout(numElements, inputElements.data());
 			m_VisibilityBufferPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
@@ -558,7 +574,7 @@ namespace MFalcor
 		// m_CommonLights.sunOrientation += 0.002f * Math::Pi * deltaTime;
 		UpdateSunLight();
 
-		m_CascadedShadowMap.PrepareCascades(-Math::Vector3(m_CommonLights.sunDirection), *m_Camera);
+		m_CascadedShadowMap->PrepareCascades(-Math::Vector3(m_CommonLights.sunDirection), *m_Camera);
 
 		const uint32_t bufferWidth = GfxStates::s_NativeWidth, bufferHeight = GfxStates::s_NativeHeight;
 
@@ -666,7 +682,7 @@ namespace MFalcor
 			instanceIds = &m_OpaqueInstances;
 			break;
 		case AlphaMode::kMASK:
-			instanceIds = &m_MaskInstancs;
+			instanceIds = &m_MaskInstances;
 			break;
 		case AlphaMode::kBLEND:
 			instanceIds = &m_TransparentInstances;
@@ -707,7 +723,7 @@ namespace MFalcor
 	void Scene::IndirectRender(GraphicsContext& gfx, GraphicsPSO& pso, AlphaMode alphaMode)
 	{
 		uint32_t opaqueCommandsCount = (uint32_t)m_OpaqueInstances.size();
-		uint32_t maskCommandsCount = (uint32_t)m_MaskInstancs.size();
+		uint32_t maskCommandsCount = (uint32_t)m_MaskInstances.size();
 		uint32_t transparentCommandsCount = (uint32_t)m_TransparentInstances.size();
 		uint32_t opaqueCommandsOffset = 0;
 		uint32_t maskCommandsOffset = opaqueCommandsOffset + opaqueCommandsCount;
@@ -800,10 +816,10 @@ namespace MFalcor
 	void Scene::PrepareGBuffer(GraphicsContext& gfx)
 	{
 		auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
-		auto& tangentFrame = m_BindlessDeferred.m_TangentFrame;
-		auto& uvTarget = m_BindlessDeferred.m_UVTarget;
-		auto& uvGradientsTarget = m_BindlessDeferred.m_UVGradientsTarget;
-		auto& materialIDTarget = m_BindlessDeferred.m_MaterialIDTarget;
+		auto& tangentFrame = m_BindlessDeferred->m_TangentFrame;
+		auto& uvTarget = m_BindlessDeferred->m_UVTarget;
+		auto& uvGradientsTarget = m_BindlessDeferred->m_UVGradientsTarget;
+		auto& materialIDTarget = m_BindlessDeferred->m_MaterialIDTarget;
 
 		gfx.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 		gfx.TransitionResource(tangentFrame, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -830,7 +846,7 @@ namespace MFalcor
 	void Scene::RenderToGBuffer(GraphicsContext& gfx, GraphicsPSO& pso, AlphaMode alphaMode)
 	{
 		uint32_t opaqueCommandsCount = (uint32_t)m_OpaqueInstances.size();
-		uint32_t maskCommandsCount = (uint32_t)m_MaskInstancs.size();
+		uint32_t maskCommandsCount = (uint32_t)m_MaskInstances.size();
 		uint32_t transparentCommandsCount = (uint32_t)m_TransparentInstances.size();
 		uint32_t opaqueCommandsOffset = 0;
 		uint32_t maskCommandsOffset = opaqueCommandsOffset + opaqueCommandsCount;
@@ -888,11 +904,11 @@ namespace MFalcor
 	void Scene::DeferredRender(ComputeContext& computeContext, ComputePSO& pso)
 	{
 		auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
-		auto& tangentFrame = m_BindlessDeferred.m_TangentFrame;
-		auto& uvTarget = m_BindlessDeferred.m_UVTarget;
-		auto& uvGradientsTarget = m_BindlessDeferred.m_UVGradientsTarget;
-		auto& materialIDTarget = m_BindlessDeferred.m_MaterialIDTarget;
-		auto& shadowMap = m_CascadedShadowMap.m_LightShadowArray;
+		auto& tangentFrame = m_BindlessDeferred->m_TangentFrame;
+		auto& uvTarget = m_BindlessDeferred->m_UVTarget;
+		auto& uvGradientsTarget = m_BindlessDeferred->m_UVGradientsTarget;
+		auto& materialIDTarget = m_BindlessDeferred->m_MaterialIDTarget;
+		auto& shadowMap = m_CascadedShadowMap->m_LightShadowArray;
 
 		auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 		uint32_t width = colorBuffer.GetWidth(), height = colorBuffer.GetHeight();
@@ -915,7 +931,7 @@ namespace MFalcor
 		csConstants._FarClip = m_Camera->GetFarClip();
 		const auto& camPos = m_Camera->GetPosition();
 		csConstants._CamPos = XMFLOAT4(camPos.GetX(), camPos.GetY(), camPos.GetZ(), 1.0f);
-		const auto& cascadeSplits = m_CascadedShadowMap.m_CascadeSplits;
+		const auto& cascadeSplits = m_CascadedShadowMap->m_CascadeSplits;
 		csConstants._CascadeSplits = XMFLOAT4(cascadeSplits.GetX(), cascadeSplits.GetY(), cascadeSplits.GetZ(), cascadeSplits.GetW());
 		csConstants._ViewProjMat = Cast(m_Camera->GetViewProjMatrix());
 		csConstants._InvViewProjMat = MMATH::inverse(csConstants._ViewProjMat);
@@ -929,12 +945,12 @@ namespace MFalcor
 		Math::Matrix4 cascadedShadowMats[numCascades];
 		for (uint32_t i = 0; i < numCascades; ++i)
 		{
-			cascadedShadowMats[i] = Math::Transpose(m_CascadedShadowMap.m_ViewProjMat[i]);
+			cascadedShadowMats[i] = Math::Transpose(m_CascadedShadowMap->m_ViewProjMat[i]);
 		}
 		computeContext.SetDynamicConstantBufferView((UINT)DeferredCSRSId::CascadedSMConstants, sizeof(cascadedShadowMats), cascadedShadowMats);
 
 		computeContext.SetBufferSRV((UINT)DeferredCSRSId::MaterialTable, m_MaterialsBuffer);
-		computeContext.SetBufferSRV((UINT)DeferredCSRSId::DecalTable, m_BindlessDeferred.m_DecalBuffer);
+		computeContext.SetBufferSRV((UINT)DeferredCSRSId::DecalTable, m_BindlessDeferred->m_DecalBuffer);
 	#if 0
 		D3D12_CPU_DESCRIPTOR_HANDLE gbufferHandles[] =
 		{
@@ -966,8 +982,8 @@ namespace MFalcor
 		computeContext.SetDescriptorTable((UINT)DeferredCSRSId::OutputTarget, m_FrameDescriptorHeap.HandleFromIndex(s_DescriptorRanges[DescriptorParams::RenderTextureUAVs].start + RenderTextureUAVs::ColorBuffer));
 	#endif
 
-		uint32_t groupCountX = Math::DivideByMultiple(width, m_BindlessDeferred.s_DeferredTileSize);
-		uint32_t groupCountY = Math::DivideByMultiple(height, m_BindlessDeferred.s_DeferredTileSize);
+		uint32_t groupCountX = Math::DivideByMultiple(width, BindlessDeferred::s_DeferredTileSize);
+		uint32_t groupCountY = Math::DivideByMultiple(height, BindlessDeferred::s_DeferredTileSize);
 		computeContext.Dispatch(groupCountX, groupCountY);
 
 		computeContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -976,7 +992,7 @@ namespace MFalcor
 	// visibility buffer
 	void Scene::PrepareVisibilityBuffer(GraphicsContext& gfx)
 	{
-		auto &visibilityBuffer = m_BindlessDeferred.m_VisibilityBuffer;
+		auto &visibilityBuffer = m_BindlessDeferred->m_VisibilityBuffer;
 		auto &depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
 
 		gfx.TransitionResource(visibilityBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -991,7 +1007,7 @@ namespace MFalcor
 	void Scene::RenderVisibilityBuffer(GraphicsContext& gfx, AlphaMode alphaMode)
 	{
 		uint32_t opaqueCommandsCount = (uint32_t)m_OpaqueInstances.size();
-		uint32_t maskCommandsCount = (uint32_t)m_MaskInstancs.size();
+		uint32_t maskCommandsCount = (uint32_t)m_MaskInstances.size();
 		uint32_t transparentCommandsCount = (uint32_t)m_TransparentInstances.size();
 		uint32_t opaqueCommandsOffset = 0;
 		uint32_t maskCommandsOffset = opaqueCommandsOffset + opaqueCommandsCount;
@@ -1055,7 +1071,7 @@ namespace MFalcor
 	void Scene::VisibilityCompute(ComputeContext& computeContext, ComputePSO& pso)
 	{
 		auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
-		auto& visibilityBuffer = m_BindlessDeferred.m_VisibilityBuffer;
+		auto& visibilityBuffer = m_BindlessDeferred->m_VisibilityBuffer;
 
 		auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 		uint32_t width = colorBuffer.GetWidth(), height = colorBuffer.GetHeight();
@@ -1119,7 +1135,7 @@ namespace MFalcor
 	#endif
 
 		uint32_t opaqueCommandsCount = (uint32_t)m_OpaqueInstances.size();
-		uint32_t maskCommandsCount = (uint32_t)m_MaskInstancs.size();
+		uint32_t maskCommandsCount = (uint32_t)m_MaskInstances.size();
 		uint32_t transparentCommandsCount = (uint32_t)m_TransparentInstances.size();
 		uint32_t opaqueCommandsOffset = 0;
 		uint32_t maskCommandsOffset = opaqueCommandsOffset + opaqueCommandsCount;
@@ -1129,20 +1145,21 @@ namespace MFalcor
 		viewUniformParams.bufferSizeAndInvSize = Vector4(1, 1, 1, 1);
 		
 		CBPerCamera cbPerCamera;
-		uint32_t numCascades = m_CascadedShadowMap.s_NumCascades;
+		uint32_t numCascades = CascadedShadowMap::s_NumCascades;
+		auto &cascadedShadowMap = *m_CascadedShadowMap;
 		// TODO: Only Cascade 1, no cullings yet
 		for (uint32_t i = 0; i < 1; ++i)
 		{
 			// clear depth
-			m_CascadedShadowMap.m_LightShadowTempBuffer.BeginRendering(gfx);
+			m_CascadedShadowMap->m_LightShadowTempBuffer.BeginRendering(gfx);
 
-			const auto &camPos = m_CascadedShadowMap.m_CamPos[i];
+			const auto &camPos = cascadedShadowMap.m_CamPos[i];
 		#if !USE_VIEW_UNIFORMS
 			cbPerCamera._ViewProjMat = Cast(m_CascadedShadowMap.m_ViewProjMat[i]);
 			cbPerCamera._CamPos = Cast(m_CascadedShadowMap.m_CamPos[i]);
 			gfx.SetDynamicConstantBufferView((UINT)CommonIndirectRSId::CBPerCamera, sizeof(CBPerCamera), &cbPerCamera);
 		#else
-			viewUniformParams.viewProjMat = Cast(m_CascadedShadowMap.m_ViewProjMat[i]);
+			viewUniformParams.viewProjMat = Cast(m_CascadedShadowMap->m_ViewProjMat[i]);
 			viewUniformParams.invViewProjMat = MMATH::inverse(viewUniformParams.viewProjMat);
 			viewUniformParams.camPos = Vector4(camPos.GetX(), camPos.GetY(), camPos.GetZ(), 0.0);
 			gfx.SetDynamicConstantBufferView((UINT)CommonIndirectRSId::CBPerCamera, sizeof(ViewUniformParameters), &viewUniformParams);
@@ -1156,9 +1173,9 @@ namespace MFalcor
 			gfx.SetPipelineState(m_MaskShadowPSO);
 			gfx.ExecuteIndirect(m_CommandSignature, m_CommandsBuffer, maskCommandsOffset * sizeof(IndirectCommand), maskCommandsCount);
 
-			gfx.TransitionResource(m_CascadedShadowMap.m_LightShadowTempBuffer, D3D12_RESOURCE_STATE_GENERIC_READ);
-			gfx.TransitionResource(m_CascadedShadowMap.m_LightShadowArray, D3D12_RESOURCE_STATE_COPY_DEST);
-			gfx.CopySubresource(m_CascadedShadowMap.m_LightShadowArray, i, m_CascadedShadowMap.m_LightShadowTempBuffer, 0);
+			gfx.TransitionResource(cascadedShadowMap.m_LightShadowTempBuffer, D3D12_RESOURCE_STATE_GENERIC_READ);
+			gfx.TransitionResource(cascadedShadowMap.m_LightShadowArray, D3D12_RESOURCE_STATE_COPY_DEST);
+			gfx.CopySubresource(cascadedShadowMap.m_LightShadowArray, i, cascadedShadowMap.m_LightShadowTempBuffer, 0);
 		}
 
 		// m_CascadedShadowMap.m_LightShadowTempBuffer.EndRendering(gfx);
@@ -1167,7 +1184,7 @@ namespace MFalcor
 	void Scene::FrustumCulling(ComputeContext& computeContext, const Matrix4x4& viewMat, const Matrix4x4& projMat, AlphaMode alphaMode)
 	{
 		uint32_t opaqueCommandsCount = (uint32_t)m_OpaqueInstances.size();
-		uint32_t maskCommandsCount = (uint32_t)m_MaskInstancs.size();
+		uint32_t maskCommandsCount = (uint32_t)m_MaskInstances.size();
 		uint32_t transparentCommandsCount = (uint32_t)m_TransparentInstances.size();
 		uint32_t opaqueCommandsOffset = 0;
 		uint32_t maskCommandsOffset = opaqueCommandsOffset + opaqueCommandsCount;
@@ -1376,9 +1393,9 @@ namespace MFalcor
 	void Scene::Clean()
 	{
 		// shadows
-		m_CascadedShadowMap.Clean();
+		m_CascadedShadowMap->Clean();
 		// bindless deferred
-		m_BindlessDeferred.Clean();
+		m_BindlessDeferred->Clean();
 
 		// culling
 		m_FrustumCulledBuffer.Destroy();
@@ -1460,6 +1477,9 @@ namespace MFalcor
 	{
 		uint32_t numMaterials = (uint32_t)m_Materials.size();
 
+		auto &bindlessDeferred = *m_BindlessDeferred;
+		auto &cascadedShadowMap = *m_CascadedShadowMap;
+
 		// texture descriptor heap
 
 		uint32_t numTexturesPerMat = (uint32_t)TextureType::Count;
@@ -1472,7 +1492,8 @@ namespace MFalcor
 		m_FrameDescriptorHeap.Create(pDevice, L"FrameDescriptorHeap", 512);
 		uint32_t frames = m_FrameDescriptorHeap.FrameHeapCount();
 
-		const auto DescriptorHeapType = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		[[maybe_unused]]
+		constexpr auto DescriptorHeapType = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 
 		// material textures
 		{
@@ -1505,8 +1526,8 @@ namespace MFalcor
 
 		// decal textures
 		{
-			uint32_t numDecalTextures = m_BindlessDeferred.NumDecalTextures();
-			auto pDecalSRVs = m_BindlessDeferred.DecalSRVs();
+			uint32_t numDecalTextures = bindlessDeferred.NumDecalTextures();
+			auto pDecalSRVs = bindlessDeferred.DecalSRVs();
 
 			auto& decalTextureRange = s_DescriptorRanges[DescriptorParams::DecalTextures];
 			decalTextureRange.start = m_FrameDescriptorHeap.PersistentAllocated();
@@ -1521,13 +1542,13 @@ namespace MFalcor
 			auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 			auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
 
-			auto& tangentFrame = m_BindlessDeferred.m_TangentFrame;
-			auto& uvTarget = m_BindlessDeferred.m_UVTarget;
-			auto& uvGradientsTarget = m_BindlessDeferred.m_UVGradientsTarget;
-			auto& materialIDTarget = m_BindlessDeferred.m_MaterialIDTarget;
-			auto& shadowMap = m_CascadedShadowMap.m_LightShadowArray;
+			auto& tangentFrame = bindlessDeferred.m_TangentFrame;
+			auto& uvTarget = bindlessDeferred.m_UVTarget;
+			auto& uvGradientsTarget = bindlessDeferred.m_UVGradientsTarget;
+			auto& materialIDTarget = bindlessDeferred.m_MaterialIDTarget;
+			auto& shadowMap = cascadedShadowMap.m_LightShadowArray;
 
-			auto &visibilityBuffer = m_BindlessDeferred.m_VisibilityBuffer;
+			auto &visibilityBuffer = bindlessDeferred.m_VisibilityBuffer;
 
 			auto& rtSRVRange = s_DescriptorRanges[DescriptorParams::RenderTextureSRVs];
 			rtSRVRange.start = m_FrameDescriptorHeap.PersistentAllocated();
@@ -1597,7 +1618,7 @@ namespace MFalcor
 
 		size_t numInstance = m_MeshInstanceData.size();
 		m_OpaqueInstances.reserve(numInstance);
-		m_MaskInstancs.reserve(numInstance);
+		m_MaskInstances.reserve(numInstance);
 		m_TransparentInstances.reserve(numInstance);
 
 		auto curAlphaMode = AlphaMode::UNKNOWN;
@@ -1617,7 +1638,7 @@ namespace MFalcor
 					curVec = &m_OpaqueInstances;
 					break;
 				case AlphaMode::kMASK:
-					curVec = &m_MaskInstancs;
+					curVec = &m_MaskInstances;
 					break;
 				case AlphaMode::kBLEND:
 					curVec = &m_TransparentInstances;
@@ -1657,7 +1678,7 @@ namespace MFalcor
 		uint32_t i = 0;
 		std::for_each(m_LocalMatrices.begin(), m_LocalMatrices.end(), [this, &i](Matrix4x4& localMat) {
 			localMat = m_SceneGraph[i++].transform;
-			});
+		});
 
 		// global matrices
 		i = 0;
@@ -1667,14 +1688,11 @@ namespace MFalcor
 			if (m_SceneGraph[i].parentIndex != kInvalidNode)
 			{
 				auto parentIdx = m_SceneGraph[i].parentIndex;
-				// globalMat = globalMat * m_GlobalMatrices[parentIdx];	// m_GlobalMatrices[i]
 				globalMat = m_GlobalMatrices[parentIdx] * globalMat;
-				// 注：按理应是 m_GlobalMatrices[parentIdx] * globalMat，但是结果不对，不懂 ？？？ -2020-4-8
-				// 解：AssimpImporter-> MFalcor::Matrix4x4 aiCast(const aiMatrix&) 错误，结果自然不对！！！
 			}
 			m_InvTransposeGlobalMatrices[i] = MMATH::transpose(MMATH::inverse(globalMat));
 			++i;
-			});
+		} );
 	}
 
 	// 

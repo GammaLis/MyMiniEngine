@@ -4,6 +4,12 @@
 #include <fstream>
 #include <functional>
 
+#ifdef _DEBUG
+#pragma comment(lib, "assimp-vc143-mtd.lib")
+#else
+#pragma comment(lib, "assimp-vc143-mt.lib")
+#endif
+
 using namespace MFalcor;
 
 const std::string AssimpImporter::s_DefaultDiffusePath	= "default";
@@ -57,35 +63,35 @@ bool AssimpImporter::ProcessScenes(const aiScene* scene, const InstanceMatrices&
 		ProcessMaterials(scene, importerData);
 
 	// SceneGraph (Node MeshInstance is empty yet）
-	if (CreateSceneGraph(importerData) == false)
+	if (!CreateSceneGraph(importerData))
 	{
 		Utility::Printf("Can't create lists for model %s\n", m_FilePath);
 		return false;
 	}
 
 	// Mesh
-	if (CreateMeshes(importerData) == false)
+	if (!CreateMeshes(importerData))
 	{
 		Utility::Printf("Can't create meshes for model %s\n", m_FilePath);
 		return false;
 	}
 
 	// Node MeshInstance
-	if (AddMeshes(importerData, scene->mRootNode) == false)
+	if (!AddMeshes(importerData, scene->mRootNode))
 	{
 		Utility::Printf("Can't add meshes for model %s.\n", m_FilePath);
 		return false;
 	}
 
-	// TODO: -2020-4-4
-	// if (CreateAnimations(data) == false) {  }
+	// TODO: Animations
+	// if (!CreateAnimations(data)) {  }
 
-	if (CreateCamera(importerData, m_ImportMode) == false)
+	if (!CreateCamera(importerData, m_ImportMode))
 	{
 		Utility::Printf("Can't create a camera for model %s.\n", m_FilePath);
 	}
 
-	if (CreateLights(importerData) == false)
+	if (!CreateLights(importerData))
 	{
 		Utility::Printf("Can't create lights for model %s.\n", m_FilePath);
 	}
@@ -451,8 +457,7 @@ size_t AssimpImporter::AddMesh(const Mesh& mesh)
 	const auto& prevMesh = m_Meshes.empty() ? MeshSpec() : m_Meshes.back();
 
 	// create the new mesh spec
-	m_Meshes.push_back(MeshSpec());
-	MeshSpec& spec = m_Meshes.back();
+	MeshSpec& spec = m_Meshes.emplace_back();
 	spec.staticVertexOffset = (uint32_t)m_BuffersData.staticData.size();
 	spec.dynamicVertexOffset = (uint32_t)m_BuffersData.dynamicData.size();
 	spec.vertexCount = mesh.vertexCount;
@@ -482,27 +487,23 @@ size_t AssimpImporter::AddMesh(const Mesh& mesh)
 
 	for (uint32_t v = 0; v < mesh.vertexCount; ++v)
 	{
-		StaticVertexData sVertex;
+		StaticVertexData& sVertex = m_BuffersData.staticData.emplace_back();
 		sVertex.position = float3((float*)&mesh.pPositions[v]);
 		sVertex.normal = mesh.pNormals ? float3((float*)&mesh.pNormals[v]) : float3(0, 0, 0);
 		sVertex.tangent = mesh.pTangents ? float3((float*)&mesh.pTangents[v]) : float3(0, 0, 0);
 		sVertex.bitangent = mesh.pBitangents ? float3((float*)&mesh.pBitangents[v]) : float3(0, 0, 0);
 		sVertex.uv = mesh.pUVs ? float2((float*)&mesh.pUVs[v]) : float2(0, 0);
 
-		m_BuffersData.staticData.emplace_back(std::move(sVertex));
-
 		if (mesh.pBoneWeights)
 		{
-			DynamicVertexData dVertex;
+			DynamicVertexData &dVertex = m_BuffersData.dynamicData.emplace_back();
 			dVertex.boneIDs = uint4((uint32_t*)&mesh.pBoneIDs[v]);
 			dVertex.boneWeights = float4((float*)&mesh.pBoneWeights[v]);
 			dVertex.staticIndex = (uint32_t)m_BuffersData.staticData.size() - 1;
-			m_BuffersData.dynamicData.emplace_back(std::move(dVertex));
 		}
 	}
 
 	m_Dirty = true;
-
 	return m_Meshes.size() - 1;
 }
 
@@ -916,7 +917,7 @@ uint32_t AssimpImporter::AddMaterial(const Material::SharedPtr& pMat, bool remov
 		}
 		else
 		{
-			Utility::Printf("Material %s is a deplicate (has equal properties) of material %s.\n",
+			Utility::Printf("Material %s is a duplicate (has equal properties) of material %s.\n",
 				pMat->GetName(), equalMat->GetName());
 		}
 	}

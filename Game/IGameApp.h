@@ -79,7 +79,7 @@ namespace MyDirectX
 		HINSTANCE m_HInstance;
 
 #pragma region Hello, Triangle
-		// 子类复写下列初始化函数
+		// Overrides
 		void InitViewportAndScissor();
 		virtual void InitPipelineStates();
 		virtual void InitGeometryBuffers();
@@ -87,7 +87,6 @@ namespace MyDirectX
 		virtual void InitCustom();
 		virtual void CleanCustom();
 
-		// 后处理，从Render当中分离，子类进行自定义
 		virtual void PostProcess();
 		virtual void CustomUI(GraphicsContext &context);
 

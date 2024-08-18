@@ -1,5 +1,5 @@
 #define HLSL
-#include "../../ModelViewerRaytracing.h"
+#include "../../Game/ModelViewerRaytracing.h"
 
 RaytracingAccelerationStructure g_Accel : register(t0);
 Texture2D<float> _DepthTex :	register(t12);

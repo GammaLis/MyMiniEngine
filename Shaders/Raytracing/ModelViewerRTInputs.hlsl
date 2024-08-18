@@ -15,7 +15,7 @@
 //
 
 #define HLSL
-#include "../../ModelViewerRaytracing.h"
+#include "../../Game/ModelViewerRaytracing.h"
 #include "../../Core/RayTracing/RayTracingHlslCompat.h"
 #include "../../Core/Shaders/PixelPacking_Velocity.hlsli"
 

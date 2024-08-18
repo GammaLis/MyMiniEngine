@@ -11,7 +11,7 @@
 // Author(s):    James Stanard, Christopher Wallis
 //
 #define HLSL
-#include "../../ModelViewerRaytracing.h"
+#include "../../Game/ModelViewerRaytracing.h"
 #include "../../Core/RayTracing/RayTracingHlslCompat.h"
 
 cbuffer CBMaterial : register(b3, space1)

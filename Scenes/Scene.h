@@ -2,19 +2,21 @@
 #include "pch.h"
 #include "Math/GLMath.h"
 #include "GpuBuffer.h"
+#include "ColorBuffer.h"
 #include "DynamicUploadBuffer.h"
 #include "DescriptorHeap.h"
 #include "Scenes/VertexLayout.h"
 #include "Scenes/Material.h"
-#include "ClusteredLighting.h"
-#include "ShadowUtility.h"
-#include "Camera.h"
-#include "CameraController.h"
 #include "RootSignature.h"
 #include "CommandSignature.h"
 #include "PipelineState.h"
-#include "BindlessDeferred.h"
 #include "FrameDescriptorHeap.h"
+#include "LightDefines.h"
+
+namespace Math
+{
+	class Camera;
+}
 
 namespace MyDirectX
 {
@@ -23,6 +25,12 @@ namespace MyDirectX
 	class Graphics;
 	class GraphicsContext;
 	class ComputeContext;
+
+	class CameraController;
+	
+	class BindlessDeferred;
+	class ClusteredLighting;
+	class CascadedShadowMap;
 }
 
 namespace MFalcor
@@ -170,8 +178,8 @@ namespace MFalcor
 		using SharedPtr = std::shared_ptr<Scene>;
 		using ConstSharedPtrRef = const SharedPtr&;
 
-		static const uint32_t kMaxBonesPerVertex = 4;
-		static const uint32_t kInvalidNode = -1;
+		static constexpr uint32_t kMaxBonesPerVertex = 4;
+		static constexpr uint32_t kInvalidNode = -1;
 
 		// flags indicating if and what was updated in the scene
 		enum class UpdateFlags
@@ -198,9 +206,10 @@ namespace MFalcor
 		};
 
 		static SharedPtr Create(ID3D12Device *pDevice, const std::string& filePath, SceneViewer *sceneViewer = nullptr, const InstanceMatrices &instances = InstanceMatrices());
-		static SharedPtr Create() { return SharedPtr(new Scene()); }
+		static SharedPtr Create();
 
-		Scene() = default;
+		Scene();
+		~Scene();
 
 		bool Init(ID3D12Device* pDevice, const std::string& filePath, SceneViewer* sceneViewer = nullptr, const InstanceMatrices& instances = InstanceMatrices());
 
@@ -210,10 +219,10 @@ namespace MFalcor
 		/// ** Framework ** 
 		UpdateFlags Update(float deltaTime);
 
-		// Get the changes that happended during the last update
+		// Get the changes that happened during the last update
 		// the flags only change during an `Update` call, if something changed between calling `Update` and `GetUpdates()`,
 		// the returned result will not reflect it 
-		UpdateFlags GetUpdates() const;
+		UpdateFlags GetUpdates() const { return UpdateFlags::None; }
 
 		// Render the scene using the rasterizer
 		// forward rendering
@@ -247,7 +256,7 @@ namespace MFalcor
 		void OcclusionCulling(ComputeContext& computeContext, const Matrix4x4& viewMat, const Matrix4x4& projMat);
 
 		// Render the scene using raytracing
-		void Raytrace();
+		void Raytrace() { }
 
 		// 
 		void Clean();
@@ -257,16 +266,16 @@ namespace MFalcor
 		Math::Camera* GetCamera() const { return m_Camera.get(); }
 
 		// Attach a new camera to the scene
-		void SetCamera();
+		void SetCamera() { }
 
 		// Set a camera controller type
-		void SetCameraController();
+		void SetCameraController() { }
 
 		// Get the camera controller type
 		void GetCameraControllerType() const {}
 
 		// Toggle whether the camera is animated
-		void ToggleCameraAnimation(bool bAnimated);
+		void ToggleCameraAnimation(bool bAnimated) { }
 
 		// Reset the camera
 		// this function will place the camera at the center of scene and optionally set the depth range to some pre-determined values
@@ -318,23 +327,23 @@ namespace MFalcor
 		const BoundingBox& GetMeshBounds(uint32_t meshId) const { return m_MeshBBs[meshId]; }
 
 		// ** Light **
-		uint32_t GetLightCount() const;
+		uint32_t GetLightCount() const { return 0; }
 
 		// Get a light
-		void GetLight(uint32_t lightId) const;
+		void GetLight(uint32_t lightId) const { }
 
 		// Get a light by name
-		void GetLightByName(const std::string& name) const;
+		void GetLightByName(const std::string& name) const { }
 
 		// Get the light collection representing all the mesh lights in the scene
 		// The light collection is created lazily on the first call.It needs a render context to run the init shaders.
-		void GetLightCollection();
+		void GetLightCollection() { }
 
 		// Get the light probe or nullptr if it doesn't exist
-		void GetLightProbe();
+		void GetLightProbe() { }
 
 		// Toggle whether the specified light is animated
-		void ToggleLightAnimation(int index, bool bAnimated);
+		void ToggleLightAnimation(int index, bool bAnimated) { }
 
 		void SetSunLight(float orientation, float inclination)
 		{
@@ -368,26 +377,26 @@ namespace MFalcor
 
 		// Get/set how the scene's TLASes are updated when raytracing/
 		// TLAS are REBUILT by default
-		void SetTLASUpdateMode(UpdateMode mode);
-		UpdateMode GetTLASUpdateMode();
+		void SetTLASUpdateMode(UpdateMode mode) { }
+		UpdateMode GetTLASUpdateMode() { return UpdateMode::Refit; }
 
 		// Get/set how the scene's BLASes are updated when raytracing
 		// BLASes are REFIT by default
-		void SetBLASUpdateMode(UpdateMode mode);
-		UpdateMode GetBLASUpdateMode();
+		void SetBLASUpdateMode(UpdateMode mode) { }
+		UpdateMode GetBLASUpdateMode() { return UpdateMode::Refit; }
 
 		/// Settings
 		// Set an environment map
-		void SetEnvironmentMap();
+		void SetEnvironmentMap() { }
 
 		// Get the environment map
-		void GetEnvironmentMap() const;
+		void GetEnvironmentMap() const { }
 
 		/// ** Animaton **
-		void GetAnimatonController() const;
+		void GetAnimatonController() const { }
 
 		// Toggle all animations on or off
-		void ToggleAnimations(bool bAnimated);
+		void ToggleAnimations(bool bAnimated) { }
 	
 	private:
 		// Create scene parameter block and retrieve pointers to buffers
@@ -397,12 +406,12 @@ namespace MFalcor
 		void InitCamera(GameInput* pInput);
 
 		// Uploads scene data to parameter block
-		void UploadResources();
+		void UploadResources() { }
 
 		// Uploads a single material
-		void UploadMaterial(uint32_t materialId);
+		void UploadMaterial(uint32_t materialId) { }
 
-		// 对MeshInstanceData进行分类，排序
+		// Sort MeshInstanceData
 		void SortMeshInstances();
 		std::shared_ptr<StructuredBuffer> CreateInstanceBuffer(ID3D12Device* pDevice);
 
@@ -415,27 +424,27 @@ namespace MFalcor
 		void CreateDrawList(ID3D12Device* pDevice);
 
 		// Sort what meshes go in what BLAS. 
-		void SortBlasMeshes();
+		void SortBlasMeshes() { }
 
 		// Initialize geometry descs for each BLAS
-		void InitGeoDescs();
+		void InitGeoDescs() { }
 
 		// Generate bottom level acceleration structures for all meshes
-		void BuildBLAS();
+		void BuildBLAS() { }
 
 		// Generate data for creating a TLAS
-		void FillInstanceDesc(std::vector<D3D12_RAYTRACING_INSTANCE_DESC>& instanceDescs, uint32_t rayCount, bool perMeshHitEntry);
+		void FillInstanceDesc(std::vector<D3D12_RAYTRACING_INSTANCE_DESC>& instanceDescs, uint32_t rayCount, bool perMeshHitEntry) { }
 
 		// Generate top level acceleration structure for the scene. Automatically determines whether to build or refit.
 		// [in] rayCount - number of ray types in the shader. Required to setup how instances index into the Shader Table
-		void BuildTLAS(uint32_t rayCount, bool perMeshEntry);
+		void BuildTLAS(uint32_t rayCount, bool perMeshEntry) { }
 
 		// Create the buffer that maps Acceleration Structure indices to their location in mMeshInstanceData
 		// mMeshInstanceData should be indexed with [InstanceID() + GeometryIndex]
-		void UpdateAsToInstanceDataMapping();
+		void UpdateAsToInstanceDataMapping() { }
 
-		UpdateFlags UpdateCamera(bool forceUpdate);
-		UpdateFlags UpdataLights(bool forceUpdate);
+		UpdateFlags UpdateCamera(bool forceUpdate) { return UpdateFlags::None; }
+		UpdateFlags UpdataLights(bool forceUpdate) { return UpdateFlags::None; }
 		UpdateFlags UpdateMaterials(bool forceUpdate);
 
 		void UpdateGeometryStats();
@@ -467,20 +476,20 @@ namespace MFalcor
 		std::vector<Matrix4x4> m_InvTransposeGlobalMatrices;
 		
 		std::vector<uint32_t> m_OpaqueInstances;
-		std::vector<uint32_t> m_MaskInstancs;
+		std::vector<uint32_t> m_MaskInstances;
 		std::vector<uint32_t> m_TransparentInstances;
 
 		// 
 		std::vector<Material::SharedPtr> m_Materials;
-		// LightCollecition
+		// LightCollection
 		// LightProbe
 		// Texture envMap;
 		CommonLightSettings m_CommonLights;
-		ClusteredLighting m_ClusteredLighting;
+		std::unique_ptr<ClusteredLighting> m_ClusteredLighting;
 		Vector3 m_AmbientColor = Vector3(0.2f);
 
 		// Shadows
-		CascadedShadowMap m_CascadedShadowMap;
+		std::unique_ptr<CascadedShadowMap> m_CascadedShadowMap;
 
 		// Scene metadata (CPU only)
 		std::vector<BoundingBox> m_MeshBBs;		// bounding boxes for meshes (not instances)
@@ -525,7 +534,7 @@ namespace MFalcor
 		// ...
 
 		// Deferred resources
-		BindlessDeferred m_BindlessDeferred;
+		std::unique_ptr<BindlessDeferred> m_BindlessDeferred;
 
 		// Saved camera viewpoints
 		struct Viewport

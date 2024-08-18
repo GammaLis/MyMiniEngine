@@ -51,10 +51,10 @@ void SceneViewer::InitCustom()
 #else
 	m_MainScene = MFalcor::Scene::Create();
 	MFalcor::InstanceMatrices instanceMats;
-#if USE_SPONZA_GLTF
-	MFalcor::Matrix4x4 scale = MFalcor::MMATH::scale(MFalcor::Vector3(100.0f, 100.0f, 100.0f));
-	instanceMats.emplace_back(scale);
-#endif
+	#if USE_SPONZA_GLTF
+		MFalcor::Matrix4x4 scale = MFalcor::MMATH::scale(MFalcor::Vector3(100.0f, 100.0f, 100.0f));
+		instanceMats.emplace_back(scale);
+	#endif
 	m_MainScene->Init(Graphics::s_Device, USE_SPONZA_GLTF ? "Models/SponzaGLTF.gltf" : "Models/sponza.obj", this, instanceMats);	// sponza.obj, SponzaGLTF
 #endif
 }
@@ -79,6 +79,7 @@ void SceneViewer::RenderForward(GraphicsContext& gfx)
 	gfx.SetViewportAndScissor(m_MainViewport, m_MainScissor);
 
 	// camera
+	[[maybe_unused]]
 	const auto pCamera = m_MainScene->GetCamera();
 	auto &viewUniformParams = m_MainScene->m_ViewUniformParams;
 	auto &viewMatrix = viewUniformParams.viewMat;
@@ -148,6 +149,7 @@ void SceneViewer::RenderDeferred(GraphicsContext& gfx)
 	m_MainScene->RenderSunShadows(gfx);
 
 	// camera
+	[[maybe_unused]]
 	const auto pCamera = m_MainScene->GetCamera();
 
 	auto &viewUniformParams = m_MainScene->m_ViewUniformParams;
@@ -190,12 +192,15 @@ void SceneViewer::RenderDeferred(GraphicsContext& gfx)
 void SceneViewer::RenderVisibility(GraphicsContext& gfx)
 {
 	// camera
+	[[maybe_unused]]
 	const auto pCamera = m_MainScene->GetCamera();
 
 	auto& viewUniformParams = m_MainScene->m_ViewUniformParams;
 	auto& viewMatrix = viewUniformParams.viewMat;
 	auto& projMatrix = viewUniformParams.projMat;
+	[[maybe_unused]]
 	auto& viewProjMatrix = viewUniformParams.viewProjMat;
+	[[maybe_unused]]
 	MFalcor::Vector3 camPos = MFalcor::Vector3(viewUniformParams.camPos.x, viewUniformParams.camPos.y, viewUniformParams.camPos.z);
 
 	// frustum culling

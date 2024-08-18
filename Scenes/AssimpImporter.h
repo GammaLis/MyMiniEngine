@@ -13,12 +13,6 @@
 #include <assimp/scene.h>
 #include <assimp/pbrmaterial.h>
 
-#ifdef _DEBUG
-#pragma comment(lib, "assimp-vc143-mtd.lib")
-#else
-#pragma comment(lib, "assimp-vc143-mt.lib")
-#endif
-
 namespace MyDirectX
 {
 	class GameInput;
@@ -211,10 +205,10 @@ namespace MFalcor
 			uint32_t indexStride = sizeof(uint16_t);
 			const uint8_t* pIndices = nullptr;		// byte array of indices. the element count must match `indexCount`
 			const Vector3* pPositions = nullptr;	// array of vertex positions.	count = `vertexCount`
-			const Vector3* pNormals = nullptr;		// array of veretex normals.	count = `vertexCount`
-			const Vector3* pTangents = nullptr;		// array of vertex tangent .	count = `vertexCount`	Assimp tangent-float3, Ò»°ãfloat4
+			const Vector3* pNormals = nullptr;		// array of vertex normals.	count = `vertexCount`
+			const Vector3* pTangents = nullptr;		// array of vertex tangent .	count = `vertexCount`	Assimp tangent-float3, mostly float4
 			const Vector3* pBitangents = nullptr;	// array of vertex bitangent	count = `vertexCount`
-			const Vector2* pUVs = nullptr;			// array of vertex uv.			count = `veretxCount`
+			const Vector2* pUVs = nullptr;			// array of vertex uv.			count = `vertexCount`
 			const Vector3* pLightMapUVs = nullptr;	// array of light-map UVs.		count = `vertexCount`
 			const UVector4* pBoneIDs = nullptr;		// array of bone IDs
 			const Vector4* pBoneWeights = nullptr;	// array of bone weights.
@@ -223,15 +217,14 @@ namespace MFalcor
 		};
 
 		static SharedPtr Create(uint32_t indexStride = 2);	// index - uint16_t
-		static SharedPtr Create(ID3D12Device* pDevice, const std::string& fileName, const InstanceMatrices& instanceMatrices = InstanceMatrices(),
-			uint32_t indexStride = 2);
+		static SharedPtr Create(ID3D12Device* pDevice, const std::string& fileName, const InstanceMatrices& instanceMatrices = {}, uint32_t indexStride = 2);
 
-		bool ProcessScenes(const aiScene* scene, const InstanceMatrices& instanceMatrices = InstanceMatrices());
+		bool ProcessScenes(const aiScene* scene, const InstanceMatrices& instanceMatrices = {});
 		bool ProcessNodes(const aiNode* curNode, ImporterData& data);
 		void ProcessMaterials(const aiScene* scene, ImporterData& importerData);
 
 		// import a scene/model file
-		bool Load(ID3D12Device* pDevice, const std::string& fileName, const InstanceMatrices& instances = InstanceMatrices(), uint32_t indexStride = 2);
+		bool Load(ID3D12Device* pDevice, const std::string& fileName, const InstanceMatrices& instances = {}, uint32_t indexStride = 2);
 		bool AddToScene(ID3D12Device* pDevice, Scene* pScene);
 
 		void Clear();
@@ -239,7 +232,7 @@ namespace MFalcor
 		// get the scene. Make sure to add all the objects before calling this function
 		Scene::SharedPtr GetScene(ID3D12Device *pDevice);
 
-		// add a node to the  graph
+		// add a node to the graph
 		// note that if the node contains data other than the transform matrix (such as meshes or lights), 
 		// you'll need to add those objects before adding the node
 		size_t AddNode(const Node& node);
@@ -251,10 +244,10 @@ namespace MFalcor
 		size_t AddMesh(const Mesh& mesh);
 
 		// add a light source
-		size_t AddLight();
+		size_t AddLight() { return 0u; }
 
 		// get the number of attached lights
-		size_t GetLightCount() const;
+		size_t GetLightCount() const { return 0u; }
 
 		// environment map
 
@@ -262,10 +255,10 @@ namespace MFalcor
 		void SetCamera(const std::shared_ptr<Math::Camera> &pCamera, size_t nodeId = Scene::kInvalidNode);
 
 		// add an animation
-		size_t AddAnimation(size_t meshID);
+		size_t AddAnimation(size_t meshID) { return 0u; }
 
 		// set the camera's speed
-		void SetCameraSpeed(float speed);
+		void SetCameraSpeed(float speed) { }
 
 		// check if a camera exists
 		bool HasCamera() const { return m_Camera != nullptr; }
@@ -373,7 +366,7 @@ namespace MFalcor
 		uint32_t CreateMeshData(Scene* pScene);
 		void CreateGlobalMatricesBuffer(Scene* pScene);
 		void CalculateMeshBoundingBoxes(Scene* pScene);
-		void CreateAnimationController(Scene* pScene);
+		void CreateAnimationController(Scene* pScene) { }
 
 	};
 
