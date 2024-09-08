@@ -303,7 +303,6 @@ namespace MFalcor
 		
 		// cached D3D device
 		ID3D12Device* m_Device = nullptr;
-
 		
 		struct InternalNode : public Node
 		{

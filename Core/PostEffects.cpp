@@ -31,8 +31,8 @@
 
 namespace MyDirectX
 {
-	const float kInitialMinLog = -12.0f;
-	const float kInitialMaxLog = 4.0f;
+	constexpr float kInitialMinLog = -12.0f;
+	constexpr float kInitialMaxLog = 4.0f;
 
 #if 0
 	template <int N>
@@ -94,8 +94,8 @@ namespace MyDirectX
 		m_BloomStrength = postSettings.BloomStrength;
 
 		GenerateBloom(context, postEffects);
-		// 如果没有开启HDR，直接将BloomEffect混合到SceneColorBuffer
-		// 否则，需要进行Tonemapping，交由后续处理
+		// If HDR not enabled, apply BloomEffect to SceneColorBuffer directly
+		// otherwise, do tonemapping first
 		if (!postSettings.EnableHDR)
 			ApplyBloom(context, m_BloomStrength);
 	}
@@ -110,15 +110,14 @@ namespace MyDirectX
 
 		// these bloom buffer dimensions were chosen for their impressive divisibility by 128 and because they can roughly 16:9. 
 		// the blurring algorithm is exactly 9 pixels by 9 pixels, so if the aspect ratio of each pixel is not square,
-		// the blur will be oval(椭圆的) in appearance rather than circular. Coincidentally, they are close to 1/2 of
+		// the blur will be oval in appearance rather than circular. Coincidentally, they are close to 1/2 of
 		// a 720p buffer and 1/3 of 1080p. This is a common size for a bloom buffer on consoles.
 		ASSERT(kBloomWidth % 16 == 0 && kBloomHeight % 16 == 0, "Bloom buffer dimensions must be multiples of 16");
 
 		auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 		// context.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-		// 不设置也可以吧，初始状态就行了 -20-2-23
-		// context.TransitionResource(postEffects.m_ExposureBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		context.TransitionResource(postEffects.m_ExposureBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		context.TransitionResource(lumaLRBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		context.TransitionResource(Graphics::s_BufferManager.m_aBloomUAV1[0], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
@@ -127,8 +126,6 @@ namespace MyDirectX
 			context.SetPipelineState(m_EnableHDR ? m_BloomExtractAndDownsampleHdrCS : m_BloomExtractAndDownsampleLdrCS);
 
 			// set parameters
-			// 注：RootConstants设置错误->(1/width, 1/<<width>>, bloomThread)
-			// 查了好久，更加仔细一点！！！	-20-2-29
 			context.SetConstants(0, 1.0f / kBloomWidth, 1.0f / kBloomHeight, m_BloomThreshold);
 			context.SetDynamicDescriptor(2, 0, colorBuffer.GetSRV());
 			context.SetDynamicDescriptor(2, 1, postEffects.m_ExposureBuffer.GetSRV());
@@ -161,7 +158,7 @@ namespace MyDirectX
 				};
 
 				context.SetPipelineState(m_DownsampleBloom4CS);
-				// context.SetConstants(0, 1.0f / kBloomWidth, 1.0f / kBloomWidth);		// 没有改动，不用设置
+				// context.SetConstants(0, 1.0f / kBloomWidth, 1.0f / kBloomWidth);		// no change, need not set
 				context.SetDynamicDescriptor(2, 0, Graphics::s_BufferManager.m_aBloomUAV1[0].GetSRV());
 				context.SetDynamicDescriptors(3, 0, _countof(uavs), uavs);
 
@@ -231,7 +228,7 @@ namespace MyDirectX
 		context.TransitionResource(buffer[1], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		// set the shader: upsample and blur or just blur
-		// 最后一次downsample对应buffer不用混合，直接模糊
+		// last downsampling just blur
 		context.SetPipelineState(&buffer[0] == &lowerResBuf ? m_BlurCS : m_UpsampleAndBlurCS);
 
 		context.SetConstants(0, 1.0f / bufferWidth, 1.0f / bufferHeight, upsampleBlendFactor);
@@ -256,7 +253,7 @@ namespace MyDirectX
 		auto& postEffectsBuffer = Graphics::s_BufferManager.m_PostEffectsBuffer;
 		uint32_t width = colorBuffer.GetWidth(), height = colorBuffer.GetHeight();
 		
-		if (GfxStates::s_bTypedUAVLoadSupport_R11G11B10_FLOAT)	// 支持 R11G11B10_FLOAT格式UAV加载
+		if (GfxStates::s_bTypedUAVLoadSupport_R11G11B10_FLOAT)	// supports R11G11B10_FLOAT UAV
 			context.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		else
 			context.TransitionResource(postEffectsBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -326,8 +323,7 @@ namespace MyDirectX
 			context.TransitionResource(postEffectsBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		context.TransitionResource(postEffects.m_ExposureBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-		// 可能没有生成Bloom，开启时设置
-		//context.TransitionResource(Graphics::s_BufferManager.m_aBloomUAV1[1], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		context.TransitionResource(Graphics::s_BufferManager.m_aBloomUAV1[1], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		context.TransitionResource(Graphics::s_BufferManager.m_LumaBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		context.SetPipelineState(GfxStates::s_bEnableHDROutput ? m_ToneMapHDRCS : m_ToneMapCS);
@@ -373,18 +369,15 @@ namespace MyDirectX
 	pso.Finalize(pDevice);
 
 		CreatePSO(m_ExtractLumaCS, ExtractLumaCS);
-
 		CreatePSO(m_GenerateHistogramCS, GenerateHistogramCS);
-
 		CreatePSO(m_AdaptExposureCS, AdaptExposureCS);
-
 		CreatePSO(m_CopyBackPostBufferCS, CopyBackPostBufferCS);
 
 #undef CreatePSO
 		
 		// 
 		float exposure = m_CommonStates.Exposure;
-		// 首地址16字节对齐
+		// 16bytes alignment
 		// _declspec(align(16))	- before VS 2015 or C++ 11
 		alignas(16)	float initExposure[8] =
 		{
@@ -403,9 +396,7 @@ namespace MyDirectX
 	void PostEffects::Shutdown()
 	{
 		m_BloomEffect.Shutdown();
-
 		m_ToneMapper.Shutdown();
-
 		m_ExposureBuffer.Destroy();
 	}
 
@@ -516,7 +507,7 @@ namespace MyDirectX
 		if (!m_CommonStates.EnableAdaption)
 		{
 			float exposure = m_CommonStates.Exposure;
-			// 首地址16字节对齐
+			// 16bytes alignment
 			// _declspec(align(16)) 
 			alignas(16)	float initExposure[8] =
 			{
@@ -545,7 +536,7 @@ namespace MyDirectX
 			context.Dispatch2D(lumaBuffer.GetWidth(), lumaBuffer.GetHeight(), 16, 384);
 		}
 
-		// adapt exposure (自适应曝光)
+		// adapt exposure
 		{
 			context.TransitionResource(histogramBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 			context.TransitionResource(m_ExposureBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);

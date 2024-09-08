@@ -5,6 +5,9 @@
 namespace MyDirectX
 {
 	class GraphicsContext;
+	class PostEffects;
+	class DebugPass;
+	class MSAAFilter;
 
 	class SceneViewer : public IGameApp
 	{
@@ -26,6 +29,7 @@ namespace MyDirectX
 		void RenderForward(GraphicsContext &commandContext);
 		void RenderDeferred(GraphicsContext &commandContext);
 		void RenderVisibility(GraphicsContext &commandContext);
+		void RenderDynamic(GraphicsContext &commandContext);
 
 		virtual void PostProcess() override;
 
@@ -40,7 +44,15 @@ namespace MyDirectX
 
 		bool m_IndirectRendering = true;
 		bool m_DeferredRendering = true;
-		bool m_VisibilityRendering = true;
+		bool m_VisibilityRendering = false;
+
+		bool m_EnableMSAAFilter = true;
+		std::shared_ptr<MSAAFilter> m_MSAAFilter;
+
+		// Post effects
+		std::shared_ptr<PostEffects> m_PostEffects;
+
+		std::shared_ptr<DebugPass> m_DebugPass;
 	};
 
 }

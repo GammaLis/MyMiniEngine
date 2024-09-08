@@ -33,11 +33,11 @@ namespace MyDirectX
 
 	struct DecalData
 	{
-		//MFalcor::Quaternion orientation;
-		//MFalcor::Vector3 position;
-		//uint32_t albedoTexIdx = -1;
-		//MFalcor::Vector3 size;
-		//uint32_t normalTexIdx = -1;
+		// MFalcor::Quaternion orientation;
+		// MFalcor::Vector3 position;
+		// uint32_t albedoTexIdx = -1;
+		// MFalcor::Vector3 size;
+		// uint32_t normalTexIdx = -1;
 
 		MFalcor::Matrix4x4 _WorldMat;
 		MFalcor::Matrix4x4 _InvWorldMat;
@@ -57,6 +57,9 @@ namespace MyDirectX
 
 		const D3D12_CPU_DESCRIPTOR_HANDLE* DecalSRVs() const { return m_DecalSRVs; }
 		uint32_t NumDecalTextures() const { return m_NumDecalTextures; }
+
+		const ColorBuffer& GetGradientBuffer() const { return m_GradientBuffer; }
+		ColorBuffer& GetGradientBuffer() { return m_GradientBuffer; }
 
 	private:
 
@@ -81,8 +84,12 @@ namespace MyDirectX
 		ColorBuffer m_UVTarget;
 		ColorBuffer m_UVGradientsTarget;
 		ColorBuffer m_MaterialIDTarget;
-
+		
 		ColorBuffer m_VisibilityBuffer;
+		ColorBuffer m_GradientBuffer;
+
+		ColorBuffer m_ColorBufferMS;
+		ColorBuffer m_DepthBufferMS;	
 
 		RootSignature m_GBufferRS;
 		GraphicsPSO m_GBufferPSO;

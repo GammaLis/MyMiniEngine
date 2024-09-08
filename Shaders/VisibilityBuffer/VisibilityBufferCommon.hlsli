@@ -80,7 +80,7 @@ float3 IntToColor(uint Index)
     return Color * (1.0f / 255.0f);
 }
 
-// in visibiityPass.shd
+// in VisibilityPS
 uint CalcVBID(bool opaque, uint drawId, uint primitiveId)
 {
 	uint drawPrimitiveId = ((drawId << 23) & 0x7F800000) | (primitiveId & 0x007FFFFF);

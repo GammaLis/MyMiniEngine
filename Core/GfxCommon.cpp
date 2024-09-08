@@ -142,6 +142,8 @@ void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferW
 {
 	// GraphicsContext& initContext = GraphicsContext::Begin();
 
+	// TODO: not used now
+#if 0
 	const uint32_t bufferWidth1  = (bufferWidth +  1) / 2;
 	const uint32_t bufferWidth2  = (bufferWidth +  3) / 4;
 	const uint32_t bufferWidth3  = (bufferWidth +  7) / 8;
@@ -154,10 +156,11 @@ void BufferManager::InitRenderingBuffers(ID3D12Device* pDevice, uint32_t bufferW
 	const uint32_t bufferHeight4 = (bufferHeight + 15) / 16;
 	const uint32_t bufferHeight5 = (bufferHeight + 31) / 32;
 	const uint32_t bufferHeight6 = (bufferHeight + 63) / 64;
+#endif
 
 	// 
-	m_SceneColorBuffer.Create(pDevice, L"Main Color Buffer", bufferWidth, bufferHeight, 1, GfxStates::s_DefaultHdrColorFormat);
 	m_SceneColorBuffer.SetClearColor(Color(0.2f, 0.4f, 0.4f));
+	m_SceneColorBuffer.Create(pDevice, L"Main Color Buffer", bufferWidth, bufferHeight, 1, GfxStates::s_DefaultHdrColorFormat);
 	m_SceneDepthBuffer.Create(pDevice, L"Scene Depth Buffer", bufferWidth, bufferHeight, GfxStates::s_DefaultDSVFormat);
 	m_SceneNormalBuffer.Create(pDevice, L"Scene Normal Buffer", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16B16A16_FLOAT);
 

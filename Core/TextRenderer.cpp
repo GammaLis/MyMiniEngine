@@ -4,7 +4,7 @@
 #include "GfxCommon.h"
 #include "CommandContext.h"
 #include "Effects.h"
-#include "../FileUtility.h"
+#include "Utilities/FileUtility.h"
 #include "../Fonts/consola24.h"
 
 namespace MyDirectX

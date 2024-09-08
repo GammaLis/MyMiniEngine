@@ -25,7 +25,7 @@ void main(
 	uint3 dtid 	: SV_DispatchThreadID,
 	uint3 gtid	: SV_GroupThreadID,
 	uint3 gid 	: SV_GroupID,
-	uint gindx	: SV_GroupIndex)
+	uint gindex	: SV_GroupIndex)
 {
 	float2 uv = (dtid.xy + 0.5) * _RcpBufferDim;
 

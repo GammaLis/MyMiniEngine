@@ -3,7 +3,7 @@
 
 #define CommonIndirect_RootSig \
 	"RootFlags(ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT)," \
-	"RootConstants(b0, num32BitConstants = 4)," \
+	"RootConstants(b0, num32BitConstants = 16)," \
 	"CBV(b1)," \
 	"CBV(b2)," \
 	"CBV(b3)," \

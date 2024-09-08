@@ -78,7 +78,6 @@ namespace MyDirectX
 
 		HINSTANCE m_HInstance;
 
-#pragma region Hello, Triangle
 		// Overrides
 		void InitViewportAndScissor();
 		virtual void InitPipelineStates();
@@ -90,6 +89,7 @@ namespace MyDirectX
 		virtual void PostProcess();
 		virtual void CustomUI(GraphicsContext &context);
 
+#pragma region Hello, Triangle
 		void RenderTriangle();
 
 		RootSignature m_BasicTriangleRS;

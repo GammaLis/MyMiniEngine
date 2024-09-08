@@ -8,6 +8,7 @@
 #define OUTFORMAT uint
 #endif
 
+// NOTE: SV_PrimitiveID can be slow, use leading vertex instead.
 float4 main(Varyings i, uint PrimitiveID : SV_PrimitiveID, noperspective float3 BaryWeights : SV_Barycentrics, bool bFront : SV_IsFrontFace) : SV_TARGET
 {
 	const uint DrawID = i.drawId;
@@ -28,6 +29,7 @@ float4 main(Varyings i, uint PrimitiveID : SV_PrimitiveID, noperspective float3 
 	// debug barycentrics
 	col.rgb = BaryWeights;
 
+	// Pack 'DrawID | PrimitiveID'
 	uint packedVisibility = CalcVBID(true, DrawID, PrimitiveID);
 #if PACK_UNORM
 	col = UnpackUnorm4x8( packedVisibility );
@@ -50,10 +52,10 @@ float4 main(Varyings i, uint PrimitiveID : SV_PrimitiveID, noperspective float3 
  * https://github.com/microsoft/DirectXShaderCompiler/wiki/SV_Barycentrics
  *
  * ** Barycentric Coordinate Interpolation Types
- * For the most part, barycentric coordintes behave just like any other regular attribute, in the sense of allowing either affine 
+ * For the most part, barycentric coordinates behave just like any other regular attribute, in the sense of allowing either affine 
  * (screen-space) or perspective-correct interpolation, and optional centroid adjustment,
  *
- * perspectie-correct barycentrics (default) : linear float3 BaryLinear : SV_Barycentrics;
+ * perspective-correct barycentrics (default) : linear float3 BaryLinear : SV_Barycentrics;
  * centroid-adjusted affine (screen-space) barycentrics: centroid noperspective float3 BaryAffine : SV_Barycentrics;
  * force shader to run at supersamping rate (one invocation per MSAA sample): sample noperspective float3 BaryAffineSample : SV_Barycentrics;
  *

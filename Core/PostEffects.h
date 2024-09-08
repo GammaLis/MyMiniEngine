@@ -19,11 +19,8 @@ namespace MyDirectX
 		void Shutdown();
 
 		void Render(ComputeContext &context, PostEffects& postEffects);
-
 		void GenerateBloom(ComputeContext &context, PostEffects& postEffects);
-
 		void BlurBuffer(ComputeContext& context, ColorBuffer buffer[2], const ColorBuffer& lowerResBuf, float upsampleBlendFactor);
-
 		void ApplyBloom(ComputeContext& context, float bloomStrength = 1.0f);
 
 		ComputePSO m_BloomExtractAndDownsampleHdrCS;
@@ -67,7 +64,6 @@ namespace MyDirectX
 		void Shutdown();
 
 		void Render();
-
 		void CopyBackPostBuffer(ComputeContext& context);
 
 		struct CommonStates
@@ -101,7 +97,6 @@ namespace MyDirectX
 		void ProcessHDR(ComputeContext& context);
 		void ProcessLDR(CommandContext& baseContext);
 
-		// Adaption其实也可单独作为一个effect，但是这里直接写在PostEffects里	-20-2-24
 		void ExtractLuma(ComputeContext& context);
 		void UpdateExposure(ComputeContext& context);
 

@@ -3,7 +3,7 @@
 
 namespace MyDirectX
 {
-	// 主要处理 纹理相关资源 RenderTargets, DepthStencilTexture, and other Textures,...
+	// Mainly for RenderTargets, DepthStencilTexture, and other Textures,...
 	class PixelBuffer : public GpuResource
 	{
 	public:
@@ -18,7 +18,7 @@ namespace MyDirectX
 		// has no effect on Desktop
 		void SetBankRotation(uint32_t rotationAmount) 
 		{
-			(rotationAmount);
+			(void)(rotationAmount);
 		}
 
 		// write the raw pixel buffer contents to a file
@@ -48,7 +48,7 @@ namespace MyDirectX
 		uint32_t m_ArraySize;
 		DXGI_FORMAT m_Format;
 
-		// 貌似不是Windows上用的
+		// Not use on Windows
 		uint32_t m_BankRotation;
 	};
 

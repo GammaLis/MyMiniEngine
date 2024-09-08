@@ -1,5 +1,6 @@
 // Ref:
 // TheForge - visibilityBuffer_shade.frag.fsl
+// <<GPU Pro 7>>, Deferred Attribute Interpolate Shading
 
 #define SHADER_CS
 
@@ -178,7 +179,7 @@ float3 InterpolateWithDeriv(BarycentricDeriv deriv, float3x3 attributes)
 // Attributes parameters: a 3x2 matrix of float2 attributes (column denotes attributes per vertex)
 GradientInterpolationResults Interpolate2DWithDeriv(BarycentricDeriv deriv, float3x2 attributes)
 {
-	GradientInterpolationResults ret;
+	GradientInterpolationResults ret = (GradientInterpolationResults) 0;
 
 	// TODO...
 

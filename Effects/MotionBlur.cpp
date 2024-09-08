@@ -59,7 +59,7 @@ void MotionBlur::GenerateCameraVelocityBuffer(CommandContext& context, const Mat
 }
 
 // reprojectionMatrix - Inverse(ViewProjMat) * Prev_ViewProjMat
-// 先将裁剪空间坐标逆变换到世界空间，再利用Prev_ViewProjMat变换到前一帧裁剪空间
+// HS -> WorldSpace, WorldSpace -> Prev HS (Prev_ViewProjMat) 
 void MotionBlur::GenerateCameraVelocityBuffer(CommandContext& context, const Math::Matrix4& reprojectionMatrix, 
 	float nearClip, float farClip, uint64_t frameIndex, bool bUseLinearZ)
 {
@@ -81,23 +81,23 @@ void MotionBlur::GenerateCameraVelocityBuffer(CommandContext& context, const Mat
 	float rcpHalfDimY = 2.0f / height;
 	float rcpZMagic = nearClip / (farClip - nearClip);
 
-	// 屏幕空间 -> NDC
-	// 注意 Z 坐标变换
+	// ScreenSpace -> NDC
+	// Note Z coordinate
 	Matrix4 preMult = Matrix4(
 		Vector4(rcpHalfDimX, 0.0f, 0.0f, 0.0f),
 		Vector4(0.0f, -rcpHalfDimY, 0.0f, 0.0f),
 		Vector4(0.0f, 0.0f, bUseLinearZ ? rcpZMagic : 1.0f, 0.0f),
 		Vector4(-1.0f, 1.0f, bUseLinearZ ? -rcpZMagic : 0.0f, 1.0f)
 	);
-	// NDC -> 屏幕空间
+	// NDC -> ScreenSpace
 	Matrix4 postMult = Matrix4(
 		Vector4(1.0f / rcpHalfDimX, 0.0f, 0.0f, 0.0f),
 		Vector4(0.0f, -1.0f / rcpHalfDimY, 0.0f, 0.0f),
 		Vector4(0.0f, 0.0f, 1.0f, 0.0f),
 		Vector4(1.0f / rcpHalfDimX, 1.0f / rcpHalfDimY, 0.0f, 1.0f)
 	);
-	// 注意：Matrix4乘法顺序不同于 DirectX::XMMATRIX -20-2-20
-	Matrix4 curToPrevXForm = postMult * reprojectionMatrix * preMult;	// Matrix4 乘法 - 右乘 Matrix4.operator*(M')=> M'*mat
+	// Note: 'Matrix4' mul order is not the same as 'DirectX::XMMATRIX'
+	Matrix4 curToPrevXForm = postMult * reprojectionMatrix * preMult;	// Matrix4 mul is right mul, Matrix4.operator*(M')=> M'*mat
 
 	CSConstants csConstants;
 	csConstants._CurToPrevXForm = Transpose(curToPrevXForm);

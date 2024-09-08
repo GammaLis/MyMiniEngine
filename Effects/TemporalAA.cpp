@@ -31,12 +31,14 @@ void TemporalAA::Init(ID3D12Device* pDevice)
 
 	// PSOs
 	{
-		// shaderByteCode[]类型不完整，需要指定数组长度，这里改用#define
-		//auto CreatePSO = [&](ComputePSO& pso, const BYTE (&shaderByteCode)[N])
-		//{
-		//	pso.SetRootSignature(m_RootSignature);
-		//	pso.SetComputeShader(shaderByteCode, sizeof(shaderByteCode));
-		//}
+#if 0
+		auto CreatePSOFunc = [&]<uint32_t N> (ComputePSO& pso, const BYTE (&shaderByteCode)[N])
+		{
+			pso.SetRootSignature(m_RootSignature);
+			pso.SetComputeShader(shaderByteCode, sizeof(shaderByteCode));
+		};
+#endif
+
 #define CreatePSO(pso, shaderByteCode) \
 	pso.SetRootSignature(m_RootSignature); \
 	pso.SetComputeShader(shaderByteCode, sizeof(shaderByteCode)); \
@@ -62,7 +64,7 @@ void TemporalAA::Update(uint64_t frameIndex)
 
 	if (m_Enabled)
 	{
-		static const float Halton23[8][2] =
+		static constexpr float Halton23[8][2] =
 		{
 			{0.0f / 8.0f, 0.0f / 9.0f}, {4.0f / 8.0f, 3.0f / 9.0f},
 			{2.0f / 8.0f, 6.0f / 9.0f}, {6.0f / 8.0f, 1.0f / 9.0f},
@@ -73,14 +75,14 @@ void TemporalAA::Update(uint64_t frameIndex)
 		// INTEL's TAA
 		// following work of Vaidyanathan et all:
 		// https://software.intel.com/content/www/us/en/develop/articles/coarse-pixel-shading-with-temporal-supersampling.html
-		static const float Halton23_16[16][2] = 
+		static constexpr float Halton23_16[16][2] = 
 		{ 
 			{ 0.0f, 0.0f },			{ 0.5f, 0.333333f },	{ 0.25f, 0.666667f },	{ 0.75f, 0.111111f }, 
 			{ 0.125f, 0.444444f },	{ 0.625f, 0.777778f },	{ 0.375f, 0.222222f },	{ 0.875f, 0.555556f }, 
 			{ 0.0625f, 0.888889f }, { 0.5625f, 0.037037f }, { 0.3125f, 0.37037f },	{ 0.8125f, 0.703704f }, 
 			{ 0.1875f, 0.148148f },	{ 0.6875f, 0.481481f }, { 0.4375f, 0.814815f }, { 0.9375f, 0.259259f } 
 		};
-		static const float BlueNoise_16[16][2] = 
+		static constexpr float BlueNoise_16[16][2] = 
 		{
 			{ 1.5f, 0.59375f },		{ 1.21875f, 1.375f },	{ 1.6875f, 1.90625f },	{ 0.375f, 0.84375f },
 			{ 1.125f, 1.875f },		{ 0.71875f, 1.65625f }, { 1.9375f ,0.71875f },	{ 0.65625f ,0.125f }, 
@@ -156,8 +158,8 @@ void TemporalAA::ResolveImage(CommandContext& context)
 	static bool s_EnableTAA = false;
 	static bool s_EnableCBR = false;
 
-	// 重新开启时，清除TemporalColor，关闭时，不做处理 
-	//（MS-MiniEngine 只要m_Enabled != s_EnableTAA都要清零，这里改下）
+	// OnEnable, clear 'TemporalColor', OnDisable, do nothing yet 
+	// (MS-MiniEngine if m_Enabled != s_EnableTAA clears color, modified here)
 	if ((m_Enabled != s_EnableTAA && m_Enabled == true) || 
 		(m_EnableCBR != s_EnableCBR && m_EnableCBR == true) || m_Reset)
 	{
@@ -201,7 +203,7 @@ void TemporalAA::ApplyTemporalAA(ComputeContext& context)
 
 	auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 	auto& velocityBuffer = Graphics::s_BufferManager.m_VelocityBuffer;
-	auto& currTemporal = Graphics::s_BufferManager.m_TemporalColor[currIndex];		// 写入目标
+	auto& currTemporal = Graphics::s_BufferManager.m_TemporalColor[currIndex];
 	auto& prevTemporal = Graphics::s_BufferManager.m_TemporalColor[prevIndex];
 	auto& currDepth = Graphics::s_BufferManager.m_LinearDepth[currIndex];
 	auto& prevDepth = Graphics::s_BufferManager.m_LinearDepth[prevIndex];
@@ -251,7 +253,7 @@ void TemporalAA::ApplyTemporalIntelAA(ComputeContext& context/*, const Math::Mat
 
 	auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 	auto& velocityBuffer = Graphics::s_BufferManager.m_VelocityBuffer;
-	auto& currTemporal = Graphics::s_BufferManager.m_TemporalColor[currIndex];		// 写入目标
+	auto& currTemporal = Graphics::s_BufferManager.m_TemporalColor[currIndex];
 	auto& prevTemporal = Graphics::s_BufferManager.m_TemporalColor[prevIndex];
 	auto& currDepth = Graphics::s_BufferManager.m_LinearDepth[currIndex];
 	auto& prevDepth = Graphics::s_BufferManager.m_LinearDepth[prevIndex];

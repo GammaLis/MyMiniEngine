@@ -1,7 +1,7 @@
 #include "MyWindow.h"
 #include "resource.h"
 #include "MyApp.h"
-#include "../IGameApp.h"
+#include "Game/IGameApp.h"
 
 #define MINI_ENGINE
 
@@ -58,7 +58,7 @@ bool MyWindow::Init()
 	return true;
 }
 
-// 显示窗口
+// Show window
 void MyWindow::Show(int nCmdShow)
 {
 	ShowWindow(m_HWnd, nCmdShow);
@@ -71,7 +71,7 @@ void MyWindow::ToggleFullscreenWindow(IDXGISwapChain* pSwapchain)
 
 	if (m_bFullscreenMode)
 	{
-		// full screen -> windowed screen 转为窗口模式
+		// full screen -> windowed screen
 		// restore the window's attribute and size
 		SetWindowLong(m_HWnd, GWL_STYLE, m_WindowStyle);
 		SetWindowPos(m_HWnd, 

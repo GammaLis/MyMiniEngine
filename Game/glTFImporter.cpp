@@ -8,7 +8,7 @@
 #include <algorithm>
 
 #include "Graphics.h"
-#include "FileUtility.h"
+#include "Utilities/FileUtility.h"
 #include "TextureManager.h"
 
 #define MATRIX_SIZE 16

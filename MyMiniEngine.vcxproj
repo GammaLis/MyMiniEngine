@@ -34,6 +34,7 @@
     <ClInclude Include="Core\RayTracing\RayTracingHlslCompat.h" />
     <ClInclude Include="Core\UploadBuffer.h" />
     <ClInclude Include="Game\FrameDescriptorHeap.h" />
+    <ClInclude Include="Game\MSAAFilter.h" />
     <ClInclude Include="Game\ReservoirSampling.h" />
     <ClInclude Include="Game\UniformBuffers.h" />
     <ClInclude Include="Game\ModelViewerRaytracing.h" />
@@ -97,6 +98,7 @@
     <ClInclude Include="Core\GfxCommon.h" />
     <ClInclude Include="Game\CubemapIBLApp.h" />
     <ClInclude Include="Effects\ParticleShaderStructs.h" />
+    <ClInclude Include="Shaders\Common\DynDescRS.hlsli" />
     <ClInclude Include="Utilities\FileUtility.h" />
     <ClInclude Include="Effects\ForwardPlusLighting.h" />
     <ClInclude Include="Game\GameInput.h" />
@@ -126,6 +128,7 @@
     <ClInclude Include="Game\SceneViewer.h" />
     <ClInclude Include="Shaders\HlslDefines.h" />
     <ClInclude Include="Shaders\MathConstants.h" />
+    <ClInclude Include="Utilities\GameUtility.h" />
     <ClInclude Include="Utilities\ShadowUtility.h" />
     <ClInclude Include="Game\Texture3D.h" />
     <ClInclude Include="Game\VoronoiTextureGenerator.h" />
@@ -143,6 +146,7 @@
     <ClCompile Include="Game\ClusteredLighting.cpp" />
     <ClCompile Include="Core\UploadBuffer.cpp" />
     <ClCompile Include="Game\FrameDescriptorHeap.cpp" />
+    <ClCompile Include="Game\MSAAFilter.cpp" />
     <ClCompile Include="Game\OceanViewer.cpp" />
     <ClCompile Include="Game\UniformBuffers.cpp" />
     <ClCompile Include="Effects\ReSTIRGI.cpp" />
@@ -186,6 +190,17 @@
     <ClCompile Include="Core\GfxCommon.cpp" />
     <ClCompile Include="Game\CubemapIBLApp.cpp" />
     <ClCompile Include="Effects\ParticleShaderStructs.cpp" />
+    <FxCompile Include="Shaders\Misc\DepthOnlyDynDescVS.hlsl">
+      <FileType>Document</FileType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.6</ShaderModel>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)Shaders;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\Misc\DepthOnlyDynDescPS.hlsl">
+      <FileType>Document</FileType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.6</ShaderModel>
+    </FxCompile>
     <ClCompile Include="Utilities\FileUtility.cpp" />
     <ClCompile Include="Effects\ForwardPlusLighting.cpp" />
     <ClCompile Include="Game\GameInput.cpp" />
@@ -843,6 +858,16 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
       <EnableUnboundedDescriptorTables Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</EnableUnboundedDescriptorTables>
     </FxCompile>
+    <FxCompile Include="Shaders\Misc\ResolveCS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.6</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
+    </FxCompile>
     <FxCompile Include="Shaders\PointLightShadowVS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
@@ -1140,6 +1165,17 @@
     <None Include="Shaders\UniformBuffers.hlsl">
       <FileType>Document</FileType>
     </None>
+    <FxCompile Include="Shaders\VisibilityBuffer\GradientDetectionCS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.6</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
+      <EnableUnboundedDescriptorTables Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</EnableUnboundedDescriptorTables>
+    </FxCompile>
     <FxCompile Include="Shaders\VisibilityBuffer\VisibilityBufferPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
@@ -1410,7 +1446,7 @@
       <HeaderFileOutput>$(OutDir)CompiledShaders\%(Filename).h</HeaderFileOutput>
       <VariableName>%(Filename)</VariableName>
       <ShaderModel>5.1</ShaderModel>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Shaders;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ObjectFileOutput />
       <AdditionalOptions>%(AdditionalOptions)</AdditionalOptions>
     </FxCompile>

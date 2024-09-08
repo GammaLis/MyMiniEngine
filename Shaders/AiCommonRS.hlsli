@@ -1,6 +1,6 @@
 #define Common_RootSig \
 	"RootFlags(ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT)," \
-	"RootConstants(b0, num32BitConstants = 4)," \
+	"RootConstants(b0, num32BitConstants = 16)," \
 	"CBV(b1)," \
 	"CBV(b2)," \
 	"CBV(b3, visibility = SHADER_VISIBILITY_PIXEL)," \
@@ -61,7 +61,7 @@
  *和t0, SHADER_VISIBILITY_PIXEL SRV 绑定是有效的。
  *
  * 	CBV(bReg[, space = 0, visibility = ...])
- * 	SRV(tReg[, space = 0, visibliity = ...])
+ * 	SRV(tReg[, space = 0, visibility = ...])
  * 	UAV(uReg[, space = 0, visibility = ...])
  *
  * 	DescriptorTable(DTClause1[, DTClause2, ..., DTClauseN, visibility = ...])

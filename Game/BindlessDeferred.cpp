@@ -60,6 +60,10 @@ void BindlessDeferred::Clean()
 	m_MaterialIDTarget.Destroy();
 
 	m_VisibilityBuffer.Destroy();
+	m_GradientBuffer.Destroy();
+
+	m_ColorBufferMS.Destroy();
+	m_DepthBufferMS.Destroy();
 
 	// decals
 	m_DecalBuffer.Destroy();
@@ -75,8 +79,9 @@ void BindlessDeferred::CreateRenderTargets(ID3D12Device* pDevice)
 	m_UVGradientsTarget.Create(pDevice, L"UV Gradient Target", width, height, 1, DXGI_FORMAT_R16G16B16A16_SNORM);
 	m_MaterialIDTarget.Create(pDevice, L"Material ID Target", width, height, 1, DXGI_FORMAT_R8_UINT);
 
-	m_VisibilityBuffer.Create(pDevice, L"Visibility Buffer", width, height, 1, DXGI_FORMAT_R8G8B8A8_UNORM); // DXGI_FORMAT_R16G16B16A16_FLOAT DXGI_FORMAT_R8G8B8A8_UNORM DXGI_FORMAT_R32_UINT
 	m_VisibilityBuffer.SetClearColor(Colors::White);
+	m_VisibilityBuffer.Create(pDevice, L"Visibility Buffer", width, height, 1, DXGI_FORMAT_R8G8B8A8_UNORM); // DXGI_FORMAT_R16G16B16A16_FLOAT DXGI_FORMAT_R8G8B8A8_UNORM DXGI_FORMAT_R32_UINT
+	m_GradientBuffer.Create(pDevice, L"Gradient Buffer", width, height, 1, DXGI_FORMAT_R8_UNORM);
 }
 
 void BindlessDeferred::CreateDecals(ID3D12Device* pDevice)

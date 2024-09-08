@@ -443,6 +443,15 @@
     <ClInclude Include="Core\Task.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="Shaders\Common\DynDescRS.hlsli">
+      <Filter>Shaders\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\MSAAFilter.h">
+      <Filter>Shaders\Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="Utilities\GameUtility.h">
+      <Filter>Game</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -690,6 +699,9 @@
     </ClCompile>
     <ClCompile Include="Core\Task.cpp">
       <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Game\MSAAFilter.cpp">
+      <Filter>Shaders\Misc</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1262,6 +1274,18 @@
     </FxCompile>
     <FxCompile Include="Shaders\PointLightShadowVS.hlsl">
       <Filter>Shaders\ModelViewer</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\VisibilityBuffer\GradientDetectionCS.hlsl">
+      <Filter>Shaders\VisibilityBuffer</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Misc\DepthOnlyDynDescVS.hlsl">
+      <Filter>Shaders\Misc</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Misc\DepthOnlyDynDescPS.hlsl">
+      <Filter>Shaders\Misc</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Misc\ResolveCS.hlsl">
+      <Filter>Shaders\Misc</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

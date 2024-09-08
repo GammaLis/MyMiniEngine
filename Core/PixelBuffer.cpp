@@ -110,7 +110,7 @@ void PixelBuffer::ExportToFile(ID3D12Device* pDevice, const std::wstring& filePa
 
 	CommandContext::ReadbackTexture2D(TempBuffer, *this);
 
-	// TODO	(Microsoft 修改)
+	// TODO	(Microsoft modification)
 	// This very short command list only issues one API and will be synchronized so we can immediately read the buffer contents
 	// CommandContext &context = CommandContext::Begin(L"Copy texture to memory");
 	// uint32_t rowPitch = context.read
@@ -142,7 +142,7 @@ int PixelBuffer::ExportToImage(ID3D12Device* pDevice, const std::string& filePat
 	// Retrieve a CPU-visible pointer to the buffer memory.  Map the whole range for reading.
 	void* Memory = TempBuffer.Map();
 
-	int nComponent = 4; // GetFormatChannels(m_Format);	// 4	-mf PNG图片nComponent非4时出错，尚不清除原因 -2020-3-27
+	int nComponent = 4; // GetFormatChannels(m_Format);	// 4	-mf: when PNG texture nComponent != 4 it has some errors??? -2020-3-27
 	int ret = stbi_write_png(filePath.c_str(), m_Width, m_Height, nComponent, Memory, 0);
 
 	// No values were written to the buffer, so use a null range when unmapping.
@@ -177,12 +177,12 @@ D3D12_RESOURCE_DESC PixelBuffer::DescribeTex2D(uint32_t width, uint32_t height, 
 void PixelBuffer::AssociateWithResource(ID3D12Device* pDevice, const std::wstring& name,
 	ID3D12Resource* pResource, D3D12_RESOURCE_STATES currentState)
 {
-	(pDevice);	// unused until we support multiple adapters
+	(void)(pDevice);	// unused until we support multiple adapters
 
 	ASSERT(pResource != nullptr);
 	D3D12_RESOURCE_DESC resourceDesc = pResource->GetDesc();
 
-	// 将m_pResource(ComPtr)与当前接口指针向关联
+	// Attach 'pResource' to 'm_pResource'
 	m_pResource.Attach(pResource);
 	m_UsageState = currentState;
 

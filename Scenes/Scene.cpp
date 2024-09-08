@@ -9,6 +9,7 @@
 #include "CameraController.h"
 #include "BindlessDeferred.h"
 #include "ClusteredLighting.h"
+#include "MSAAFilter.h"
 #include "Utilities/ShadowUtility.h"
 
 // compiled shader bytecode
@@ -41,6 +42,7 @@
 #include "VisibilityBufferVS.h"
 #include "VisibilityBufferPS.h"
 #include "VisibilityComputeCS.h"
+#include "GradientDetectionCS.h"
 
 // voxelization
 #include "VoxelizationVS.h"
@@ -212,7 +214,7 @@ namespace MFalcor
 		{
 			// common RS
 			m_CommonRS.Reset((UINT)CommonRSId::Count, 2);
-			m_CommonRS[(UINT)CommonRSId::CBConstants].InitAsConstants(0, 4);
+			m_CommonRS[(UINT)CommonRSId::CBConstants].InitAsConstants(0, 16);
 			m_CommonRS[(UINT)CommonRSId::CBPerObject].InitAsConstantBuffer(1);	// cbPerObject
 			m_CommonRS[(UINT)CommonRSId::CBPerCamera].InitAsConstantBuffer(2);	// cbPerCamera
 			m_CommonRS[(UINT)CommonRSId::CBPerMaterial].InitAsConstantBuffer(3);	// cbPerMaterial
@@ -225,7 +227,7 @@ namespace MFalcor
 
 			// common indirect RS
 			m_CommonIndirectRS.Reset((UINT)CommonIndirectRSId::Count, 2);
-			m_CommonIndirectRS[(UINT)CommonIndirectRSId::CBConstants].InitAsConstants(0, 10);
+			m_CommonIndirectRS[(UINT)CommonIndirectRSId::CBConstants].InitAsConstants(0, 16);
 			m_CommonIndirectRS[(UINT)CommonIndirectRSId::CBPerCamera].InitAsConstantBuffer(1);
 			m_CommonIndirectRS[(UINT)CommonIndirectRSId::CBLights].InitAsConstantBuffer(2);
 			m_CommonIndirectRS[(UINT)CommonIndirectRSId::CBMiscs].InitAsConstantBuffer(3);
@@ -242,7 +244,7 @@ namespace MFalcor
 
 			// gbuffer
 			m_GBufferRS.Reset((UINT)GBufferRSId::Count, 2);
-			m_GBufferRS[(UINT)GBufferRSId::CBConstants].InitAsConstants(0, 10);
+			m_GBufferRS[(UINT)GBufferRSId::CBConstants].InitAsConstants(0, 16);
 			m_GBufferRS[(UINT)GBufferRSId::CBPerCamera].InitAsConstantBuffer(1);
 			m_GBufferRS[(UINT)GBufferRSId::MatrixTable].InitAsBufferSRV(0, 1);
 			m_GBufferRS[(UINT)GBufferRSId::MaterialTable].InitAsBufferSRV(1, 1);
@@ -292,7 +294,7 @@ namespace MFalcor
 
 			// culling cs
 			m_CullingRS.Reset((UINT)IndirectCullingCSRSId::Count, 1);
-			m_CullingRS[(UINT)IndirectCullingCSRSId::CBConstants].InitAsConstants(0, 10);
+			m_CullingRS[(UINT)IndirectCullingCSRSId::CBConstants].InitAsConstants(0, 16);
 			m_CullingRS[(UINT)IndirectCullingCSRSId::CBCamera].InitAsConstantBuffer(1);
 			m_CullingRS[(UINT)IndirectCullingCSRSId::WorldBounds].InitAsBufferSRV(0);
 			m_CullingRS[(UINT)IndirectCullingCSRSId::ShaderResources].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4);
@@ -302,9 +304,13 @@ namespace MFalcor
 		}
 		// command signatures
 		{
-			m_CommandSignature.Reset(1);
-			m_CommandSignature[0].DrawIndexed();
-			m_CommandSignature.Finalize(pDevice);
+			constexpr uint32_t numParams = USE_ROOT_CONSTANT_SIGNATURE ? 2 : 1;
+			m_CommandSignature.Reset(numParams);
+		#if USE_ROOT_CONSTANT_SIGNATURE
+			m_CommandSignature[0].Constant(0, 12, 4);
+		#endif
+			m_CommandSignature[numParams-1].DrawIndexed();
+			m_CommandSignature.Finalize(pDevice, &m_CommonIndirectRS);
 		}
 
 		auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
@@ -525,6 +531,10 @@ namespace MFalcor
 			m_VisibilityComputePSO.SetRootSignature(m_VisibilityRS);
 			m_VisibilityComputePSO.SetComputeShader(VisibilityComputeCS, sizeof(VisibilityComputeCS));
 			m_VisibilityComputePSO.Finalize(pDevice);
+
+			m_VisibilityGradientPSO.SetRootSignature(m_VisibilityRS);
+			m_VisibilityGradientPSO.SetComputeShader(GradientDetectionCS, sizeof(GradientDetectionCS));
+			m_VisibilityGradientPSO.Finalize(pDevice);
 		}
 
 		// voxelization
@@ -719,6 +729,18 @@ namespace MFalcor
 		}
 	}
 
+	void Scene::RenderDynamic(GraphicsContext& gfx, MSAAFilter* msaaFilter)
+	{
+		for (auto instanceId : m_OpaqueInstances)
+		{
+			const auto &instanceData = m_MeshInstanceData[instanceId];
+			const auto &meshData = m_MeshDescs[instanceData.meshID];
+
+			gfx.SetConstants(0, (float)instanceId);
+			gfx.DrawIndexed( meshData.indexCount, meshData.indexByteOffset / meshData.indexStrideSize, meshData.vertexOffset );
+		}
+	}
+
 	// indirect rendering
 	void Scene::IndirectRender(GraphicsContext& gfx, GraphicsPSO& pso, AlphaMode alphaMode)
 	{
@@ -827,19 +849,19 @@ namespace MFalcor
 		gfx.TransitionResource(uvGradientsTarget, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		gfx.TransitionResource(materialIDTarget, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 
-		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[] =
-		{
-			tangentFrame.GetRTV(), uvTarget.GetRTV(),
-			uvGradientsTarget.GetRTV(), materialIDTarget.GetRTV()
-		};
-
 		gfx.ClearDepth(depthBuffer);
-
 		gfx.ClearColor(tangentFrame);
 		gfx.ClearColor(uvTarget);
 		gfx.ClearColor(uvGradientsTarget);
 		gfx.ClearColor(materialIDTarget);
 
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[] =
+		{
+			tangentFrame.GetRTV(),
+			uvTarget.GetRTV(),
+			uvGradientsTarget.GetRTV(),
+			materialIDTarget.GetRTV()
+		};
 		gfx.SetRenderTargets(_countof(rtvHandles), rtvHandles, depthBuffer.GetDSV());
 	}
 
@@ -869,7 +891,7 @@ namespace MFalcor
 
 		gfx.TransitionResource(m_CommandsBuffer, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 		gfx.TransitionResource(*frustumCulledCommandBuffer, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
-		gfx.TransitionResource((*frustumCulledCommandBuffer).GetCounterBuffer(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+		gfx.TransitionResource(frustumCulledCommandBuffer->GetCounterBuffer(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 
 		gfx.SetConstants((UINT)GBufferRSId::CBConstants, 0, 1, 2, 3);
 		gfx.SetShaderResourceView((UINT)GBufferRSId::MatrixTable, m_MatricesDynamicBuffer.GetGpuPointer());
@@ -989,6 +1011,26 @@ namespace MFalcor
 		computeContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	}
 
+	void Scene::CalcGradient(ComputeContext &computeContext)
+	{
+		auto &lumaBuffer = Graphics::s_BufferManager.m_LumaBuffer;
+		auto &gradientBuffer = m_BindlessDeferred->m_GradientBuffer;
+
+		uint32_t w = gradientBuffer.GetWidth(), h = gradientBuffer.GetHeight();
+		
+		computeContext.TransitionResource(lumaBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		computeContext.TransitionResource(gradientBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		computeContext.SetRootSignature( m_VisibilityRS );
+		computeContext.SetPipelineState( m_VisibilityGradientPSO );
+
+		computeContext.SetConstants((UINT)VisibilityRSId::CBConstants, (float)w, (float)h, 1.0f/w, 1.0f/h );
+		computeContext.SetDynamicDescriptor((UINT)VisibilityRSId::RenderTextureSRVs, 0, lumaBuffer.GetSRV() );
+		computeContext.SetDynamicDescriptor((UINT)VisibilityRSId::RenderTextureUAVs, 0, gradientBuffer.GetUAV());
+
+		computeContext.Dispatch2D(w, h);
+	}
+
 	// visibility buffer
 	void Scene::PrepareVisibilityBuffer(GraphicsContext& gfx)
 	{
@@ -1103,7 +1145,7 @@ namespace MFalcor
 		computeContext.SetDescriptorTable((UINT)VisibilityRSId::RenderTextureSRVs, m_FrameDescriptorHeap.HandleFromIndex(s_DescriptorRanges[DescriptorParams::RenderTextureSRVs].start));
 		computeContext.SetDescriptorTable((UINT)VisibilityRSId::RenderTextureUAVs, m_FrameDescriptorHeap.HandleFromIndex(s_DescriptorRanges[DescriptorParams::RenderTextureUAVs].start + RenderTextureUAVs::ColorBuffer));
 
-		static const uint32_t GroupSize = 8;
+		static constexpr uint32_t GroupSize = 8;
 		uint32_t groupCountX = Math::DivideByMultiple(width, GroupSize);
 		uint32_t groupCountY = Math::DivideByMultiple(height, GroupSize);
 		computeContext.Dispatch(groupCountX, groupCountY);
@@ -1390,6 +1432,58 @@ namespace MFalcor
 		}
 	}
 
+	void Scene::UpdateDescriptorHeap(ID3D12Device* pDevice, FrameDescriptorHeap& frameHeap, std::vector<DescriptorRange>& descRanges)
+	{
+		descRanges.clear();
+
+		/// Textures
+
+		// Material textures
+		auto numMaterials = static_cast<uint32_t>(m_Materials.size());
+		{
+			auto numTexturesPerMat = static_cast<uint32_t>(TextureType::Count);
+			auto numMaterialTextures = numMaterials * numTexturesPerMat;
+			auto materialTextureRange = descRanges.emplace_back(DescriptorRange{ frameHeap.PersistentAllocated(), numMaterialTextures });
+			for (const auto& mat : m_Materials)
+			{
+				auto descs = mat->GetDescriptors();
+				for (uint32_t texIdx = 0; texIdx < numTexturesPerMat; ++texIdx)
+				{
+					frameHeap.AllocAndCopyPersistentDescriptor(pDevice, descs[texIdx]);
+				}
+			}
+		}
+
+		/// Buffers
+		{
+			descRanges.emplace_back(DescriptorRange{ frameHeap.PersistentAllocated(), 6 });
+
+			// View
+			// frameHeap.AllocAndCopyPersistentDescriptor(pDevice, m_ViewUniformBuffer.GetCBV());
+
+			// Material buffer
+			frameHeap.AllocAndCopyPersistentDescriptor(pDevice, m_MaterialsBuffer.GetSRV());
+			// Mesh buffer
+			frameHeap.AllocAndCopyPersistentDescriptor(pDevice, m_MeshesBuffer.GetSRV());
+			// Mesh instance buffer
+			frameHeap.AllocAndCopyPersistentDescriptor(pDevice, m_MeshInstancesBuffer.GetSRV());
+			// Vertex buffer
+			frameHeap.AllocAndCopyPersistentDescriptor(pDevice, m_VertexBuffer->GetSRV());
+			// Index buffer
+			frameHeap.AllocAndCopyPersistentDescriptor(pDevice, m_IndexBuffer->GetSRV());
+			// Geometry matrices
+			frameHeap.AllocAndCopyPersistentDescriptor(pDevice, m_MatricesDynamicBuffer.GetSRV());
+		}
+	}
+
+	void Scene::UpdateTemporaryDescriptorHeap(ID3D12Device* pDevice, FrameDescriptorHeap& frameHeap, std::vector<DescriptorRange>& descRanges)
+	{
+		descRanges.emplace_back(DescriptorRange{ frameHeap.TemporaryAllocated(), 1});
+
+		// View
+		frameHeap.AllocAndCopyTemporaryDescriptor(pDevice, m_ViewUniformBuffer.GetCBV(m_Graphics->GetCurrentFrameIndex(), 0, 1));
+	}
+
 	void Scene::Clean()
 	{
 		// shadows
@@ -1470,7 +1564,7 @@ namespace MFalcor
 		m_MeshInstancesBuffer.Create(pDevice, L"MeshInstancesBuffer", numInstances, sizeof(MeshInstanceData), m_MeshInstanceData.data());
 
 		// FIXME: put somewhere else
-		m_ViewUniformBuffer.Create(pDevice, L"ViewUniformBuffer", SWAP_CHAIN_BUFFER_COUNT, sizeof(ViewUniformParameters), true);
+		m_ViewUniformBuffer.Create(pDevice, L"ViewUniformBuffer", 1, sizeof(ViewUniformParameters), true, true);
 	}
 
 	void Scene::InitDescriptors(ID3D12Device* pDevice)
@@ -1744,6 +1838,11 @@ namespace MFalcor
 			drawArgs.StartIndexLocation = curMesh.indexByteOffset / curMesh.indexStrideSize;
 			drawArgs.BaseVertexLocation = curMesh.vertexOffset;
 			drawArgs.StartInstanceLocation = instanceId;
+
+		#if USE_ROOT_CONSTANT_SIGNATURE
+			auto &c = drawCommands[instanceId].consts;
+			c.SetX(instanceId);
+		#endif
 		}
 
 		m_CommandsBuffer.Create(pDevice, L"CommandBuffer", drawCount, sizeof(IndirectCommand), drawCommands.data());

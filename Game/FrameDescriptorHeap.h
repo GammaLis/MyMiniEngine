@@ -1,13 +1,12 @@
 #pragma once
 
+#include <span>
 #include "DescriptorHeap.h"
+#include "Utilities/GameUtility.h"
 
 namespace MyDirectX
 {
 	// Ref: MyNameIsMJP - BindlessDeferred
-
-	static constexpr uint32_t MaxFrameBufferCount = 3;
-	static constexpr uint32_t INDEX_NONE = std::numeric_limits<uint32_t>::max();
 
 	struct DescriptorRange
 	{
@@ -18,12 +17,12 @@ namespace MyDirectX
 	struct PersistentDescriptorAlloc
 	{
 		DescriptorHandle handles[MaxFrameBufferCount] = {};
-		uint32_t index = INDEX_NONE;
+		uint32_t index = INVALID_INDEX;
 	};
 	struct TemporaryDescriptorAlloc
 	{
 		DescriptorHandle startHandle{};
-		uint32_t startIndex = INDEX_NONE;
+		uint32_t startIndex = INVALID_INDEX;
 	};
 
 	class FrameDescriptorHeap
@@ -41,7 +40,7 @@ namespace MyDirectX
 		}
 		~FrameDescriptorHeap() { Destroy(); }
 
-		void Create(ID3D12Device *pDevice, const std::wstring &heapName, uint32_t numPersistent = INDEX_NONE);
+		void Create(ID3D12Device *pDevice, const std::wstring &heapName, uint32_t numPersistent = INVALID_INDEX);
 		void Create(ID3D12Device *pDevice, const std::wstring &heapName, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t maxCount, uint32_t numPersistent, bool shaderVisible = true);
 
 		void Destroy();
@@ -53,6 +52,9 @@ namespace MyDirectX
 		void AllocAndCopyPersistentDescriptor(ID3D12Device *pDevice, DescriptorHandle descriptor);
 
 		TemporaryDescriptorAlloc AllocTemporary(uint32_t count = 1);
+		void AllocAndCopyTemporaryDescriptor(ID3D12Device *pDevice, DescriptorHandle descriptor);
+		
+		void AllocAndCopyTemporaryDescriptors(ID3D12Device *pDevice,  const std::span<DescriptorHandle> &descriptors);
 
 		void EndFrame();
 
@@ -61,7 +63,8 @@ namespace MyDirectX
 
 		uint32_t IndexFromHandle(const DescriptorHandle &handle) const;
 
-		UserDescriptorHeap* CurrentHeap();
+		UserDescriptorHeap* CurrentHeap() const;
+		uint32_t GetCurrentHeapIndex() const { return m_HeapIndex; }
 		uint32_t TotalNumDescriptors() const { return m_NumPersistent + m_NumTemporary; }
 		uint32_t FrameHeapCount() const { return m_NumHeaps; }
 		uint32_t PersistentAllocated() const { return m_PersistentAllocated; }

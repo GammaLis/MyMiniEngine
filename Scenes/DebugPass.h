@@ -15,7 +15,7 @@ namespace MyDirectX
 		void Cleanup();
 
 	private:
-		RootSignature m_DebugRS;	// ≤…”√ PresentRS
+		RootSignature m_DebugRS;	// use 'PresentRS'
 		GraphicsPSO m_DebugPSO;
 	};
 

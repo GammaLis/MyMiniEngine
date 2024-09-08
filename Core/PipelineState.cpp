@@ -133,7 +133,7 @@ namespace MyDirectX
 
 		if (firstCompile)
 		{
-			// ASSERT(m_PSODesc.DepthStencilState.DepthEnable != (m_PSODesc.DSVFormat == DXGI_FORMAT_UNKNOWN));	// MS这样设置了，mf并不强制要求
+			// ASSERT(m_PSODesc.DepthStencilState.DepthEnable != (m_PSODesc.DSVFormat == DXGI_FORMAT_UNKNOWN));	// MS settings
 			ASSERT_SUCCEEDED(pDevice->CreateGraphicsPipelineState(&m_PSODesc, IID_PPV_ARGS(&m_PSO)));
 			s_GraphicsPSOHashMap[hashCode].Attach(m_PSO);
 			m_PSO->SetName(m_Name);

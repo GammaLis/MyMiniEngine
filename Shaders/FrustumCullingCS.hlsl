@@ -200,7 +200,7 @@ void main(
 	if (dtid.x < _ReadStartCount.y)
 	{
 		IndirectArgs commandArgs = _CommandBuffer[_ReadStartCount.x + dtid.x];
-		uint perInstanceCount = 1;	// 假定 每个Command只有一个Instance，否则不好区分PerDraw or PerInstance
+		uint perInstanceCount = 1;	// suppose one Command just has one Instance, otherwise has issue with 'PerDraw' or 'PerInstance'
 		uint instanceId = commandArgs.drawArgs.startInstanceLocation + perInstanceCount - 1;
 		if (sh_CullValues[gtid.x] > 0)
 		{

@@ -38,7 +38,7 @@ void FrameDescriptorHeap::Create(ID3D12Device *pDevice, const std::wstring &heap
 		m_DescriptorHeaps[i].reset(new UserDescriptorHeap(type, maxCount));
 	}
 
-	Create(pDevice, heapName);
+	Create(pDevice, heapName, numPersistent);
 }
 
 void FrameDescriptorHeap::Destroy()
@@ -113,6 +113,21 @@ TemporaryDescriptorAlloc FrameDescriptorHeap::AllocTemporary(uint32_t count)
 	return alloc;
 }
 
+void FrameDescriptorHeap::AllocAndCopyTemporaryDescriptor(ID3D12Device* pDevice, DescriptorHandle descriptor)
+{
+	auto type = m_DescriptorHeaps[0]->GetType(); 
+	auto alloc = AllocTemporary();
+	pDevice->CopyDescriptorsSimple(1, alloc.startHandle, descriptor, type);
+}
+
+void FrameDescriptorHeap::AllocAndCopyTemporaryDescriptors(ID3D12Device* pDevice, const std::span<DescriptorHandle> &descriptors)
+{
+	auto type = m_DescriptorHeaps[0]->GetType();
+	auto count = static_cast<uint32_t>(descriptors.size());
+	auto alloc = AllocTemporary(count);
+	pDevice->CopyDescriptorsSimple(count, alloc.startHandle, descriptors[0], type);
+}
+
 void FrameDescriptorHeap::EndFrame()
 {
 	m_HeapIndex = (m_HeapIndex + 1) % m_NumHeaps;
@@ -137,7 +152,7 @@ uint32_t FrameDescriptorHeap::IndexFromHandle(const DescriptorHandle &handle) co
 	return heap->GetOffsetOfHandle(handle);
 }
 
-UserDescriptorHeap* FrameDescriptorHeap::CurrentHeap()
+UserDescriptorHeap* FrameDescriptorHeap::CurrentHeap() const
 {
 	return m_DescriptorHeaps[m_HeapIndex].get();
 }

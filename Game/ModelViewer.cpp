@@ -949,7 +949,7 @@ namespace Math
 
 void GetCubemapViewports(std::vector<D3D12_VIEWPORT> &viewports, std::vector<RECT> &scissors, uint32_t shadowMapSize)
 {
-	auto vp = GetViewport(0.0f, 0.0f, shadowMapSize, shadowMapSize);
+	auto vp = GetViewport(0.0f, 0.0f, (float)shadowMapSize, (float)shadowMapSize);
 	viewports.assign(6, vp);
 
 	auto sci = GetScissor(0, 0, (int)shadowMapSize, (int)shadowMapSize);

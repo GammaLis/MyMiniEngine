@@ -6,7 +6,7 @@
 
 #define IndirectGBuffer_RootSig \
 	"RootFlags(ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT)," \
-	"RootConstants(b0, num32BitConstants = 4)," \
+	"RootConstants(b0, num32BitConstants = 16)," \
 	"CBV(b1)," \
 	"SRV(t0, space = 1)," \
     "SRV(t1, space = 1)," \

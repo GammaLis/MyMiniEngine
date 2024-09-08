@@ -31,7 +31,7 @@ namespace MyDirectX
 		void Show(int nCmdShow = SW_SHOWDEFAULT);
 		void ToggleFullscreenWindow(IDXGISwapChain *pOutput = nullptr);
 		void SetWindowZorderToTopMost(bool setToTopMost);
-		bool IsFullscreen() { return m_bFullscreenMode;}
+		bool IsFullscreen() const { return m_bFullscreenMode;}
 
 		static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -44,7 +44,7 @@ namespace MyDirectX
 
 		UINT m_Width;
 		UINT m_Height;
-		RECT m_WindowRect;
+		RECT m_WindowRect{};
 		const wchar_t* m_Title;
 
 		// settings

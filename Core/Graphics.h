@@ -57,9 +57,9 @@ namespace MyDirectX
 		uint64_t GetFrameCount() const { return m_FrameIndex; }
 		// the amount of time elapsed during the last completed frame. The CPU and/or GPU may be idle during parts of the frame.
 		// The frame time measures the time between calls to present each frame
-		float GetFrameTime() const;
+		float GetFrameTime() const { return 0; }
 		// the total number of frames per second
-		float GetFrameRate() const;
+		float GetFrameRate() const { return 0; }
 
 
 		/// static members
@@ -77,7 +77,6 @@ namespace MyDirectX
 			return s_Device->GetDescriptorHandleIncrementSize(type);
 		}
 
-		// 
 		static DescriptorAllocator s_DescriptorAllocator[];
 
 		inline static D3D12_CPU_DESCRIPTOR_HANDLE AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE type, UINT count = 1)
@@ -127,7 +126,7 @@ namespace MyDirectX
 		Microsoft::WRL::ComPtr<IDXGISwapChain4> m_SwapChain;
 
 		// PSOs
-		// TODO: 考虑移到其它地方	-2021-4-8
+		// TODO: put somewhere else	-2021-4-8
 		RootSignature m_EmptyRS;
 		RootSignature m_PresentRS;
 		GraphicsPSO m_BlendUIPSO{ L"Core: BlendUI" };		// blend overlay UI
@@ -180,7 +179,7 @@ namespace MyDirectX
 		DXGI_FORMAT m_SwapChainFormat = DXGI_FORMAT_R10G10B10A2_UNORM;
 		DWORD m_DxgiFactoryFlags = 0;
 
-		// native resolution,区别于display resolution
+		// 'native resolution', different from 'display resolution'
 		Resolutions m_CurNativeRes;
 
 		HWND m_hWindow;

@@ -15,6 +15,7 @@
 #pragma warning (disable: 3078)
 
 #define REVERZED_Z
+#define USE_ROOT_CONSTANT_SIGNATURE 0
 
 struct AABB
 {
@@ -50,6 +51,9 @@ struct DrawIndexedArgs
 };
 struct IndirectArgs
 {
+#if USE_ROOT_CONSTANT_SIGNATURE
+	float4 consts;
+#endif
 	DrawIndexedArgs drawArgs;
 };
 

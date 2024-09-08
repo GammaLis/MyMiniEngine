@@ -44,28 +44,28 @@ void CommandSignature::Finalize(ID3D12Device* pDevice, const RootSignature* root
 			requireRootSignature = true;
 			break;
 		}
-
-		D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc;
-		commandSignatureDesc.ByteStride = byteStride;
-		commandSignatureDesc.NumArgumentDescs = m_NumParameters;
-		commandSignatureDesc.pArgumentDescs = (const D3D12_INDIRECT_ARGUMENT_DESC*)m_ParamArray.get();
-		commandSignatureDesc.NodeMask = 1;
-
-		Microsoft::WRL::ComPtr<ID3DBlob> pOutBlob, pErrorBlob;
-		ID3D12RootSignature* pRootSig = rootSignature ? rootSignature->GetSignature() : nullptr;
-		if (requireRootSignature)
-		{
-			ASSERT(pRootSig != nullptr);
-		}
-		else
-		{
-			pRootSig = nullptr;
-		}
-
-		ASSERT_SUCCEEDED(pDevice->CreateCommandSignature(&commandSignatureDesc, pRootSig, IID_PPV_ARGS(&m_Signature)));
-
-		m_Signature->SetName(L"CommandSignature");
-
-		m_Finalized = TRUE;
 	}
+
+	D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc;
+	commandSignatureDesc.ByteStride = byteStride;
+	commandSignatureDesc.NumArgumentDescs = m_NumParameters;
+	commandSignatureDesc.pArgumentDescs = (const D3D12_INDIRECT_ARGUMENT_DESC*)m_ParamArray.get();
+	commandSignatureDesc.NodeMask = 1;
+
+	Microsoft::WRL::ComPtr<ID3DBlob> pOutBlob, pErrorBlob;
+	ID3D12RootSignature* pRootSig = rootSignature ? rootSignature->GetSignature() : nullptr;
+	if (requireRootSignature)
+	{
+		ASSERT(pRootSig != nullptr);
+	}
+	else
+	{
+		pRootSig = nullptr;
+	}
+
+	ASSERT_SUCCEEDED(pDevice->CreateCommandSignature(&commandSignatureDesc, pRootSig, IID_PPV_ARGS(&m_Signature)));
+
+	m_Signature->SetName(L"CommandSignature");
+
+	m_Finalized = TRUE;
 }

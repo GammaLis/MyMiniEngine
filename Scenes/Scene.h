@@ -13,6 +13,8 @@
 #include "FrameDescriptorHeap.h"
 #include "LightDefines.h"
 
+#define USE_ROOT_CONSTANT_SIGNATURE 0
+
 namespace Math
 {
 	class Camera;
@@ -31,6 +33,7 @@ namespace MyDirectX
 	class BindlessDeferred;
 	class ClusteredLighting;
 	class CascadedShadowMap;
+	class MSAAFilter;
 }
 
 namespace MFalcor
@@ -174,6 +177,7 @@ namespace MFalcor
 	{
 	public:
 		friend class AssimpImporter;
+		friend class MyDirectX::MSAAFilter;
 
 		using SharedPtr = std::shared_ptr<Scene>;
 		using ConstSharedPtrRef = const SharedPtr&;
@@ -233,6 +237,7 @@ namespace MFalcor
 		void BeginIndexDrawing(GraphicsContext& gfx);
 		void SetRenderCamera(GraphicsContext& gfx, const Matrix4x4 &viewProjMat, const Vector3 &camPos, UINT rootIdx);
 		void RenderByAlphaMode(GraphicsContext& gfx, GraphicsPSO &pso, AlphaMode alphaMode = AlphaMode::kOPAQUE);
+		void RenderDynamic(GraphicsContext &gfx, MSAAFilter *msaaFilter);
 
 		// Indirect rendering
 		void IndirectRender(GraphicsContext& gfx, GraphicsPSO& pso, AlphaMode alphaMode = AlphaMode::UNKNOWN);
@@ -242,6 +247,7 @@ namespace MFalcor
 		void RenderToGBuffer(GraphicsContext& gfx, GraphicsPSO &pso, AlphaMode alphaMode = AlphaMode::UNKNOWN);
 		void DeferredRender(ComputeContext& computeContext, ComputePSO &pso);
 
+		void CalcGradient(ComputeContext &computeContext);
 		void PrepareVisibilityBuffer(GraphicsContext &gfx);
 		void RenderVisibilityBuffer(GraphicsContext &gfx, AlphaMode alphaMode = AlphaMode::UNKNOWN);
 		void VisibilityCompute(ComputeContext &gfx, ComputePSO &pso);
@@ -255,6 +261,10 @@ namespace MFalcor
 		void UpdateHiZBuffer(ComputeContext& computeContext, Graphics &gfxCore);
 		void OcclusionCulling(ComputeContext& computeContext, const Matrix4x4& viewMat, const Matrix4x4& projMat);
 
+		// Descriptor heap
+		void UpdateDescriptorHeap(ID3D12Device* pDevice, FrameDescriptorHeap& frameHeap, std::vector<DescriptorRange>& descRanges);
+		void UpdateTemporaryDescriptorHeap(ID3D12Device *pDevice, FrameDescriptorHeap &frameHeap, std::vector<DescriptorRange>& descRanges);
+
 		// Render the scene using raytracing
 		void Raytrace() { }
 
@@ -263,7 +273,7 @@ namespace MFalcor
 
 		/// ** Camera **
 		// Access the scene's camera to change properties, or use elsewhere
-		Math::Camera* GetCamera() const { return m_Camera.get(); }
+		const Math::Camera* GetCamera() const { return m_Camera.get(); }
 
 		// Attach a new camera to the scene
 		void SetCamera() { }
@@ -308,7 +318,7 @@ namespace MFalcor
 
 		/// ** Material **
 		// Get the number of materials in the scene
-		uint32_t GetMaterialCount() const { return(uint32_t)m_Materials.size(); }
+		uint32_t GetMaterialCount() const { return (uint32_t)m_Materials.size(); }
 
 		// Get a material
 		Material::ConstSharedPtrRef GetMaterial(uint32_t materialId) const
@@ -500,6 +510,12 @@ namespace MFalcor
 
 		struct IndirectCommand
 		{
+			// TODO: Root constant
+		#if USE_ROOT_CONSTANT_SIGNATURE
+			Math::Vector4 consts;
+		#endif
+
+			// Draw args
 			D3D12_DRAW_INDEXED_ARGUMENTS drawArgs;
 		};
 
@@ -606,9 +622,10 @@ namespace MFalcor
 
 		// Visibility buffer
 		RootSignature m_VisibilityRS;
-		GraphicsPSO m_VisibilityBufferPSO;
-		GraphicsPSO m_VisibilityLightingPSO;
-		ComputePSO m_VisibilityComputePSO;
+		GraphicsPSO m_VisibilityBufferPSO{ L"VisibilityBuffer"};
+		GraphicsPSO m_VisibilityLightingPSO{ L"VisibilityLighting"};
+		ComputePSO m_VisibilityComputePSO{ L"VisibilityCompute"};
+		ComputePSO m_VisibilityGradientPSO{ L"VisibilityGradient"};
 
 		// Voxelization
 		GraphicsPSO m_VoxelizationPSO;

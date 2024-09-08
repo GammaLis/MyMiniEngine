@@ -18,6 +18,8 @@
 
 using namespace MyDirectX;
 
+#define USE_BASE_TRIANGLE 0
+
 struct alignas(16) ConstantBuffer
 {
 	XMFLOAT3 _Color;
@@ -83,8 +85,9 @@ void IGameApp::Update(float deltaTime)
 void IGameApp::Render()
 {
 	// m_Gfx->Clear();
-
+#if USE_BASE_TRIANGLE
 	RenderTriangle();
+#endif
 }
 
 void IGameApp::RenderUI()

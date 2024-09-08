@@ -151,6 +151,8 @@ namespace MyDirectX
 		void PIXEndEvent();
 		void PIXSetMarker(const wchar_t* label);
 
+		void ResolveSubresource(GpuResource& dstResource, UINT dstSubresource, GpuResource &srcResource, UINT srcSubresource, DXGI_FORMAT format);
+
 		void SetPipelineState(const PSO& pso);
 		void SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, ID3D12DescriptorHeap* pHeap);
 		void SetDescriptorHeaps(UINT heapCount, D3D12_DESCRIPTOR_HEAP_TYPE type[], ID3D12DescriptorHeap* pHeaps[]);
@@ -316,6 +318,14 @@ namespace MyDirectX
 			m_CommandList->ResourceBarrier(m_NumBarriersToFlush, m_ResourceBarrierBuffer);
 			m_NumBarriersToFlush = 0;
 		}
+	}
+
+	inline void CommandContext::ResolveSubresource(GpuResource &dstResource, UINT dstSubresource, GpuResource &srcResource, UINT srcSubresource, DXGI_FORMAT format)
+	{
+		TransitionResource(dstResource, D3D12_RESOURCE_STATE_RESOLVE_DEST);
+		TransitionResource(srcResource, D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
+		FlushResourceBarriers();
+		m_CommandList->ResolveSubresource(dstResource.GetResource(), dstSubresource, srcResource.GetResource(), srcSubresource, format);
 	}
 
 	inline void CommandContext::SetPipelineState(const PSO& pso)
