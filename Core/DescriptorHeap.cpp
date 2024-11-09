@@ -1,5 +1,5 @@
 #include "DescriptorHeap.h"
-// #include "MyApp.h"		// GetDescriptorIncrementSize
+#include "Utility.h"
 
 namespace MyDirectX
 {

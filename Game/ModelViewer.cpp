@@ -792,7 +792,7 @@ void ModelViewer::InitGeometryBuffers()
 	ASSERT(m_Model->m_MeshCount > 0, "Model contains no meshes");
 }
 
-void ModelViewer::InitCustom()
+bool ModelViewer::InitCustom()
 {
 	g_TaskContext.Init(2);
 	g_TaskContext.Execute([](TaskParams) {
@@ -861,6 +861,8 @@ void ModelViewer::InitCustom()
 	}
 
 	g_TaskContext.Wait();
+
+	return true;
 }
 
 void ModelViewer::CleanCustom()

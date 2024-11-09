@@ -16,7 +16,7 @@
 using namespace MyDirectX;
 using namespace DirectX;
 
-// StructuredBuffer - 不须对齐，但是SIMDMemcpy需要对齐，还是地址对齐，对应的，HLSL需要补齐
+// SIMDMemcpy needs 16-byte aligned, but not in StructuredBuffer, so we need padding
 struct alignas(16) FLight
 {
 	XMFLOAT3 color = XMFLOAT3(1.0f, 1.0f, 1.0f);		// the color of emitted light, as a linear RGB color
@@ -62,9 +62,9 @@ struct alignas(16) PSConstants
 
 glTFViewer::glTFViewer(HINSTANCE hInstance, const std::string& glTFFileName, const wchar_t* title, UINT width, UINT height)
 	: IGameApp(hInstance, title, width, height)
-	, m_Importer(std::make_unique<glTF::glTFImporter>())
+	, m_Importer(std::make_unique<glTF::glTFImporterNew>())
 {
-	m_Importer->Load(glTFFileName);
+	m_FileNames.emplace_back(glTFFileName);
 }
 
 void glTFViewer::Update(float deltaTime)
@@ -97,8 +97,8 @@ void glTFViewer::Render()
 	{
 		gfx.SetRootSignature(m_CommonRS);
 		gfx.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		gfx.SetVertexBuffer(0, m_Importer->m_VertexBuffer.VertexBufferView());
-		gfx.SetIndexBuffer(m_Importer->m_IndexBuffer.IndexBufferView());
+		gfx.SetVertexBuffer(0, m_GlobalVertexBuffer.VertexBufferView());
+		gfx.SetIndexBuffer(m_GlobalIndexBuffer.IndexBufferView());
 
 		RenderObjects(gfx, m_ViewProjMatrix);
 	}
@@ -106,13 +106,34 @@ void glTFViewer::Render()
 	gfx.Finish();
 }
 
-void glTFViewer::InitAssets()
+static std::vector<D3D12_INPUT_ELEMENT_DESC> s_InputElements =
+{
+	{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA },
+	{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA },
+	{"TEXCOORD", 1, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA },
+	{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA },
+	{"TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA },
+	{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA }
+};
+
+bool glTFViewer::InitAssets()
 {
 	using glTF::Attrib;
 
+	bool bAnyLoaded = false;
+	for (auto i = 0; i < m_FileNames.size(); i++)
+	{
+		bAnyLoaded |= m_Importer->Load(m_FileNames[i]);
+	}
+	if (!bAnyLoaded)
+	{
+		Utility::Printf("Load file failed! Cannot init viewers!");
+		return false;
+	}
+
 	// Init model
-	Graphics::s_TextureManager.Init(L"Textures/");
-	ASSERT(m_Importer->Create(Graphics::s_Device));
+	// Graphics::s_TextureManager.Init(L"Textures/");
+	// ASSERT(m_Importer->Create(Graphics::s_Device));
 
 	// root signature & pso
 	{
@@ -131,8 +152,9 @@ void glTFViewer::InitAssets()
 		m_CommonRS.Finalize(Graphics::s_Device, L"CommonRS", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 		// input elements
+#if 0
 		const auto& vAttribs = m_Importer->m_VertexAttributes;
-		D3D12_INPUT_ELEMENT_DESC inputElements[] =
+		std::vector<D3D12_INPUT_ELEMENT_DESC> inputElements=
 		{
 			{"POSITION", 0, vAttribs[Attrib::attrib_position].format, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA },
 			{"TEXCOORD", 0, vAttribs[Attrib::attrib_texcoord0].format, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA },
@@ -141,12 +163,15 @@ void glTFViewer::InitAssets()
 			{"TANGENT", 0, vAttribs[Attrib::attrib_tangent].format, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA },
 			{"COLOR", 0, vAttribs[Attrib::attrib_color0].format, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA }
 		};
+#else
+		const auto& inputElements = s_InputElements; 
+#endif
 
 		const auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 		const auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
 
 		m_ModelViewerPSO.SetRootSignature(m_CommonRS);
-		m_ModelViewerPSO.SetInputLayout(_countof(inputElements), inputElements);
+		m_ModelViewerPSO.SetInputLayout(static_cast<uint32_t>(inputElements.size()), inputElements.data());
 		m_ModelViewerPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 		m_ModelViewerPSO.SetVertexShader(glTFCommonVS, sizeof(glTFCommonVS));
 		m_ModelViewerPSO.SetPixelShader(glTFCommonPS, sizeof(glTFCommonPS));
@@ -175,7 +200,7 @@ void glTFViewer::InitAssets()
 
 	// camera
 	{
-		glTF::BoundingBox boundingBox = m_Importer->GetBoundingBox();
+		glTF::BoundingBox boundingBox = m_SceneBoundingBox; // m_Importer->GetBoundingBox();
 		glTF::Vector3 center = (boundingBox.max + boundingBox.min) / 2.0f;
 		glTF::Vector3 extent = (boundingBox.max - boundingBox.min);
 		Math::Vector3 eye(center.x, center.y, center.z + extent.z);
@@ -255,7 +280,7 @@ void glTFViewer::InitAssets()
 			std::wstring filePath = L"grasscube1024.dds";
 			auto pos = filePath.rfind('.');
 			if (pos != std::wstring::npos)
-				filePath = filePath.substr(0, pos);	// 去除扩展名
+				filePath = filePath.substr(0, pos);	// 去锟斤拷锟斤拷展锟斤拷
 			const auto texture = Graphics::s_TextureManager.LoadFromFile(Graphics::s_Device, filePath);
 			m_SHsrv = texture->GetSRV();
 			auto desc = const_cast<ID3D12Resource*>(texture->GetResource())->GetDesc();
@@ -288,6 +313,8 @@ void glTFViewer::InitAssets()
 		}
 	}
 #pragma endregion
+
+	return true;
 }
 
 void glTFViewer::CleanCustom()
@@ -322,6 +349,7 @@ void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 &viewPr
 	CBPerObject cbPerObject;
 	PSConstants psConstants;
 
+#if 0
 	const auto& rMeshes = m_Importer->m_oMeshes;
 	for (size_t i = 0, imax = rMeshes.size(); i < imax; ++i)
 	{
@@ -374,4 +402,5 @@ void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 &viewPr
 			}
 		}
 	}
+#endif
 }

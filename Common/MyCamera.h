@@ -9,14 +9,14 @@
 //***************************************************************************************
 #pragma once
 
-#include "pch.h"
-
-using namespace DirectX;
+#include "CoreMinimal.h"
 
 namespace MyDirectX
 {
 	namespace Camera
 	{
+		using namespace DirectX;
+
 		class MyCamera
 		{
 		public:

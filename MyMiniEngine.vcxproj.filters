@@ -110,6 +110,21 @@
     <Filter Include="Shaders\VisibilityBuffer">
       <UniqueIdentifier>{8e1aee44-3798-4a00-83f1-4a4c309a122d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Game\BVH">
+      <UniqueIdentifier>{853ccf67-ee16-475f-ac83-b88667762b04}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Game\GLTF">
+      <UniqueIdentifier>{7201e24c-8728-44c8-b874-579b2fa21c6c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Extern">
+      <UniqueIdentifier>{6395f08c-eca8-4880-b3d7-2c146069d663}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Game\Utility">
+      <UniqueIdentifier>{1810fee9-4695-4a2e-93b9-6751e680ee20}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Game\Threads">
+      <UniqueIdentifier>{ced0ecd4-8545-48d8-9dd7-aef4cc70966c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\GpuResource.h">
@@ -253,9 +268,6 @@
     <ClInclude Include="Core\dds.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="Utilities\FileUtility.h">
-      <Filter>Game</Filter>
-    </ClInclude>
     <ClInclude Include="Core\TextureManager.h">
       <Filter>Core</Filter>
     </ClInclude>
@@ -306,15 +318,6 @@
     </ClInclude>
     <ClInclude Include="Effects\ParticleEffectManager.h">
       <Filter>Effects\ParticleEffects</Filter>
-    </ClInclude>
-    <ClInclude Include="Game\glTFCommon.h">
-      <Filter>Game</Filter>
-    </ClInclude>
-    <ClInclude Include="Game\glTFImporter.h">
-      <Filter>Game</Filter>
-    </ClInclude>
-    <ClInclude Include="Game\glTFViewer.h">
-      <Filter>Game</Filter>
     </ClInclude>
     <ClInclude Include="Core\Skybox.h">
       <Filter>Core</Filter>
@@ -406,12 +409,6 @@
     <ClInclude Include="Game\Voxelization.h">
       <Filter>Game</Filter>
     </ClInclude>
-    <ClInclude Include="Game\BVHApp.h">
-      <Filter>Game</Filter>
-    </ClInclude>
-    <ClInclude Include="Game\Accelerations.h">
-      <Filter>Game</Filter>
-    </ClInclude>
     <ClInclude Include="Core\ProfilingScope.h">
       <Filter>Core</Filter>
     </ClInclude>
@@ -436,21 +433,50 @@
     <ClInclude Include="Core\LinearAllocator.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="Core\Utility.h" />
-    <ClInclude Include="Core\mtqueue.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="Core\Task.h">
-      <Filter>Core</Filter>
-    </ClInclude>
     <ClInclude Include="Shaders\Common\DynDescRS.hlsli">
       <Filter>Shaders\Common</Filter>
     </ClInclude>
     <ClInclude Include="Game\MSAAFilter.h">
       <Filter>Shaders\Misc</Filter>
     </ClInclude>
+    <ClInclude Include="Game\BVH\BVHApp.h">
+      <Filter>Game\BVH</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\BVH\Accelerations.h">
+      <Filter>Game\BVH</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\cgltf\cgltf.h">
+      <Filter>Extern</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\GLTF\glTFViewer.h">
+      <Filter>Game\GLTF</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\GLTF\glTFCommon.h">
+      <Filter>Game\GLTF</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\GLTF\glTFImporter.h">
+      <Filter>Game\GLTF</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Utility.h">
+      <Filter>Game\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Threads\TheadPool.h">
+      <Filter>Game\Threads</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Threads\Task.h">
+      <Filter>Game\Threads</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Threads\mtqueue.h">
+      <Filter>Game\Threads</Filter>
+    </ClInclude>
+    <ClInclude Include="Utilities\FileUtility.h">
+      <Filter>Game\Utility</Filter>
+    </ClInclude>
     <ClInclude Include="Utilities\GameUtility.h">
-      <Filter>Game</Filter>
+      <Filter>Game\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\CoreMinimal.h">
+      <Filter>Common</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -559,9 +585,6 @@
     <ClCompile Include="Core\DDSTextureLoader.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="Utilities\FileUtility.cpp">
-      <Filter>Game</Filter>
-    </ClCompile>
     <ClCompile Include="Core\TextureManager.cpp">
       <Filter>Core</Filter>
     </ClCompile>
@@ -606,15 +629,6 @@
     </ClCompile>
     <ClCompile Include="Effects\ParticleEffectManager.cpp">
       <Filter>Effects\ParticleEffects</Filter>
-    </ClCompile>
-    <ClCompile Include="Game\glTFCommon.cpp">
-      <Filter>Game</Filter>
-    </ClCompile>
-    <ClCompile Include="Game\glTFImporter.cpp">
-      <Filter>Game</Filter>
-    </ClCompile>
-    <ClCompile Include="Game\glTFViewer.cpp">
-      <Filter>Game</Filter>
     </ClCompile>
     <ClCompile Include="Core\Skybox.cpp">
       <Filter>Core</Filter>
@@ -670,12 +684,6 @@
     <ClCompile Include="Game\Voxelization.cpp">
       <Filter>Game</Filter>
     </ClCompile>
-    <ClCompile Include="Game\BVHApp.cpp">
-      <Filter>Game</Filter>
-    </ClCompile>
-    <ClCompile Include="Game\Accelerations.cpp">
-      <Filter>Game</Filter>
-    </ClCompile>
     <ClCompile Include="Core\ProfilingScope.cpp">
       <Filter>Core</Filter>
     </ClCompile>
@@ -697,11 +705,32 @@
     <ClCompile Include="Core\Math\BoundingSphere.cpp">
       <Filter>Core\Math</Filter>
     </ClCompile>
-    <ClCompile Include="Core\Task.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
     <ClCompile Include="Game\MSAAFilter.cpp">
       <Filter>Shaders\Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="Game\BVH\BVHApp.cpp">
+      <Filter>Game\BVH</Filter>
+    </ClCompile>
+    <ClCompile Include="Game\BVH\Accelerations.cpp">
+      <Filter>Game\BVH</Filter>
+    </ClCompile>
+    <ClCompile Include="Game\Extern.cpp">
+      <Filter>Extern</Filter>
+    </ClCompile>
+    <ClCompile Include="Game\GLTF\glTFCommon.cpp">
+      <Filter>Game\GLTF</Filter>
+    </ClCompile>
+    <ClCompile Include="Game\GLTF\glTFImporter.cpp">
+      <Filter>Game\GLTF</Filter>
+    </ClCompile>
+    <ClCompile Include="Game\GLTF\glTFViewer.cpp">
+      <Filter>Game\GLTF</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Threads\Task.cpp">
+      <Filter>Game\Threads</Filter>
+    </ClCompile>
+    <ClCompile Include="Utilities\FileUtility.cpp">
+      <Filter>Game\Utility</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -13,7 +13,9 @@
 
 #pragma once
 
-#include "VectorMath.h"
+#include "Math/Scalar.h"
+#include "Math/Vector.h"
+#include <DirectXMath.h>
 
 namespace Math
 {

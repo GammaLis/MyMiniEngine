@@ -20,6 +20,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Common\CoreMinimal.h" />
     <ClInclude Include="Core\LinearAllocator.h" />
     <ClInclude Include="Core\ProfilingScope.h" />
     <ClInclude Include="Core\Threads\mtqueue.h" />
@@ -1899,6 +1900,8 @@
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <AdditionalOptions>
       </AdditionalOptions>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

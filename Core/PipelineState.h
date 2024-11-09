@@ -1,5 +1,6 @@
 #pragma once
-#include "pch.h"
+#include "CoreMinimal.h"
+#include "Utility.h"
 
 namespace MyDirectX
 {

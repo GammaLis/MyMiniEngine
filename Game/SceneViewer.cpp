@@ -60,7 +60,7 @@ void SceneViewer::InitGeometryBuffers()
 {
 }
 
-void SceneViewer::InitCustom()
+bool SceneViewer::InitCustom()
 {
 #if 0
 	m_MainScene = Scene::Create(Graphics::s_Device, "Models/buster_drone.gltf", this);
@@ -95,6 +95,8 @@ void SceneViewer::InitCustom()
 		m_DebugPass = std::make_shared<DebugPass>();
 		m_DebugPass->Init();
 	}
+
+	return true;
 }
 
 void SceneViewer::CleanCustom()

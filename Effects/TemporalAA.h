@@ -1,5 +1,5 @@
 #pragma once
-#include "pch.h"
+#include "CoreMinimal.h"
 #include "RootSignature.h"
 #include "PipelineState.h"
 

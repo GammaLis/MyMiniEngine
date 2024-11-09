@@ -41,7 +41,7 @@ namespace MyDirectX
 		Graphics& operator=(const Graphics&) = delete;
 		~Graphics() {  }
 
-		void Init(HWND hwnd, UINT width, UINT height);
+		bool Init(HWND hwnd, UINT width, UINT height);
 		void Resize(uint32_t newWidth, uint32_t newHeight);
 		void Terminate();
 		void Shutdown();
@@ -182,7 +182,7 @@ namespace MyDirectX
 		// 'native resolution', different from 'display resolution'
 		Resolutions m_CurNativeRes;
 
-		HWND m_hWindow;
+		HWND m_hWindow{};
 
 		// options
 		uint32_t m_Options = 0;

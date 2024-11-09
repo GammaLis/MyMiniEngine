@@ -1,14 +1,13 @@
 #pragma once
-#include "pch.h"
+#include "CoreMinimal.h"
 #include "Color.h"
-#include "Math/Vector.h"
 #include "PipelineState.h"
 #include "RootSignature.h"
 #include <string>
 
 namespace MyDirectX
 {
-	// »æÖÆÎÄ±¾
+	// ï¿½ï¿½ï¿½ï¿½ï¿½Ä±ï¿½
 	class TextRenderer
 	{
 		friend class TextContext;
@@ -16,8 +15,8 @@ namespace MyDirectX
 	public:
 		class Font;
 
-		// ÒòÎª´ËÊ±FontÉÐÎ´¶¨Òå£¬ÐèÒª¶¨ÒåÄ¬ÈÏ¹¹Ôìº¯Êý£¨¼´Ê¹Îª¿Õ£© -20-1-26
-		// ·ñÔò±àÒëÆ÷Éú³ÉÄ¬ÈÏÎÞ²Î¹¹Ôìº¯Êý£¬¹¹Ôìmap<x, unique_ptr<...>> ³ö´í
+		// ï¿½ï¿½Îªï¿½ï¿½Ê±Fontï¿½ï¿½Î´ï¿½ï¿½ï¿½å£¬ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½Ä¬ï¿½Ï¹ï¿½ï¿½ìº¯ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¹Îªï¿½Õ£ï¿½ -20-1-26
+		// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¬ï¿½ï¿½ï¿½Þ²Î¹ï¿½ï¿½ìº¯ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½map<x, unique_ptr<...>> ï¿½ï¿½ï¿½ï¿½
 		TextRenderer();
 		~TextRenderer();
 
@@ -113,7 +112,7 @@ namespace MyDirectX
 
 	private:
 		// __declspec(align(16)) struct VertexShaderParams
-		// or C++11 alignas - ÉèÖÃÄÚ´æ¶ÔÆë·½Ê½£¬×îÐ¡8
+		// or C++11 alignas - ï¿½ï¿½ï¿½ï¿½ï¿½Ú´ï¿½ï¿½ï¿½ë·½Ê½ï¿½ï¿½ï¿½ï¿½Ð¡8
 		struct alignas(16) VertexShaderParams
 		{
 			Math::Vector4 ViewportTransform;
@@ -146,7 +145,7 @@ namespace MyDirectX
 			A volatile specifier is a hint to a compiler that an object may change its value 
 		in ways not specified by the language so that aggressive optimizations must be avoided.
 		*/ 
-		// Ìî³ä¶¥µãÊý¾Ý
+		// ï¿½ï¿½ä¶¥ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		UINT FillVertexBuffer(TextVert volatile* verts, const char* str, size_t stride, size_t slen);
 
 		GraphicsContext& m_GfxContext;

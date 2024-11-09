@@ -1,5 +1,6 @@
 #include "MyCamera.h"
 
+using namespace DirectX;
 using namespace MyDirectX::Camera;
 
 MyCamera::MyCamera(XMFLOAT3 position, XMFLOAT3 target, XMFLOAT3 worldUp, float fovY, float aspect, float nearClip, float farClip)

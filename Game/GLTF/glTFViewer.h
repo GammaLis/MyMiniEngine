@@ -1,15 +1,20 @@
 #pragma once
-#include "pch.h"
+#include "CoreMinimal.h"
 #include "IGameApp.h"
 #include "RootSignature.h"
 #include "PipelineState.h"
 #include "Camera.h"
 #include "CameraController.h"
+#include "FrameDescriptorHeap.h"
+#include "glTFCommon.h"
 #include "GpuBuffer.h"
 
 #define SHADING_MODEL_METALLIC_ROUGHNESS
 
-namespace glTF { class glTFImporter; }
+namespace glTF
+{
+	class IModelImporter;
+}
 
 namespace MyDirectX
 {
@@ -23,7 +28,7 @@ namespace MyDirectX
 		virtual void Render() override;
 
 	protected:
-		virtual void InitAssets() override;
+		virtual bool InitAssets() override;
 
 	private:
 		virtual void CleanCustom() override;
@@ -36,7 +41,18 @@ namespace MyDirectX
 
 		GraphicsPSO m_ModelViewerPSO;
 
-		std::unique_ptr<glTF::glTFImporter> m_Importer;
+		/// Scene info
+		std::unique_ptr<glTF::IModelImporter> m_Importer;
+		StructuredBuffer m_GlobalVertexBuffer;
+		ByteAddressBuffer m_GlobalIndexBuffer;
+
+		glTF::BoundingBox m_SceneBoundingBox;
+
+		// Mesh draw commands
+		
+
+		// Descriptor heap
+		FrameDescriptorHeap m_FrameDescriptorHeap;
 
 		// lights
 		StructuredBuffer m_LightBuffer;
@@ -49,5 +65,7 @@ namespace MyDirectX
 		// resources
 		D3D12_CPU_DESCRIPTOR_HANDLE m_SHsrv{};
 		StructuredBuffer m_SHOutput;
+
+		std::vector<std::string> m_FileNames; 
 	};
 }

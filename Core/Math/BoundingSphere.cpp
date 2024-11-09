@@ -11,7 +11,7 @@
 // Author:  James Stanard 
 //
 
-#include "pch.h"
+#include "VectorMath.h"
 #include "BoundingSphere.h"
 
 using namespace Math;

@@ -1,5 +1,5 @@
 #pragma once
-#include "pch.h"
+#include "CoreMinimal.h"
 #include "MotionBlur.h"
 #include "TemporalAA.h"
 #include "TemporalEffects.h"

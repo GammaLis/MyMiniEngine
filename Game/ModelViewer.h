@@ -87,12 +87,12 @@ namespace MyDirectX
 	public:
 		ModelViewer(HINSTANCE hInstance, const char *modelName, const wchar_t* title = L"Hello, World!", UINT width = SCR_WIDTH, UINT height = SCR_HEIGHT);
 		// std::unique_ptr deleter is invoked, T is incomplete
-		~ModelViewer();
+		~ModelViewer() override;
 
 		virtual void Update(float deltaTime) override;
 		virtual void Render() override;
 
-		virtual void Raytrace(GraphicsContext &gfxContext);
+		void Raytrace(GraphicsContext &gfxContext);
 
 		struct CommonStates
 		{
@@ -116,7 +116,7 @@ namespace MyDirectX
 	private:
 		virtual void InitPipelineStates() override;
 		virtual void InitGeometryBuffers() override;
-		virtual void InitCustom() override;
+		virtual bool InitCustom() override;
 		virtual void CleanCustom() override;
 
 		virtual void PostProcess() override;

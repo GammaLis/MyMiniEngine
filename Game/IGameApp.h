@@ -53,7 +53,7 @@ namespace MyDirectX
 		virtual LRESULT CALLBACK MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 	protected:
-		virtual void InitAssets();
+		virtual bool InitAssets();
 
 		static IGameApp* m_App;
 
@@ -83,7 +83,7 @@ namespace MyDirectX
 		virtual void InitPipelineStates();
 		virtual void InitGeometryBuffers();
 		
-		virtual void InitCustom();
+		virtual bool InitCustom();
 		virtual void CleanCustom();
 
 		virtual void PostProcess();

@@ -106,7 +106,7 @@ void VoronoiTextureGenerator::InitPipelineStates()
 		};
 
 		auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
-		// auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;	// ≤ª”√ƒ¨»œDepthBuffer
+		// auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;	// ‰∏çÁî®ÈªòËÆ§DepthBuffer
 
 		D3D12_DEPTH_STENCIL_DESC depthStencilDesc = Graphics::s_CommonStates.DepthStateReadWrite;
 		depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;	// D3D12_COMPARISON_FUNC_LESS D3D12_COMPARISON_FUNC_LESS_EQUAL
@@ -168,15 +168,17 @@ void VoronoiTextureGenerator::InitGeometryBuffers()
 		m_InitTexture.Create(pDevice, L"InitSeedTexture", s_Size, s_Size, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
 		m_PingpongBuffers[0].Create(pDevice, L"JFA PingpongBuffer0", s_Size, s_Size, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
 		m_PingpongBuffers[1].Create(pDevice, L"JFA PingpongBuffer1", s_Size, s_Size, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
-		m_VoronoiTexture.Create(pDevice, L"Voronoit Texture", s_Size, s_Size, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
+		m_VoronoiTexture.Create(pDevice, L"Voronoi Texture", s_Size, s_Size, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
 	}
 }
 
-void VoronoiTextureGenerator::InitCustom()
+bool VoronoiTextureGenerator::InitCustom()
 {
 	m_DebugPass.Init();
 
 	UpdateVoronoi();
+
+	return true;
 }
 
 void VoronoiTextureGenerator::CleanCustom()

@@ -1,6 +1,7 @@
 ﻿#pragma once
 
-#include "pch.h"
+#include "CoreMinimal.h"
+#include "VectorMath.h"
 #include "ColorBuffer.h"
 #include "DepthBuffer.h"
 #include "FrameDescriptorHeap.h"

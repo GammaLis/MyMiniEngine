@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "pch.h"
+#include "CoreMinimal.h"
 #include "GpuBuffer.h"
 
 #include "Core/RayTracing/RayTracingHlslCompat.h"

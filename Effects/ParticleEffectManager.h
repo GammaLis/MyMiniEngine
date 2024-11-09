@@ -1,5 +1,5 @@
 #pragma once
-#include "pch.h"
+#include "CoreMinimal.h"
 #include "ParticleEffect.h"
 #include "RootSignature.h"
 #include "PipelineState.h"
@@ -54,7 +54,7 @@ namespace MyDirectX
 
 			// properties
 			bool m_Enabled = true;			
-			bool m_EnableSpriteSort = false;	// ÔÝ²»ÅÅÐò
+			bool m_EnableSpriteSort = false;	// ï¿½Ý²ï¿½ï¿½ï¿½ï¿½ï¿½
 			bool m_EnableTiledRendering = false;
 			bool m_PauseSim = false;
 
@@ -86,7 +86,7 @@ namespace MyDirectX
 			// rootsignature
 			RootSignature m_ParticleRS;
 			// PSOs
-			// Á£×ÓÉú³É£¬¸üÐÂ
+			// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É£ï¿½ï¿½ï¿½ï¿½ï¿½
 			ComputePSO m_ParticleSpawnCS;
 			ComputePSO m_ParticleUpdateCS;
 			ComputePSO m_ParticleDispatchIndirectArgsCS;

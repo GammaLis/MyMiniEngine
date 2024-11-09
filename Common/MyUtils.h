@@ -5,7 +5,7 @@
 //#include <DirectXMath.h>
 //#include <string>
 //#include <cstdint>
-#include "pch.h"
+#include "CoreMinimal.h"
 
 namespace MyDirectX
 {

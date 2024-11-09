@@ -1,5 +1,5 @@
 #pragma once
-#include "pch.h"
+#include "CoreMinimal.h"
 #include "ColorBuffer.h"
 
 namespace MyDirectX

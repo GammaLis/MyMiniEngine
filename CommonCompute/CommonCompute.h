@@ -1,5 +1,5 @@
 #pragma once
-#include "pch.h"
+#include "CoreMinimal.h"
 #include "Color.h"
 #include "GfxCommon.h"
 #include "PipelineState.h"

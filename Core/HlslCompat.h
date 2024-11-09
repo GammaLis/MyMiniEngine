@@ -1,7 +1,7 @@
 #ifndef HLSL_COMPAT_INCLUDED
 #define HLSL_COMPAT_INCLUDED
 
-#include "pch.h"
+#include "CoreMinimal.h"
 
 #define OUTPARAM(type, name) type& name
 #define INOUTPARAM(type, name) type& name

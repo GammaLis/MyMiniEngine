@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "pch.h"
+#include "CoreMinimal.h"
 #include "Math/GLMath.h"
 
 namespace rtrt

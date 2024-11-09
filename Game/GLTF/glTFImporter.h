@@ -1,9 +1,6 @@
 #pragma once
-#include <string>
-#include <vector>
+#include "CoreMinimal.h"
 #include <set>
-#include <map>
-#include <memory>
 
 // rapidjson
 #define RAPIDJSON_NOMEMBERITERATORCLASS
@@ -23,20 +20,20 @@ namespace glTF
 		virtual ~IModelImporter() = default;
 
 		virtual bool Load(const std::string &filePath) = 0;
+		virtual void Clear() { };
 	};
 	
-	class glTFImporter
+	class glTFImporter final : public IModelImporter
 	{
 	public:
 		glTFImporter();
-		glTFImporter(const std::string &glTFFilePath);
+		glTFImporter(const std::string &filePath);
 
-		bool Load(const std::string &glTFFilePath);
+		bool Load(const std::string &filePath) override;
+		void Clear() override;
 
 		bool Create(ID3D12Device* pDevice);
-
-		void Clear();
-
+		
 		Matrix4x4 GetMeshTransform(const Mesh& mesh) const;
 
 		const BoundingBox& GetBoundingBox() const

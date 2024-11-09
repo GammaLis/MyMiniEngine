@@ -1,5 +1,6 @@
 #include "PipelineState.h"
 #include "RootSignature.h"
+#include "Utility.h"
 #include "Hash.h"
 #include <thread>
 #include <mutex>

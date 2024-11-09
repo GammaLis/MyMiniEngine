@@ -155,7 +155,7 @@ namespace MyDirectX
         }
     }
 
-    void Graphics::Init(HWND hwnd, UINT width, UINT height)
+    bool Graphics::Init(HWND hwnd, UINT width, UINT height)
     {
         ASSERT(hwnd != nullptr);
 
@@ -178,6 +178,8 @@ namespace MyDirectX
         s_CommonStates.InitCommonStates(m_Device.Get());
         GfxStates::SetNativeResolution(m_Device.Get(), m_CurNativeRes);
         InitCustom();
+
+        return true;
     }
 
     void Graphics::Resize(uint32_t newWidth, uint32_t newHeight)
@@ -824,7 +826,7 @@ namespace MyDirectX
 
         // present RootSignature
         m_PresentRS.Reset(4, 2);
-        m_PresentRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);    // SceanColorBuffer, OveralyBuffer
+        m_PresentRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);    // SceneColorBuffer, OverlayBuffer
         m_PresentRS[1].InitAsConstants(0, 6, 0, D3D12_SHADER_VISIBILITY_ALL);
         m_PresentRS[2].InitAsBufferSRV(2, 0, D3D12_SHADER_VISIBILITY_PIXEL);
         m_PresentRS[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2);

@@ -9,7 +9,7 @@
 
 #include <future>
 
-#include <Libraries/cgltf/cgltf.h>
+#include "Libraries/cgltf/cgltf.h"
 #include "Graphics.h"
 #include "Utilities/FileUtility.h"
 #include "TextureManager.h"
@@ -220,28 +220,28 @@ namespace glTF
 	{
 	}
 
-	glTFImporter::glTFImporter(const std::string & glTFFilePath)
+	glTFImporter::glTFImporter(const std::string & filePath)
 	{
-		Load(glTFFilePath);
+		Load(filePath);
 	}
 
-	bool glTFImporter::Load(const std::string & glTFFilePath)
+	bool glTFImporter::Load(const std::string & filePath)
 	{
-		m_FileDir = GetBaseDir(glTFFilePath);
-		m_FileName = GetFileNameWithNoExtensions(glTFFilePath);
+		m_FileDir = GetBaseDir(filePath);
+		m_FileName = GetFileNameWithNoExtensions(filePath);
 
 		std::regex reg(".gltf$", std::regex_constants::icase);
-		bool bValid = std::regex_search(glTFFilePath, reg);	// regex_match - full match	regex_search - part match
+		bool bValid = std::regex_search(filePath, reg);	// regex_match - full match	regex_search - part match
 		if (!bValid)
 		{
 			std::cout << "File format is not gltf" << std::endl;
 			return false;
 		}
 
-		std::ifstream ifs(glTFFilePath);
+		std::ifstream ifs(filePath);
 		if (!ifs.is_open())
 		{
-			std::cout << "Failed to open file " << glTFFilePath << std::endl;
+			std::cout << "Failed to open file " << filePath << std::endl;
 			return false;
 		}
 
@@ -793,7 +793,7 @@ namespace glTF
 				}
 				if (curMat.HasMember("emissiveTexture"))
 				{
-					glTexureInfo& emissiveTex = newMat.emissiveTex;
+					glTextureInfo& emissiveTex = newMat.emissiveTex;
 
 					const Value& emissiveTexDom = curMat["emissiveTexture"];
 					if (emissiveTexDom.HasMember("index") && emissiveTexDom["index"].IsInt())
@@ -1601,31 +1601,122 @@ namespace glTF
 		}
 	}
 
-	class ImporterImpl
+	/// cgltf
+	
+	class CGLTFWrapper
 	{
 	public:
-		bool Load(const std::string &filePath)
+		CGLTFWrapper(std::string inFileName, const cgltf_options &inOptions) : fileName(std::move(inFileName)), options(inOptions)
+		{ }
+
+		bool Parse()
 		{
-			cgltf_data *gltf_data = nullptr;
-			cgltf_options options{};
-			cgltf_result result = cgltf_parse_file(&options, filePath.c_str(), &gltf_data);
+			result = cgltf_parse_file(&options, fileName.c_str(), &gltfData);
 			if (result != cgltf_result_success)
 			{
-				Utility::Printf("Load file %s failed: %s", filePath);
+				Utility::Printf("Load file %s failed: %s", fileName);
+				return false;
+			}
+			result = cgltf_load_buffers(&options, gltfData, fileName.c_str());
+			if (result != cgltf_result_success)
+			{
+				Utility::Printf("Load buffers failed: %s", fileName);
 				return false;
 			}
 
-			result = cgltf_load_buffers(&options, gltf_data, filePath.c_str());
+			result  = cgltf_validate(gltfData);
 			if (result != cgltf_result_success)
 			{
-				Utility::Printf("Load buffers failed: %s", filePath);
+				Utility::Printf("gltf file %s has some validation issues: %d", fileName, result);
+				return false;
+			}
+			return true;
+		}
+
+		// Parse the gltf buffer definitions and start loading buffer blobs
+		void ParseBuffers() { }
+		void ParseTextures() { }
+		void ParseMeshes() { }
+		void ParseMaterials() { }
+		void ParseNodes() { }
+
+		~CGLTFWrapper()
+		{
+			if (gltfData != nullptr)
+			{
+				cgltf_free(gltfData);
+				gltfData = nullptr;
+			}	
+		}
+
+		// Compute indices from cgltf element pointers
+		static int gltfBufferIndex(const cgltf_data *data, const cgltf_buffer *buffer)
+		{
+			ASSERT(buffer);
+			return static_cast<int>(buffer - data->buffers);
+		}
+
+		static int gltfBufferViewIndex(const cgltf_data *data, const cgltf_buffer_view *bufferView)
+		{
+			ASSERT(bufferView);
+			return static_cast<int>(bufferView - data->buffer_views);
+		}
+
+		static int gltfImageIndex(const cgltf_data *data, const cgltf_image *image)
+		{
+			ASSERT(image);
+			return static_cast<int>(image - data->images);
+		}
+
+		static int gltfTextureIndex(const cgltf_data *data, const cgltf_texture *texture)
+		{
+			ASSERT(texture);
+			return static_cast<int>(texture - data->textures);
+		}
+
+		static int gltfMaterialIndex(const cgltf_data *data, const cgltf_material *material)
+		{
+			ASSERT(material);
+			return static_cast<int>(material - data->materials);
+		}
+
+		static int gltfMeshIndex(const cgltf_data *data, const cgltf_mesh *mesh)
+		{
+			ASSERT(mesh);
+			return static_cast<int>(mesh - data->meshes);
+		}
+
+		std::string fileName{};
+		cgltf_options options{};
+		cgltf_data *gltfData{};
+		cgltf_result result{};
+	};
+
+	class ImporterImpl
+	{
+	public:
+		bool Load(const std::string &fileName)
+		{
+			cgltf_data *gltf_data = nullptr;
+			cgltf_options options{};
+			cgltf_result result = cgltf_parse_file(&options, fileName.c_str(), &gltf_data);
+			if (result != cgltf_result_success)
+			{
+				Utility::Printf("Load file %s failed: %s", fileName);
+				return false;
+			}
+
+			result = cgltf_load_buffers(&options, gltf_data, fileName.c_str());
+			if (result != cgltf_result_success)
+			{
+				Utility::Printf("Load buffers failed: %s", fileName);
 				return false;
 			}
 
 			result  = cgltf_validate(gltf_data);
 			if (result != cgltf_result_success)
 			{
-				Utility::Printf("gltf file %s has some validation issues: %d", filePath, result);
+				Utility::Printf("gltf file %s has some validation issues: %d", fileName, result);
 				return false;
 			}
 
@@ -1641,42 +1732,7 @@ namespace glTF
 		std::vector<Batch> m_MeshBatches;
 	};
 
-	// Compute indices from cgltf element pointers
-	static int gltfBufferIndex(const cgltf_data *data, const cgltf_buffer *buffer)
-	{
-		ASSERT(buffer);
-		return static_cast<int>(buffer - data->buffers);
-	}
-
-	static int gltfBufferViewIndex(const cgltf_data *data, const cgltf_buffer_view *bufferView)
-	{
-		ASSERT(bufferView);
-		return static_cast<int>(bufferView - data->buffer_views);
-	}
-
-	static int gltfImageIndex(const cgltf_data *data, const cgltf_image *image)
-	{
-		ASSERT(image);
-		return static_cast<int>(image - data->images);
-	}
-
-	static int gltfTextureIndex(const cgltf_data *data, const cgltf_texture *texture)
-	{
-		ASSERT(texture);
-		return static_cast<int>(texture - data->textures);
-	}
-
-	static int gltfMaterialIndex(const cgltf_data *data, const cgltf_material *material)
-	{
-		ASSERT(material);
-		return static_cast<int>(material - data->materials);
-	}
-
-	static int gltfMeshIndex(const cgltf_data *data, const cgltf_mesh *mesh)
-	{
-		ASSERT(mesh);
-		return static_cast<int>(mesh - data->meshes);
-	}
+	
 
 	bool ImporterImpl::ParseMeshes(const cgltf_data *data)
 	{
@@ -1710,7 +1766,7 @@ namespace glTF
 
 	void ProcessMeshes(glTFImporterNew *importer, cgltf_mesh *meshes, uint32_t count)
 	{
-		assert(meshes != nullptr && count > 0);
+		ASSERT(meshes != nullptr && count > 0);
 		
 	}
 	
@@ -1718,30 +1774,13 @@ namespace glTF
 	bool glTFImporterNew::Load(const std::string& filePath)
 	{
 		// std::async(std::launch::async)
+		
+		CGLTFWrapper wrapper(filePath, {});
+		wrapper.Parse();
 
 		// TODO:
 		return false;
 	}
-
-	class CGLTFWrapper
-	{
-	public:
-		CGLTFWrapper(const std::string &fileName, const cgltf_options &options)
-		{
-			cgltf_parse_file()
-		}
-
-		~CGLTFWrapper()
-		{
-			if (m_Data != nullptr)
-			{
-				cgltf_free(m_Data);
-				m_Data = nullptr;
-			}	
-		}
-
-		cgltf_data *m_Data = nullptr;
-	};
 
 }
 /**

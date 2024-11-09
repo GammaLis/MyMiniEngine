@@ -1,4 +1,5 @@
 #include "CommandAllocatorPool.h"
+#include "Utility.h"
 
 using namespace MyDirectX;
 

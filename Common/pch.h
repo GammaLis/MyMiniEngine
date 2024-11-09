@@ -50,8 +50,12 @@
 #include <DirectXPackedVector.h>
 
 // DX12 - MiniEngine
+#ifndef D3D12_GPU_VIRTUAL_ADDRESS_NULL
 #define D3D12_GPU_VIRTUAL_ADDRESS_NULL		((D3D12_GPU_VIRTUAL_ADDRESS)0)
+#endif
+#ifndef D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN
 #define D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN	((D3D12_GPU_VIRTUAL_ADDRESS)-1)
+#endif
 
 #include "d3dx12.h"
 
@@ -73,7 +77,7 @@
 
 // To use graphics and CPU markup events with the latest version of PIX, change this to include <pix3.h>
 // then add the NuGet package WinPixEventRuntime to the project.
-#include <pix3.h>
+// #include <pix3.h>
 
 #ifdef _DEBUG
 #include <dxgidebug.h>

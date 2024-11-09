@@ -1,5 +1,7 @@
 #pragma once
-#include "pch.h"
+#include "CoreMinimal.h"
+#include "VectorMath.h"
+#include "Utility.h"
 #include "Scenes/MaterialDefines.h"
 
 namespace MyDirectX
@@ -341,7 +343,7 @@ namespace MyDirectX
 				break;
 			case TextureType::Normal:
 				m_TexNormalPath = filePath;
-				SetFlags(PACK_NORMAL_MAP_TYPE(m_MatData.flags, NormalMapRGB));	// 目前只考虑NormalMapRGB
+				SetFlags(PACK_NORMAL_MAP_TYPE(m_MatData.flags, NormalMapRGB));	// 目前只锟斤拷锟斤拷NormalMapRGB
 				break;
 			case TextureType::Emissive:
 				m_TexEmissivePath = filePath;

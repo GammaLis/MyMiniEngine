@@ -1,11 +1,10 @@
 #pragma once
-#include <string>
-#include <vector>
+#include "CoreMinimal.h"
 
 #define GLMath
 
 #if defined(GLMath)
-#define GLM_FORCE_CTOR_INIT		// 需要初始化
+#define GLM_FORCE_CTOR_INIT
 #include <glm/glm.hpp>
 #include <glm/common.hpp>
 #include <glm/gtc/matrix_access.hpp>
@@ -33,14 +32,11 @@ namespace glTF
 }
 #endif
 
-#define NOMINMAX	// d3d12.h 里面预定义了min, max (#define min/max ...)
-#include <d3d12.h>
-
 // https://github.com/KhronosGroup/glTF/tree/master/specification/2.0
 namespace glTF
 {
-	// 以下enum来自 glTF Specification 2.0, TinyGLTF
-	enum class glDataType
+	// glTF Specification 2.0, TinyGLTF
+	enum class glDataType : int32_t
 	{
 		UNKNOWN = -1,
 
@@ -54,7 +50,7 @@ namespace glTF
 		DOUBLE = 5130
 	};
 
-	enum class glTopology
+	enum class glTopology : uint8_t
 	{
 		UNKNOWN = -1,
 
@@ -67,7 +63,7 @@ namespace glTF
 		TRIANGLE_FAN = 6
 	};
 
-	enum class glTextureFilter
+	enum class glTextureFilter : int32_t
 	{
 		UNKNOWN = -1,
 
@@ -79,7 +75,7 @@ namespace glTF
 		LINEAR_MIPMAP_LINEAR = 9987
 	};
 
-	enum class glTextureWrapMode
+	enum class glTextureWrapMode : int32_t
 	{
 		UNKNOWN = -1,
 
@@ -88,7 +84,7 @@ namespace glTF
 		MIRRORED_REPEAT = 33648
 	};
 
-	enum class glParameterType
+	enum class glParameterType : int32_t
 	{
 		UNKNOWN = -1,
 
@@ -112,7 +108,7 @@ namespace glTF
 		SAMPLER_2D = 35678
 	};
 
-	enum class glType
+	enum class glType : uint32_t
 	{
 		UNKNOWN = -1,
 
@@ -127,7 +123,7 @@ namespace glTF
 		MATRIX = 64 + 16
 	};
 
-	enum class glTextureFormat
+	enum class glTextureFormat : uint8_t
 	{
 		UNKNOWN = -1,
 
@@ -138,8 +134,7 @@ namespace glTF
 		LUMINANCE_ALPHA = 6410,
 	};
 
-	// 加前缀k，标注枚举，（某些地方可能 预定义枚举变量, #define...）
-	enum class glAlphaMode
+	enum class glAlphaMode : uint8_t
 	{
 		UNKNOWN = -1,
 
@@ -155,8 +150,8 @@ namespace glTF
 	{
 		UNKNOWN = -1,
 
-		ARRAY_BUFFER = 34962,	// 顶点数组
-		ELEMENT_ARRAY_BUFFER = 34963	// 索引数组
+		ARRAY_BUFFER = 34962,
+		ELEMENT_ARRAY_BUFFER = 34963,
 	};
 
 	enum class glShaderType
@@ -195,23 +190,21 @@ namespace glTF
 		Vector3 scale = Vector3(1.0f, 1.0f, 1.0f);
 		Matrix4x4 transform;	// 16 floats, in column-major order
 
-		std::vector<int> children;	// 子节点
+		std::vector<int> children;
 		std::vector<float> weights;	// the weights of the instantiated Morph Target. Number of elements must match number of Morph Targets of used mesh
 
-		int meshIdx = -1;			// 索引 mesh
-		int cameraIdx = -1;			// 索引 camera
+		int meshIdx = -1;
+		int cameraIdx = -1;
 		int skinIdx = -1;			// the index of the skin referenced by this node. When a skin is referenced by
 			// a node within a scene, all joints used by the skin must belong the same scene
 
-		// mf	-20-3-2
-		int parentIdx = -1;		// 父节点index
-		bool bDirty = true;	// 是否重新计算transform缓存
-		Matrix4x4 parentTransCache;	// 父节点transform缓存
+		int parentIdx = -1;
+		bool bDirty = true;
+		Matrix4x4 parentTransCache;
 	};
 
 	// vertex attributes
-	// 目前8个
-	enum AttribMask
+	enum AttribMask : uint16_t
 	{
 		attrib_mask_0 = (1 << 0),
 		attrib_mask_1 = (1 << 1),
@@ -233,7 +226,7 @@ namespace glTF
 		attrib_mask_weights0 = attrib_mask_7,
 	};
 
-	enum Attrib
+	enum Attrib : uint8_t
 	{
 		attrib_0 = 0,
 		attrib_1 = 1,
@@ -254,7 +247,7 @@ namespace glTF
 		attrib_joints0 = attrib_6,		// JOINTS_0,	VEC4, ubyte | ushort	Skinned Mesh Attributes		<"boneIndices">
 		attrib_weights0 = attrib_7,		// WEIGHTS_0,	VEC4, float | ubyte normalized | ushort normalized	<"boneWeights">
 
-		maxAttrib = attrib_color0 + 1	// 8 （暂时只用上述6个	-20-3-5）
+		maxAttrib = attrib_color0 + 1
 	};
 
 	// in glTF, a dictionary object, where each key corresponds to mesh attribute semantic and 
@@ -266,9 +259,9 @@ namespace glTF
 		DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
 		int alignedByteOffset = 0;
 		int byteLen = 0;
-		int bufferIdx = 0;		// 源buffer
-		int bufferOffset = 0;	// 源buffer offset
-		int bufferByteStride = 0;	// 对应glBufferView byteStride
+		int bufferIdx = 0;		// ?buffer
+		int bufferOffset = 0;	// ?buffer offset
+		int bufferByteStride = 0;	// ???glBufferView byteStride
 		int accessor = -1;
 	};
 
@@ -279,26 +272,24 @@ namespace glTF
 	struct glPrimitive
 	{
 		// std::vector<vAttribute> attributes;
-		// 改成固定数量attributes
 		vAttribute attributes[Attrib::maxAttrib];
 		int indexAccessor = -1;	// the index of the accessor that contains the indices. When this is not defined,
 								// the primitives should be rendered without indices
 		int materialIdx = -1;	// the index of the material to apply to this primitive when rendering
 		glTopology mode = glTopology::TRIANGLES;		// the type of primitives to render
-		// 暂不支持 Morph Target (What's this ???)	-20-3-2
 		// targets // an array of Morph Targets, each Morph Target is a dictionary mapping attributes (only
-		// `POSITION`, `NORMAL`, `TANGENT` supported ) to their deriations in the Morph Target
+		// `POSITION`, `NORMAL`, `TANGENT` supported ) to their derivations in the Morph Target
 	};
 
 	struct glMesh
 	{
 		std::string name;
 		std::vector<glPrimitive> primitives;
-		// 暂不支持
+		// ??????
 		// std::vector<float> weights;	// array of weights to be applied to the Morph Targets
 	};
 
-	enum class CameraType
+	enum class CameraType : uint8_t
 	{
 		Orthographics,
 		Perspective
@@ -315,7 +306,6 @@ namespace glTF
 		CameraType type;	// perspective or orthographic
 		union
 		{
-			// 这里不能定义初始值? -20-3-1
 			struct
 			{
 				float aspectRatio;	// the floating-point aspect ratio of the field of view
@@ -400,7 +390,7 @@ namespace glTF
 		int count = 0;	// required
 		bool normalized = false;	// optional, specifies whether integer data values should be normalized
 									// this property is defined only for accessors that contain vertex attributes or animation output data
-		// min max - 用float数组替代
+		// min max - ??float???????
 		float min[16];	// max value of each component in this attribute, maxItems = 16
 		float max[16];	// min value of each component in this attribute, maxItems = 16
 
@@ -412,9 +402,9 @@ namespace glTF
 	// the default material model is the Metallic-Roughness-Model. Values between 0.0 and 1.0 are 
 	// used to describe how much the material characteristics resemble that of a metal, and how rough
 	// the surface of the object is.
-	struct glTexureInfo
+	struct glTextureInfo
 	{
-		int index = -1;		// 默认为空 the index of the texture
+		int index = -1;		// ?????? the index of the texture
 		int texCoord = 0;	// the set index of texture's TEXCOORD attribute used for texture coordinate mapping
 	};
 	struct glNormalTexInfo
@@ -434,11 +424,11 @@ namespace glTF
 	struct glPbrMetallicRoughness
 	{
 		float baseColorFactor[4] = { 1, 1, 1, 1 };	// default [1,1,1,1]
-		glTexureInfo baseColorTex;
+		glTextureInfo baseColorTex;
 		float metallic = 1.0f;
 		float roughness = 1.0f;
-		glTexureInfo metallicRoughnessTex;	// the metallic-roughness texture, B - metalness, G - roughness
-			// The metalness values are sampled from the B channel. The roughness values are sampled
+		glTextureInfo metallicRoughnessTex;	// the metallic-roughness texture, B - metallic, G - roughness
+			// The metallic values are sampled from the B channel. The roughness values are sampled
 			// from the G channel. These values are linear. If other channels are present (R or A),
 			// they are ignored for metallic-roughness calculations."
 	};
@@ -459,7 +449,7 @@ namespace glTF
 			// These values are linear. If other channels are present (GBA), they are ignored for
 			// occlusion calculations."
 
-		glTexureInfo emissiveTex;	// The emissive map controls the color and intensity of the light being 
+		glTextureInfo emissiveTex;	// The emissive map controls the color and intensity of the light being 
 			// emitted by the material. This texture contains RGB components encoded with the sRGB transfer 
 			// function. If a fourth component (A) is present, it is ignored.
 		float emissiveFactor[3] = { 0, 0, 0 };	// default [0, 0, 0]
@@ -530,13 +520,13 @@ namespace glTF
 		int indexAccessor = -1;
 
 		int materialIndex = -1;
-		int nodeIndex = 0;	// 所属节点
+		int nodeIndex = 0;
 		BoundingBox boundingBox;
 	};
 
 	struct Material
 	{
-		static const uint32_t TextureNum = 5;
+		static constexpr uint32_t TextureNum = 5;
 
 		// properties
 		float baseColorFactor[4] = { 1, 1, 1, 1 };
@@ -549,7 +539,7 @@ namespace glTF
 		float emissiveFactor[3] = { 0 };
 		float alphaCutoff = 0.5f;
 		
-		uint32_t texcoords[8] = { 0 };		// 贴图对应的uv (uv0, uv1, ...)
+		uint32_t texcoords[8] = { 0 };		// ????????uv (uv0, uv1, ...)
 
 		// textures
 		std::string texBaseColorPath;
@@ -611,7 +601,7 @@ authoring tools may use:
 	the PBR specular-glossiness materials are defined by adding the KHR_materials_pbrSpecularGlossiness extension
 to any glTF material.
 	the specular-glossiness material model is defined by the following properties:
-	> diffse - reflected diffuse color of the material, `floa4`
+	> diffuse - reflected diffuse color of the material, `float4`
 	> specular - specular color of the material, `float3`
 	> glossiness - glossiness of the material, `float`
 	the diffuse value represents the reflected diffuse color of the material. The specular value defines the specific

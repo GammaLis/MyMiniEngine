@@ -849,7 +849,7 @@ BVHApp::BVHApp(HINSTANCE hInstance, const wchar_t* title, UINT width, UINT heigh
 	m_Surface->flipY = true;
 }
 
-void BVHApp::InitCustom()
+bool BVHApp::InitCustom()
 {
 	// Pipeline
 	{
@@ -1020,6 +1020,8 @@ void BVHApp::InitCustom()
 		// Accumulator
 		m_Accumulator.reset(new rtrt::float3[m_Width * m_Height]);
 	}
+
+	return true;
 }
 
 void BVHApp::CleanCustom()

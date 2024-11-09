@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include "pch.h"
+#include "CoreMinimal.h"
 
 namespace Utility
 {

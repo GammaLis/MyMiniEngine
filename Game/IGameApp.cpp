@@ -54,17 +54,26 @@ bool IGameApp::Init()
 {
 	if (!m_Window->Init())
 	{
+		Utility::Printf("Init window failed!");
 		return false;
 	}
 
 	HWND hwnd = m_Window->GetWindow();
 
-	m_Gfx->Init(hwnd, m_Width, m_Height);
+	if (!m_Gfx->Init(hwnd, m_Width, m_Height))
+	{
+		Utility::Printf("Init graphics failed!");
+		return false;
+	}
+
+	if (!InitAssets())
+	{
+		Utility::Printf("Init custom failed!");
+		return false;
+	}
 
 	// Add GameInput Init
 	m_Input->Init(hwnd);
-
-	InitAssets();
 
 	return true;
 }
@@ -197,7 +206,7 @@ LRESULT IGameApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-void IGameApp::InitAssets()
+bool IGameApp::InitAssets()
 {
 	InitViewportAndScissor();
 
@@ -207,6 +216,8 @@ void IGameApp::InitAssets()
 	InitGeometryBuffers();
 
 	InitCustom();
+
+	return true;
 }
 
 void IGameApp::CalculateFrameStats()
@@ -250,9 +261,9 @@ void IGameApp::InitGeometryBuffers()
 	m_ConstantBuffer.Create(Graphics::s_Device, L"ConstantBuffer", 1, sizeof(constantBuffer), &constantBuffer);
 }
 
-void IGameApp::InitCustom()
+bool IGameApp::InitCustom()
 {
-
+	return true;
 }
 
 void IGameApp::PostProcess()

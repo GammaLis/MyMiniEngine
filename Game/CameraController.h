@@ -1,6 +1,6 @@
 #pragma once
-#include "pch.h"
-#include "VectorMath.h"
+#include "CoreMinimal.h"
+
 
 namespace Math
 {

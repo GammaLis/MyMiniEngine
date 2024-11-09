@@ -1,5 +1,7 @@
 #pragma once
-#include "pch.h"
+#include "CoreMinimal.h"
+#include "Utility.h"
+
 #define GLM_FORCE_CTOR_INIT
 #define GLM_FORCE_XYZW_ONLY
 #include <glm/glm.hpp>

@@ -232,7 +232,7 @@ void OceanViewer::InitGeometryBuffers()
 
 }
 
-void OceanViewer::InitCustom()
+bool OceanViewer::InitCustom()
 {
 	ID3D12Device *pDevice = Graphics::s_Device;
 
@@ -280,6 +280,7 @@ void OceanViewer::InitCustom()
 		InitUnchangedResources();
 	}
 
+	return true;
 }
 
 void OceanViewer::CleanCustom()
@@ -318,7 +319,7 @@ void OceanViewer::InitUnchangedResources()
 		computeContext.SetPipelineState(m_InitH0SpectrumPSO);
 
 		float L = m_L;
-		float V = m_V;	// ¸ÄĞ¡ e.g.4,5£¬ ÖĞ¼ä»áÓĞÒ»¸ö °µÇø(0Çø)
+		float V = m_V;	// æ”¹å°ï¼Œæ¯”å¦‚4ï¼Œ5ï¼Œä¸­é—´ä¼šæœ‰ä¸€ä¸ªæš—åŒº(0åŒº)
 		float A = m_A;
 		XMFLOAT2 W = m_W;
 		float fConstants[] = {L, V, A, W.x, W.y};
@@ -429,8 +430,8 @@ void OceanViewer::DoIFFT(ComputeContext& computeContext, ColorBuffer& spectrumIn
 	computeContext.Dispatch2D(N, N, GroupSizeX, GroupSizeY);
 
 	computeContext.TransitionResource(horizontalOutput, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	// ĞëÒª Ğ´Íê Horizontal Pass ²ÅÄÜ¼ÌĞøĞ´ Vertical Pass
-
+	// å†™å®ŒHorizontalPassï¼Œæ‰èƒ½ç»§ç»­å†™VerticalPass
+	
 	/// vertical pass
 	computeContext.SetPipelineState(m_FFTVerticalPSO);
 

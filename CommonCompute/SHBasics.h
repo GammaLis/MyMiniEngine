@@ -2,7 +2,7 @@
 #define SHBASICS_H
 
 #ifndef HLSL
-#include "pch.h"
+#include "CoreMinimal.h"
 #define GLM_FORCE_CTOR_INIT
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
@@ -19,7 +19,7 @@ using mat4 = glm::mat4;
 
 namespace SH
 {
-	static constexpr float Pi = Math::Pi;
+	static constexpr float Pi = glm::pi<float>();
 	static constexpr float OneOverPi = 1.0f / Pi;
 	static constexpr float SqrtPi = 1.77245385f;
 	static constexpr float OneOverSqrtPi = 1.0f / SqrtPi;

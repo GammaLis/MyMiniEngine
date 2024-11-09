@@ -262,7 +262,7 @@ namespace MyDirectX
 		void Render() override;
 
 	private:
-		void InitCustom() override;
+		bool InitCustom() override;
 		void CleanCustom() override;
 
 		void BuildBVH();

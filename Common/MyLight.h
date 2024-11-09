@@ -1,5 +1,5 @@
 #pragma once
-#include "pch.h"
+#include "CoreMinimal.h"
 #include <cmath>
 
 using namespace DirectX;
@@ -88,7 +88,7 @@ namespace MyDirectX
 				float angleRange = std::max(innerCos - outerCos, 0.01f);
 				mAttenuation.z = 1.0f / angleRange;
 				mAttenuation.w = -outerCos * mAttenuation.z;
-				// dotSpot * atten.z + atten.w (Ä¬ÈÏatten.w = 1)
+				// dotSpot * atten.z + atten.w (Ä¬ï¿½ï¿½atten.w = 1)
 			}
 
 			SpotLight(XMFLOAT3 position, XMFLOAT3 color, float range, XMFLOAT3 spotDir, float spotAngle = 60.0f)

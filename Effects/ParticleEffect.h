@@ -1,5 +1,5 @@
 #pragma once
-#include "pch.h"
+#include "CoreMinimal.h"
 #include "GpuBuffer.h"
 #include "ParticleShaderStructs.h"
 #include "ParticleEffectProperties.h"
@@ -33,9 +33,9 @@ namespace MyDirectX
 			void Reset();
 
 		private:
-			StructuredBuffer m_StateBuffers[2];		// Ç°ºó ×´Ì¬buffer£¨µ±Ç°ÔË¶¯×´Ì¬£¬¸üÐÂÔË¶¯×´Ì¬£©
+			StructuredBuffer m_StateBuffers[2];		// Ç°ï¿½ï¿½ ×´Ì¬bufferï¿½ï¿½ï¿½ï¿½Ç°ï¿½Ë¶ï¿½×´Ì¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½×´Ì¬ï¿½ï¿½
 			uint32_t m_CurStateBuffer{0};
-			StructuredBuffer m_RandomStateBuffer;	// ³õÊ¼Ëæ»úÉú³É×´Ì¬buffer
+			StructuredBuffer m_RandomStateBuffer;	// ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×´Ì¬buffer
 			IndirectArgsBuffer m_DispatchIndirectArgs;
 			IndirectArgsBuffer m_DrawIndirectArgs;
 

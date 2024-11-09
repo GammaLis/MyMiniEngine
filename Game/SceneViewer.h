@@ -23,7 +23,7 @@ namespace MyDirectX
 	private:
 		virtual void InitPipelineStates() override;
 		virtual void InitGeometryBuffers() override;
-		virtual void InitCustom() override;
+		virtual bool InitCustom() override;
 		virtual void CleanCustom() override;
 
 		void RenderForward(GraphicsContext &commandContext);

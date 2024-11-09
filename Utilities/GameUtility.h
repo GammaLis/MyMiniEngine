@@ -1,7 +1,7 @@
 ﻿#pragma once
-#include <cinttypes>
-#include <limits>
-#include "VectorMath.h"
+#include "CoreMinimal.h"
+#include "Utility.h"
+
 
 namespace MyDirectX
 {

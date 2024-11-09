@@ -1,4 +1,5 @@
 #include "FileUtility.h"
+#include "Utility.h"
 #include <fstream>
 #include <mutex>
 #include <zlib.h>		// NuGet

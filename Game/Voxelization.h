@@ -1,5 +1,6 @@
 #pragma once
-#include "pch.h"
+#include "CoreMinimal.h"
+#include "VectorMath.h"
 #include "GpuBuffer.h"
 #include "ColorBuffer.h"
 

@@ -11,7 +11,6 @@
 // Author:  James Stanard 
 //
 
-#include "pch.h"
 #include "Frustum.h"
 #include "Camera.h"
 

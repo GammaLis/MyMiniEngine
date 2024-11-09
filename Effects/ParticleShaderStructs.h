@@ -1,5 +1,5 @@
 #pragma once
-#include "pch.h"
+#include "CoreMinimal.h"
 #include "Color.h"
 
 namespace MyDirectX
@@ -17,7 +17,7 @@ namespace MyDirectX
 			XMFLOAT3 EmitPosW;
 			float FloorHeight;
 			XMFLOAT3 EmitDirW;
-			float Restitution;	// »Ö¸´
+			float Restitution;	// ï¿½Ö¸ï¿½
 			XMFLOAT3 EmitRightW;
 			float EmitterVelocitySensitivity;
 			XMFLOAT3 EmitUpW;
