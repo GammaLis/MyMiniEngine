@@ -17,6 +17,14 @@
 // OpenGL glTF, TinyGLTF,...
 namespace glTF
 {
+	class IModelImporter
+	{
+	public:
+		virtual ~IModelImporter() = default;
+
+		virtual bool Load(const std::string &filePath) = 0;
+	};
+	
 	class glTFImporter
 	{
 	public:
@@ -45,7 +53,7 @@ namespace glTF
 		{
 			return m_ActiveMaterials.find(index) != m_ActiveMaterials.end();
 		}
-		//临时	to be deleted
+		//???	to be deleted
 		ID3D12Device* m_pDevice;
 		//
 	private:
@@ -66,7 +74,7 @@ namespace glTF
 		std::string GetImagePath(int curTexIdx, const std::string &defaultPath = "");
 		void LoadTextures(ID3D12Device *pDevice);
 
-		// 缓存顶点属性格式
+		// Vertex attribute formats
 		void InitVAttribFormats();
 		void InitTextures();
 
@@ -90,7 +98,7 @@ namespace glTF
 
 	private:
 		//
-		int m_DefaultScene = -1;	// 默认为空
+		int m_DefaultScene = -1; // default null
 		std::vector<glScene> m_Scenes;
 		std::vector<glNode> m_Nodes;
 
@@ -109,17 +117,17 @@ namespace glTF
 		std::vector<glSampler> m_Samplers;
 
 		std::vector<std::unique_ptr<unsigned char[]>> m_BinData;
-		Matrix4x4 m_DefaultTransorm;
+		Matrix4x4 m_DefaultTransform;
 
 	public:
 		// -mf
 		bool m_bDirty = true;
-		std::vector<int> m_RootNodes;	// 存储根节点（一般只有一个，但也可能有多个NodeTree）
+		std::vector<int> m_RootNodes;	// Root node, basically one, but may have multiple NodeTree
 
 		// meshes
 		std::vector<Mesh> m_oMeshes;
 		BoundingBox m_BoundingBox;
-		vAttribute m_VertexAttributes[Attrib::maxAttrib];	// 缓存顶点属性（各个mesh顶点属性应该一致）
+		vAttribute m_VertexAttributes[Attrib::maxAttrib];
 
 		// materials
 		std::vector<Material> m_oMaterials;
@@ -131,9 +139,47 @@ namespace glTF
 
 		// active meshes & materials
 		std::vector<int> m_ActiveNodes;
-		std::vector<int> m_ActiveMeshes;	// 一般情况，一个node对应一个mesh
-		std::map<int, int> m_ActiveMaterials;	// 一个material可能对应多个mesh (key - matIdx, val - activeMat)
-		std::set<int> m_ActiveImages;	// 一个image可能对应多个material
+		std::vector<int> m_ActiveMeshes;	// basically one node has one mesh
+		std::map<int, int> m_ActiveMaterials;
+		std::set<int> m_ActiveImages;
+	};
+
+
+	struct Vertex
+	{
+		glm::vec3 p;
+		glm::vec3 n;
+		glm::vec2 uv;
+	};
+
+	struct BatchElement
+	{
+		uint32_t vertexOffset;
+		uint32_t vertexCount;
+		uint32_t indexOffset;
+		uint32_t indexCount;
+	};
+	
+	struct Batch
+	{
+		std::vector<Vertex> vertices;
+		std::vector<uint32_t> indices;
+		// std::vector<uint32_t> meshletData;
+		// std::vector<Meshlet> meshlets;
+
+		std::vector<BatchElement> batchElements;
+	};
+	
+	class glTFImporterNew : public IModelImporter
+	{
+	public:
+		glTFImporterNew();
+		
+		bool Load(const std::string &filePath) override;
+
+	private:
+		std::unique_ptr<class ImporterImpl> m_Impl;
+		std::vector<Batch> m_Batches;
 	};
 
 }

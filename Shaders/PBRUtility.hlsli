@@ -16,7 +16,7 @@
 #include "ColorUtility.hlsli"
 
 // structs
-struct TLight
+struct FLight
 {
 	float3 positionOrDirection;
 	uint type;		// 0 - directional lights, 1 - punctual lights
@@ -343,7 +343,7 @@ float3 EvaluatePunctualLights(float3 lightColor, float3 lightIntensity,
 }
 
 //
-float3 DirectLighting(TLight light, const TMaterial mat, 
+float3 DirectLighting(FLight light, const TMaterial mat, 
 	float3 worldPos, float3 normal, float3 viewDir)
 {
 	float3 col = 0;

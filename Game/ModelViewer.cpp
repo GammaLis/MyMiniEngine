@@ -11,7 +11,7 @@
 #include "ShadowCamera.h"
 #include "CameraController.h"
 
-#include "Task.h"
+#include "Threads/Task.h"
 
 #include "Skybox.h"
 #include "Scenes/DebugPass.h"

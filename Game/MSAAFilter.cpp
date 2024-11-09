@@ -137,7 +137,7 @@ void MSAAFilter::Resolve(GraphicsContext& gfx)
 
     uint32_t w = colorBuffer.GetWidth(), h = colorBuffer.GetHeight();
 
-    // Standard resovle 
+    // Standard resolve 
 #if 0
     {
         /**
@@ -167,7 +167,7 @@ void MSAAFilter::Resolve(GraphicsContext& gfx)
 
         computeContext.SetPipelineState(m_ComputeResolvePSO);
 
-        float indexStart = float(m_ColorMSIndex);
+        float indexStart = static_cast<float>(m_ColorMSIndex);
         auto rtSize = GetSizeAndInvSize(static_cast<float>(w), static_cast<float>(h));
         float consts[] = 
         {

@@ -7,6 +7,9 @@
 #include <deque>
 #include <algorithm>
 
+#include <future>
+
+#include <Libraries/cgltf/cgltf.h>
 #include "Graphics.h"
 #include "Utilities/FileUtility.h"
 #include "TextureManager.h"
@@ -131,7 +134,7 @@ namespace glTF
 	}
 #endif
 
-	static glType Str2GLType(const std::string& strType, const std::string &errorInfo = "")
+	glType Str2GLType(const std::string& strType, const std::string &errorInfo = "")
 	{
 		if (strType == "SCALAR")
 			return glType::SCALAR;
@@ -154,7 +157,7 @@ namespace glTF
 		}
 	}
 
-	static glAlphaMode Str2GLAlphaMode(const std::string &strAlphaMode, const std::string& errorInfo = "")
+	glAlphaMode Str2GLAlphaMode(const std::string &strAlphaMode, const std::string& errorInfo = "")
 	{
 		if (strAlphaMode == "OPAQUE")
 			return glAlphaMode::kOPAQUE;
@@ -169,7 +172,7 @@ namespace glTF
 		}
 	}
 
-	static CameraType Str2CameraType(const std::string& type)
+	CameraType Str2CameraType(const std::string& type)
 	{
 		if (type == "perspective")
 			return CameraType::Perspective;
@@ -182,8 +185,7 @@ namespace glTF
 		}
 	}
 
-	// 获取float value（1 - 视作int，无法直接GetFloat()获取）
-	static bool GetNumberValue(float &f, const Value& val, const char *name = "")
+	bool GetNumberValue(float &f, const Value& val, const char *name = "")
 	{
 		bool bValid = false;
 		if (val.IsFloat())
@@ -229,7 +231,7 @@ namespace glTF
 		m_FileName = GetFileNameWithNoExtensions(glTFFilePath);
 
 		std::regex reg(".gltf$", std::regex_constants::icase);
-		bool bValid = std::regex_search(glTFFilePath, reg);	// regex_match - 全词匹配	regex_search - 部分匹配
+		bool bValid = std::regex_search(glTFFilePath, reg);	// regex_match - full match	regex_search - part match
 		if (!bValid)
 		{
 			std::cout << "File format is not gltf" << std::endl;
@@ -558,7 +560,7 @@ namespace glTF
 		{
 			const Value& cameras = dom["cameras"];
 
-			// 只保存一个camera
+			// Only one camera
 			glCamera &newCamera = m_MainCamera;
 
 			const Value& curCamera = cameras[0];
@@ -897,7 +899,7 @@ namespace glTF
 			if (!curBuffer.uri.empty())
 			{
 				std::string fileName = curBuffer.uri;
-				if (imax == 1)	// 默认文件名为scene.bin，修改为Dir/fileName.bin
+				if (imax == 1)	// default scene.bin, -> Dir/fileName.bin
 				{
 					size_t rpos = fileName.rfind('.');
 					fileName.replace(0, rpos, m_FileName.c_str());
@@ -955,7 +957,7 @@ namespace glTF
 				m_Nodes[index].parentIdx = i;
 				});
 		}
-		// 缓存根节点
+		// Root node
 		for (int i = 0, imax = (uint32_t)m_Nodes.size(); i < imax; ++i)
 		{
 			auto& curNode = m_Nodes[i];
@@ -1046,7 +1048,7 @@ namespace glTF
 		}
 
 		/// pass 1
-		// 遍历node，存储mesh
+		// Iterate nodes, cache meshes
 		uint32_t curVertexByteLength = 0;
 		uint32_t curIndexByteLength = 0;
 		int curActiveNum = 0;
@@ -1068,7 +1070,7 @@ namespace glTF
 				auto& primitives = curMesh.primitives;
 				for (size_t i = 0, imax = primitives.size(); i < imax; ++i)
 				{
-					// 新建mesh
+					// New mesh
 					Mesh newMesh;
 					newMesh.nodeIndex = curNodeIdx;
 					newMesh.vertexDataByteOffset = curVertexByteLength;
@@ -1080,7 +1082,7 @@ namespace glTF
 					uint32_t curMeshVertexByteOffset = 0;
 					uint32_t enabledAttribs = 0;
 
-					// attributes 顶点属性
+					// Vertex attributes
 					auto& attributes = curPrimitive.attributes;
 					for (size_t j = 0, jmax = Attrib::maxAttrib; j < jmax; ++j)
 					{
@@ -1097,20 +1099,17 @@ namespace glTF
 
 							const auto& curAccessor = m_Accessors[curAttrib.accessor];
 
-							// 顶点总数
 							if (curMeshVertexCount == 0)
 								curMeshVertexCount = curAccessor.count;
 							else
 								assert(curMeshVertexCount == curAccessor.count);
 
-							// 属性字节长度，可以直接从缓存的顶点属性中读取，这里还是直接从源数据获取
 							int componentSize = GetComponentSizeInBytes(curAccessor.componentType);
 							ASSERT(componentSize > 0);
 							int numComponents = GetNumComponentsInType(curAccessor.type);
 							ASSERT(numComponents > 0);
 							attribByteSize = componentSize * numComponents;
 
-							// 源数据信息
 							int bufferViewIdx = curAccessor.bufferViewIdx;
 							const auto& curBufferView = m_BufferViews[bufferViewIdx];
 							curAttrib.bufferIdx = curBufferView.bufferIdx;
@@ -1131,7 +1130,7 @@ namespace glTF
 						else
 							attribByteSize = m_VertexAttributes[j].byteLen;
 
-						ASSERT(curMeshVertexCount > 0);	// 这里应该已经初始化了，必须含有POSITION属性
+						ASSERT(curMeshVertexCount > 0);
 						int totalByteLegnth = curMeshVertexCount * attribByteSize;	// curMeshVertexCount
 						curMeshVertexByteOffset += totalByteLegnth;
 
@@ -1143,11 +1142,11 @@ namespace glTF
 
 					curVertexByteLength += curMeshVertexByteOffset;
 
-					// index 索引
+					// index
 					int indexAccessor = curPrimitive.indexAccessor;
 					{
 						newMesh.indexAccessor = indexAccessor;
-						// -1 - 没有索引
+						// -1 - no indices
 						if (indexAccessor >= 0)
 						{
 							auto& curAccessor = m_Accessors[indexAccessor];
@@ -1156,16 +1155,16 @@ namespace glTF
 						}
 					}
 
-					// 材质索引
+					// Materials
 					int matIdx = curPrimitive.materialIdx;
 					newMesh.materialIndex = matIdx;
 
 					if (m_ActiveMaterials.find(matIdx) == m_ActiveMaterials.end())
 						m_ActiveMaterials[matIdx] = curActiveNum++;
 
-					// glTopology mode 默认采用TRIANGLE
+					// glTopology mode, default triangle mode
 
-					// targets - Morph Targets 暂不支持	-20-3-4
+					// TODO: targets - Morph Targets
 
 					m_oMeshes.emplace_back(newMesh);
 				}
@@ -1180,7 +1179,7 @@ namespace glTF
 			}
 			else if (!curNode.children.empty())
 			{
-				for (int i = (uint32_t)curNode.children.size() - 1; i >= 0; --i)	// 逆序添加(其实没有意义，只是符合以前习惯，先左后右)
+				for (int i = (uint32_t)curNode.children.size() - 1; i >= 0; --i)	//
 					nodeStack.push(curNode.children[i]);
 			}
 		}
@@ -1188,12 +1187,12 @@ namespace glTF
 		/// pass 2
 		bool bValid = true;
 		{
-			if (curVertexByteLength > 0)	// 必须>0
+			if (curVertexByteLength > 0)
 			{
 				m_VertexData.reset(new unsigned char[curVertexByteLength] {0});
 				m_VertexByteLength = curVertexByteLength;
 			}
-			if (curIndexByteLength > 0)	// 索引可能为0
+			if (curIndexByteLength > 0)
 			{
 				m_IndexData.reset(new unsigned char[curIndexByteLength] {0});
 				m_IndexByteLength = curIndexByteLength;
@@ -1237,7 +1236,6 @@ namespace glTF
 
 				// indices
 				{
-					// indices默认采用unsigned char格式
 					int indexAccessor = curMesh.indexAccessor;
 					if (indexAccessor >= 0)
 					{
@@ -1255,7 +1253,7 @@ namespace glTF
 
 						if (bufferStride == 0)	// indices are packed tightly
 						{
-							if (accessor.componentType == glDataType::UNSIGNED_SHORT)	// 格式匹配
+							if (accessor.componentType == glDataType::UNSIGNED_SHORT)
 								memcpy_s(dstPos, curIndexByteLength, srcPos, curIndexByteLength);
 							else
 							{
@@ -1283,7 +1281,6 @@ namespace glTF
 									shSrcPos = (unsigned short*)((unsigned char*)shSrcPos + bufferStride);
 								}
 							}
-							// 好像很多都是UNSIGNED_INT格式
 							else if (accessor.componentType == glDataType::UNSIGNED_INT)
 							{
 								unsigned int* uiSrcPos = (unsigned int*)srcPos;
@@ -1380,7 +1377,6 @@ namespace glTF
 		return true;
 	}
 
-	// 暂时不考虑变换
 	void glTFImporter::ComputeBoundingBox()
 	{
 		m_BoundingBox.min = Vector3(10000.0f, 10000.0f, 10000.0f);
@@ -1511,7 +1507,7 @@ namespace glTF
 						goto Finished;
 
 					auto& cachedAttrib = m_VertexAttributes[k];
-					if (cachedAttrib.format == DXGI_FORMAT_UNKNOWN)	// 当前尚未缓存该属性格式
+					if (cachedAttrib.format == DXGI_FORMAT_UNKNOWN)
 					{
 						const auto& curAttrib = attributes[k];
 						if (curAttrib.accessor >= 0)
@@ -1537,9 +1533,9 @@ namespace glTF
 		}
 
 	Finished:
-		int byteOffset = 0;	// 顶点属性相对偏移
+		int byteOffset = 0;
 
-		int byteLength = 0;	// 各顶点属性字节长度
+		int byteLength = 0;
 		DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
 		for (size_t i = 0; i < Attrib::maxAttrib; ++i)
 		{
@@ -1584,8 +1580,8 @@ namespace glTF
 		m_DefaultOcclusion = "";
 		m_DefaultEmissive = "";
 
-		// 将文件夹名称修改为model名称
-		// 删除扩展名 （后续加载DDS图片不需要扩展名）
+		// Change file name to model name
+		// Remove ext
 		if (!m_Images.empty())
 		{
 			std::for_each(m_Images.begin(), m_Images.end(), [this](glImage &curImage) {
@@ -1605,7 +1601,148 @@ namespace glTF
 		}
 	}
 
+	class ImporterImpl
+	{
+	public:
+		bool Load(const std::string &filePath)
+		{
+			cgltf_data *gltf_data = nullptr;
+			cgltf_options options{};
+			cgltf_result result = cgltf_parse_file(&options, filePath.c_str(), &gltf_data);
+			if (result != cgltf_result_success)
+			{
+				Utility::Printf("Load file %s failed: %s", filePath);
+				return false;
+			}
+
+			result = cgltf_load_buffers(&options, gltf_data, filePath.c_str());
+			if (result != cgltf_result_success)
+			{
+				Utility::Printf("Load buffers failed: %s", filePath);
+				return false;
+			}
+
+			result  = cgltf_validate(gltf_data);
+			if (result != cgltf_result_success)
+			{
+				Utility::Printf("gltf file %s has some validation issues: %d", filePath, result);
+				return false;
+			}
+
+			uint32_t meshCount  = gltf_data->meshes_count;
+
+			cgltf_free(gltf_data);
+
+			return true;
+		}
+		
+	private:
+		bool ParseMeshes(const cgltf_data *gltfData);
+		std::vector<Batch> m_MeshBatches;
+	};
+
+	// Compute indices from cgltf element pointers
+	static int gltfBufferIndex(const cgltf_data *data, const cgltf_buffer *buffer)
+	{
+		ASSERT(buffer);
+		return static_cast<int>(buffer - data->buffers);
+	}
+
+	static int gltfBufferViewIndex(const cgltf_data *data, const cgltf_buffer_view *bufferView)
+	{
+		ASSERT(bufferView);
+		return static_cast<int>(bufferView - data->buffer_views);
+	}
+
+	static int gltfImageIndex(const cgltf_data *data, const cgltf_image *image)
+	{
+		ASSERT(image);
+		return static_cast<int>(image - data->images);
+	}
+
+	static int gltfTextureIndex(const cgltf_data *data, const cgltf_texture *texture)
+	{
+		ASSERT(texture);
+		return static_cast<int>(texture - data->textures);
+	}
+
+	static int gltfMaterialIndex(const cgltf_data *data, const cgltf_material *material)
+	{
+		ASSERT(material);
+		return static_cast<int>(material - data->materials);
+	}
+
+	static int gltfMeshIndex(const cgltf_data *data, const cgltf_mesh *mesh)
+	{
+		ASSERT(mesh);
+		return static_cast<int>(mesh - data->meshes);
+	}
+
+	bool ImporterImpl::ParseMeshes(const cgltf_data *data)
+	{
+		uint32_t meshCount = data->meshes_count;
+		m_MeshBatches.resize(meshCount);
+		for (uint32_t i = 0; i < meshCount; i++)
+		{
+			const auto& srcMesh = data->meshes[i];
+			auto &newMesh = m_MeshBatches[i];
+
+			// Copy vertices
+			uint32_t primitiveCount = srcMesh.primitives_count;
+			for (uint32_t primIndex = 0; primIndex < primitiveCount; ++primIndex)
+			{
+				const auto &srcPrim = srcMesh.primitives[primIndex];
+				if (srcPrim.indices)
+				{
+					
+				}
+			}
+		}
+		// TODO:
+		return false;
+	}
+
+	glTFImporterNew::glTFImporterNew()
+	{
+		
+	}
+
+
+	void ProcessMeshes(glTFImporterNew *importer, cgltf_mesh *meshes, uint32_t count)
+	{
+		assert(meshes != nullptr && count > 0);
+		
+	}
 	
+
+	bool glTFImporterNew::Load(const std::string& filePath)
+	{
+		// std::async(std::launch::async)
+
+		// TODO:
+		return false;
+	}
+
+	class CGLTFWrapper
+	{
+	public:
+		CGLTFWrapper(const std::string &fileName, const cgltf_options &options)
+		{
+			cgltf_parse_file()
+		}
+
+		~CGLTFWrapper()
+		{
+			if (m_Data != nullptr)
+			{
+				cgltf_free(m_Data);
+				m_Data = nullptr;
+			}	
+		}
+
+		cgltf_data *m_Data = nullptr;
+	};
+
 }
 /**
 	Binary glTF files

@@ -9,7 +9,7 @@
 
 #define IMPLEMENTED_BVH 6
 
-#define IMPLEMENTED IMPLEMENTED_SCENEVIEWER
+#define IMPLEMENTED IMPLEMENTED_GLTFVIEWER
 
 #include "MyBaseApp.h"
 #include "Utility.h"
@@ -18,7 +18,7 @@
 #if IMPLEMENTED == IMPLEMENTED_MODELVIEWER
 #include "ModelViewer.h"
 #elif IMPLEMENTED == IMPLEMENTED_GLTFVIEWER
-#include "glTFViewer.h"
+#include "GLTF/glTFViewer.h"
 #elif IMPLEMENTED == IMPLEMENTED_SCENEVIEWER
 #include "SceneViewer.h"
 #elif IMPLEMENTED == IMPLEMENTED_OCEANVIEWER

@@ -47,7 +47,7 @@ Texture2D<float3> _TexNormal 			: register(t2);
 Texture2D<float> _TexOcclusion			: register(t3);
 Texture2D<float4> _TexEmissive			: register(t4);
 
-StructuredBuffer<TLight> _Lights		: register(t1, space1);
+StructuredBuffer<FLight> _Lights		: register(t1, space1);
 StructuredBuffer<SH9Color> _SHCoefs		: register(t2, space1);
 
 SamplerState s_LinearRSamper: register(s0);
@@ -121,7 +121,7 @@ float4 main(VSOutput i) : SV_TARGET
 	// [unroll]	// _LightNum不是常量，无法展开
 	for (uint i = 0; i < _LightNum; ++i)
 	{
-		TLight curLight = _Lights[i];
+		FLight curLight = _Lights[i];
 		lighting += DirectLighting(curLight, mat, worldPos, normal, viewDir);
 	}
 

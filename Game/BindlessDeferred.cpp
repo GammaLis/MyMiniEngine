@@ -105,11 +105,15 @@ void BindlessDeferred::CreateDecals(ID3D12Device* pDevice)
 		++numTextures;
 
 		UINT numDestDescriptorRanges = 0;
+		[[maybe_unused]]
 		D3D12_CPU_DESCRIPTOR_HANDLE pDestDescriptorRangeStarts[16];
+		[[maybe_unused]]
 		UINT pDestDescriptorRangeSizes[16] = { 0 };
 
 		UINT numSrcDescriptorRanges = 0;
+		[[maybe_unused]]
 		D3D12_CPU_DESCRIPTOR_HANDLE pSrcDescriptorRangeStarts[16];
+		[[maybe_unused]]
 		UINT pSrcDescriptorRangeSizes[16] = { 0 };
 
 		for (uint32_t i = 0; i < numTextures; ++i)

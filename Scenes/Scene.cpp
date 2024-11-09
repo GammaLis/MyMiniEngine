@@ -53,8 +53,8 @@
 
 namespace MFalcor
 {
-	static const uint32_t s_HiZMips = 9;
-	static const uint32_t c_MaxFrameIndex = 1023;
+	static constexpr uint32_t s_HiZMips = 9;
+	static constexpr uint32_t c_MaxFrameIndex = 1023;
 	static const auto c_BackgroundColor = DirectX::Colors::White;
 
 	namespace DescriptorParams
@@ -116,8 +116,8 @@ namespace MFalcor
 		};
 	}
 
-	// deferred render targets
-	static const DXGI_FORMAT rtFormats[] =
+	// Deferred render targets
+	static constexpr DXGI_FORMAT rtFormats[] =
 	{
 		DXGI_FORMAT_R10G10B10A2_UNORM,
 		DXGI_FORMAT_R16G16B16A16_SNORM,
@@ -170,7 +170,7 @@ namespace MFalcor
 		return MMATH::determinant((Matrix3x3)mat) < 0.0f;
 	}
 
-	Scene::SharedPtr Scene::Create(ID3D12Device* pDevice, const std::string& filePath, SceneViewer *sceneViewer, const InstanceMatrices& instances)
+	Scene::SharedPtr Scene::Create(ID3D12Device* pDevice, const std::string& filePath, const SceneViewer *sceneViewer, const InstanceMatrices& instances)
 	{
 		auto pAssimpImporter = AssimpImporter::Create(pDevice, filePath, instances);
 		auto pScene = pAssimpImporter ? pAssimpImporter->GetScene(pDevice) : nullptr;
@@ -190,7 +190,7 @@ namespace MFalcor
 	Scene::Scene() = default;
 	Scene::~Scene() = default;
 
-	bool Scene::Init(ID3D12Device* pDevice, const std::string& filePath, SceneViewer *sceneViewer, const InstanceMatrices& instances)
+	bool Scene::Init(ID3D12Device* pDevice, const std::string& filePath, const SceneViewer *sceneViewer, const InstanceMatrices& instances)
 	{
 		bool ret = false;
 		auto pAssimpImporter = AssimpImporter::Create();

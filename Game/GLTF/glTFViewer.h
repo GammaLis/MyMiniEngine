@@ -1,7 +1,6 @@
 #pragma once
 #include "pch.h"
 #include "IGameApp.h"
-#include "glTFImporter.h"
 #include "RootSignature.h"
 #include "PipelineState.h"
 #include "Camera.h"
@@ -9,6 +8,8 @@
 #include "GpuBuffer.h"
 
 #define SHADING_MODEL_METALLIC_ROUGHNESS
+
+namespace glTF { class glTFImporter; }
 
 namespace MyDirectX
 {
@@ -27,7 +28,7 @@ namespace MyDirectX
 	private:
 		virtual void CleanCustom() override;
 
-		void RenderObjects(GraphicsContext& gfx, const Math::Matrix4 viewProjMat, ObjectFilter filter = ObjectFilter::kAll);
+		void RenderObjects(GraphicsContext& gfx, const Math::Matrix4 &viewProjMat, ObjectFilter filter = ObjectFilter::kAll);
 
 		Math::Camera m_Camera;
 		std::unique_ptr<CameraController> m_CameraController;
@@ -35,16 +36,18 @@ namespace MyDirectX
 
 		GraphicsPSO m_ModelViewerPSO;
 
-		glTF::glTFImporter m_Importer;
+		std::unique_ptr<glTF::glTFImporter> m_Importer;
 
 		// lights
 		StructuredBuffer m_LightBuffer;
+
+		// Mesh buffers
 
 		// SH
 		RootSignature m_SHRS;
 		ComputePSO m_SHPSO;
 		// resources
-		D3D12_CPU_DESCRIPTOR_HANDLE m_SHsrv;
+		D3D12_CPU_DESCRIPTOR_HANDLE m_SHsrv{};
 		StructuredBuffer m_SHOutput;
 	};
 }

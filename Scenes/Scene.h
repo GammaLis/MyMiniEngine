@@ -209,13 +209,13 @@ namespace MFalcor
 			Refit		// update acceleration structure when updates are needed
 		};
 
-		static SharedPtr Create(ID3D12Device *pDevice, const std::string& filePath, SceneViewer *sceneViewer = nullptr, const InstanceMatrices &instances = InstanceMatrices());
+		static SharedPtr Create(ID3D12Device *pDevice, const std::string& filePath, const SceneViewer *sceneViewer = nullptr, const InstanceMatrices &instances = InstanceMatrices());
 		static SharedPtr Create();
 
 		Scene();
 		~Scene();
 
-		bool Init(ID3D12Device* pDevice, const std::string& filePath, SceneViewer* sceneViewer = nullptr, const InstanceMatrices& instances = InstanceMatrices());
+		bool Init(ID3D12Device* pDevice, const std::string& filePath, const SceneViewer* sceneViewer = nullptr, const InstanceMatrices& instances = InstanceMatrices());
 
 		// Do any additional initialization required after scene data is set and draw lists are determined
 		void Finalize(ID3D12Device* pDevice);

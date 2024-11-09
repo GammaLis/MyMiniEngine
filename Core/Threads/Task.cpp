@@ -16,7 +16,7 @@ void Context::Init(uint32_t numThreads)
 
 	numThreads = std::max(numThreads, 1u);
 
-	// Retrieve the number of hardware threads in this sytem
+	// Retrieve the number of hardware threads in this system
 	uint32_t numHardwareThreads = std::thread::hardware_concurrency();
 
 	// -1 (main threads)
@@ -34,7 +34,7 @@ void Context::Init(uint32_t numThreads)
 		DWORD_PTR affinityMask = 1ull << i;
 		SetThreadAffinityMask(handle, affinityMask);
 
-		BOOL priority_return = SetThreadPriority(handle, THREAD_PRIORITY_NORMAL);
+		[[maybe_unused]] BOOL priority_return = SetThreadPriority(handle, THREAD_PRIORITY_NORMAL);
 
 		std::wstring threadName = L"Task::Thread_" + std::to_wstring(i);
 		SetThreadDescription(handle, threadName.c_str());
@@ -58,6 +58,7 @@ void Context::Destroy()
 
 void Context::WorkerEntry() 
 {
+	[[maybe_unused]]
 	static thread_local uint32_t ThreadId = m_ThreadId++;
 
 	while (true)
@@ -103,8 +104,7 @@ void Context::Dispatch(const std::function<void(TaskParams)>& taskImpl, uint32_t
 void Context::Wait()
 {
 	while (m_Counter > 0) {
-		auto response = m_ResponseQueue.TryPop();
-		if (response) {
+		if (m_ResponseQueue.TryPop()) {
 			--m_Counter;
 		}
 		// _mm_pause();

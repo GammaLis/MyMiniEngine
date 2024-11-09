@@ -4,6 +4,9 @@
 #include "CommandContext.h"
 #include "TextureManager.h"
 
+#include "glTFImporter.h"
+#include "Libraries/cgltf/cgltf.h"
+
 // compiled shade bytecode
 #include "glTFCommonVS.h"
 #include "glTFCommonPS.h"
@@ -14,10 +17,10 @@ using namespace MyDirectX;
 using namespace DirectX;
 
 // StructuredBuffer - 不须对齐，但是SIMDMemcpy需要对齐，还是地址对齐，对应的，HLSL需要补齐
-struct alignas(16) TLight
+struct alignas(16) FLight
 {
 	XMFLOAT3 color = XMFLOAT3(1.0f, 1.0f, 1.0f);		// the color of emitted light, as a linear RGB color
-	float intensity = 1.0f;	// the light's brighness. The unit depends on the type of light
+	float intensity = 1.0f;	// the light's brightness. The unit depends on the type of light
 	XMFLOAT3 positionOrDirection = XMFLOAT3(1.0f, 1.0f, 1.0f);
 	float type = 0;			// 0 - directional lights, 1 - punctual lights
 	XMFLOAT3 spotDirection = XMFLOAT3(0.0f, -1.0f, 0.0f);
@@ -59,8 +62,9 @@ struct alignas(16) PSConstants
 
 glTFViewer::glTFViewer(HINSTANCE hInstance, const std::string& glTFFileName, const wchar_t* title, UINT width, UINT height)
 	: IGameApp(hInstance, title, width, height)
+	, m_Importer(std::make_unique<glTF::glTFImporter>())
 {
-	m_Importer.Load(glTFFileName);
+	m_Importer->Load(glTFFileName);
 }
 
 void glTFViewer::Update(float deltaTime)
@@ -75,22 +79,29 @@ void glTFViewer::Render()
 {
 	GraphicsContext& gfx = GraphicsContext::Begin(L"Scene Render");
 
-	gfx.SetRootSignature(m_CommonRS);
-	gfx.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	gfx.SetVertexBuffer(0, m_Importer.m_VertexBuffer.VertexBufferView());
-	gfx.SetIndexBuffer(m_Importer.m_IndexBuffer.IndexBufferView());
-
 	auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 	auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
-
-	gfx.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-	gfx.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
-	gfx.ClearColor(colorBuffer);
-	gfx.ClearDepth(depthBuffer);
-	gfx.SetRenderTarget(colorBuffer.GetRTV(), depthBuffer.GetDSV());
-	gfx.SetViewportAndScissor(m_MainViewport, m_MainScissor);
 	
-	RenderObjects(gfx, m_ViewProjMatrix);	
+	// Set Render targets
+	{
+		gfx.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		gfx.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		
+		gfx.ClearColor(colorBuffer);
+		gfx.ClearDepth(depthBuffer);
+		gfx.SetRenderTarget(colorBuffer.GetRTV(), depthBuffer.GetDSV());
+		gfx.SetViewportAndScissor(m_MainViewport, m_MainScissor);
+	}
+
+	// Draw meshes
+	{
+		gfx.SetRootSignature(m_CommonRS);
+		gfx.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		gfx.SetVertexBuffer(0, m_Importer->m_VertexBuffer.VertexBufferView());
+		gfx.SetIndexBuffer(m_Importer->m_IndexBuffer.IndexBufferView());
+
+		RenderObjects(gfx, m_ViewProjMatrix);
+	}
 
 	gfx.Finish();
 }
@@ -99,9 +110,9 @@ void glTFViewer::InitAssets()
 {
 	using glTF::Attrib;
 
-	// 创建模型
+	// Init model
 	Graphics::s_TextureManager.Init(L"Textures/");
-	ASSERT(m_Importer.Create(Graphics::s_Device));
+	ASSERT(m_Importer->Create(Graphics::s_Device));
 
 	// root signature & pso
 	{
@@ -120,7 +131,7 @@ void glTFViewer::InitAssets()
 		m_CommonRS.Finalize(Graphics::s_Device, L"CommonRS", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 		// input elements
-		const auto& vAttribs = m_Importer.m_VertexAttributes;
+		const auto& vAttribs = m_Importer->m_VertexAttributes;
 		D3D12_INPUT_ELEMENT_DESC inputElements[] =
 		{
 			{"POSITION", 0, vAttribs[Attrib::attrib_position].format, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA },
@@ -164,21 +175,21 @@ void glTFViewer::InitAssets()
 
 	// camera
 	{
-		glTF::BoundingBox boundingBox = m_Importer.GetBoundingBox();
+		glTF::BoundingBox boundingBox = m_Importer->GetBoundingBox();
 		glTF::Vector3 center = (boundingBox.max + boundingBox.min) / 2.0f;
 		glTF::Vector3 extent = (boundingBox.max - boundingBox.min);
 		Math::Vector3 eye(center.x, center.y, center.z + extent.z);
 		m_Camera.SetEyeAtUp(eye, Math::Vector3(Math::kZero), Math::Vector3(Math::kYUnitVector));
 		m_Camera.SetZRange(1.0f, 1000.0f);
-		// m_Camera.Update();	// 若无CameraController，需要手动更新
+		// m_Camera.Update();	// if no CameraController, need manual update
 		m_CameraController.reset(new CameraController(m_Camera, Math::Vector3(Math::kYUnitVector), *m_Input));
 	}
 
 	// lights
 	{
-		std::vector<TLight> lights;
+		std::vector<FLight> lights;
 		{
-			TLight newLight;
+			FLight newLight;
 			newLight.color = XMFLOAT3(0.2f, 0.4f, 0.7f);
 			newLight.intensity = 1.0f;
 			newLight.positionOrDirection = XMFLOAT3(-1.0f, -1.0f, 1.0f);
@@ -187,7 +198,7 @@ void glTFViewer::InitAssets()
 			lights.emplace_back(newLight);
 		}
 		{
-			TLight newLight;
+			FLight newLight;
 			newLight.color = XMFLOAT3(0.4f, 0.8f, 0.6f);
 			newLight.intensity = 2.0f;
 			newLight.positionOrDirection = XMFLOAT3(1.0f, -1.0f, 1.0f);
@@ -197,7 +208,7 @@ void glTFViewer::InitAssets()
 		}
 
 		m_LightBuffer.Create(Graphics::s_Device, L"LightBuffer",
-			(uint32_t)lights.size(), sizeof(TLight), lights.data());
+			(uint32_t)lights.size(), sizeof(FLight), lights.data());
 	}
 
 #pragma region SH
@@ -281,7 +292,10 @@ void glTFViewer::InitAssets()
 
 void glTFViewer::CleanCustom()
 {
-	m_Importer.Clear();
+	if (m_Importer)
+	{
+		m_Importer->Clear();
+	}
 	
 	m_LightBuffer.Destroy();
 
@@ -289,7 +303,7 @@ void glTFViewer::CleanCustom()
 	m_SHOutput.Destroy();
 }
 
-void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 viewProjMat, ObjectFilter filter)
+void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 &viewProjMat, ObjectFilter filter)
 {
 	// camera
 	CBPerCamera cbPerCamera;
@@ -308,19 +322,19 @@ void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 viewPro
 	CBPerObject cbPerObject;
 	PSConstants psConstants;
 
-	const auto& rMeshes = m_Importer.m_oMeshes;
+	const auto& rMeshes = m_Importer->m_oMeshes;
 	for (size_t i = 0, imax = rMeshes.size(); i < imax; ++i)
 	{
 		const auto& curMesh = rMeshes[i];
 
 		int matIdx = curMesh.materialIndex;
-		if (m_Importer.IsValidMaterial(matIdx))
+		if (m_Importer->IsValidMaterial(matIdx))
 		{
-			int activeMatIdx = m_Importer.m_ActiveMaterials[matIdx];
-			const auto& curMat = m_Importer.m_oMaterials[activeMatIdx];
+			int activeMatIdx = m_Importer->m_ActiveMaterials[matIdx];
+			const auto& curMat = m_Importer->m_oMaterials[activeMatIdx];
 
 			// CBPerObject
-			glTF::Matrix4x4 trans(std::move(m_Importer.GetMeshTransform(curMesh)));
+			glTF::Matrix4x4 trans(std::move(m_Importer->GetMeshTransform(curMesh)));
 			cbPerObject._WorldMat = glm::transpose(trans);
 			cbPerObject._InvWorldMat = glm::transpose(glm::inverse(trans));
 			gfx.SetDynamicConstantBufferView(1, sizeof(CBPerObject), &cbPerObject);
@@ -348,7 +362,7 @@ void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 viewPro
 			gfx.SetDynamicConstantBufferView(3, sizeof(PSConstants), &psConstants);
 
 			// textures
-			gfx.SetDynamicDescriptors(4, 0, glTF::Material::TextureNum, m_Importer.GetSRVs(activeMatIdx));
+			gfx.SetDynamicDescriptors(4, 0, glTF::Material::TextureNum, m_Importer->GetSRVs(activeMatIdx));
 
 			if (curMesh.indexAccessor >= 0)
 			{

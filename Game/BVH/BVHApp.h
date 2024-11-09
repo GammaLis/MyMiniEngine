@@ -23,7 +23,8 @@ namespace MyDirectX
 {
 	// Aligned memory allocations
 #ifdef _MSC_VER
-#define ALIGN(x) __declspec(align(x))
+// #define ALIGN(x) __declspec(align(x))
+#define ALIGN(x) alignas(x)
 #define MALLOC64(x) ((x) == 0 ? 0 : _aligned_malloc((x), 64))
 #define FREE64(x) _aligned_free(x)
 
@@ -43,7 +44,7 @@ namespace MyDirectX
 		static constexpr float TMAX = 1e5f;
 		static constexpr float TMIN = 1e-3f;
 
-		Ray(glm::vec3 o, glm::vec3 d) : ro(o), rd(d), rcpD(1.0f/d) {  }
+		Ray(const glm::vec3 &o, const glm::vec3 &d) : ro(o), rd(d), rcpD(1.0f/d) {  }
 
 		glm::vec3 ro, rd, rcpD;
 		float tmin = TMIN, tmax = TMAX;
@@ -51,8 +52,10 @@ namespace MyDirectX
 
 	struct Bounds
 	{
-		glm::vec3 bmin = glm::vec3(1e5f);
-		glm::vec3 bmax = glm::vec3(-1e5f);
+		static constexpr float BMAX = 1e5f;
+		
+		glm::vec3 bmin = glm::vec3(BMAX);
+		glm::vec3 bmax = glm::vec3(-BMAX);
 
 		Bounds() = default;
 
@@ -95,8 +98,8 @@ namespace MyDirectX
 
 		void Reset()
 		{
-			bmin = glm::vec3(1e5f);
-			bmax = glm::vec3(-1e5f);
+			bmin = glm::vec3(BMAX);
+			bmax = glm::vec3(-BMAX);
 		}
 
 		static Bounds Union(const Bounds& a, const Bounds& b)
