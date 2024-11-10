@@ -25,7 +25,7 @@
     <ClInclude Include="Core\ProfilingScope.h" />
     <ClInclude Include="Core\Threads\mtqueue.h" />
     <ClInclude Include="Core\Threads\Task.h" />
-    <ClInclude Include="Core\Threads\TheadPool.h" />
+    <ClInclude Include="Core\Threads\ThreadPool.h" />
     <ClInclude Include="Core\Utility.h" />
     <ClInclude Include="Effects\Denoiser.h" />
     <ClInclude Include="Effects\TemporalEffects.h" />
@@ -47,6 +47,7 @@
     <ClInclude Include="Game\OceanViewer.h" />
     <ClInclude Include="Effects\ReSTIRGI.h" />
     <ClInclude Include="Libraries\cgltf\cgltf.h" />
+    <ClInclude Include="Libraries\meshoptimizer\src\meshoptimizer.h" />
     <ClInclude Include="Scenes\AssimpImporter.h" />
     <ClInclude Include="Game\CameraController.h" />
     <ClInclude Include="CommonCompute\CommonCompute.h" />
@@ -218,6 +219,7 @@
       </AdditionalOptions>
       <LinkCompiled>true</LinkCompiled>
     </ClCompile>
+    <ClCompile Include="Core\Threads\ThreadPool.cpp" />
     <ClCompile Include="Effects\Denoiser.cpp" />
     <ClCompile Include="Effects\TemporalEffects.cpp" />
     <ClCompile Include="Game\BindlessDeferred.cpp" />
@@ -614,6 +616,22 @@
     <ClCompile Include="Game\OceanViewer.cpp" />
     <ClCompile Include="Game\UniformBuffers.cpp" />
     <ClCompile Include="Effects\ReSTIRGI.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\allocator.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\clusterizer.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\indexcodec.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\indexgenerator.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\overdrawanalyzer.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\overdrawoptimizer.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\quantization.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\simplifier.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\spatialorder.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\stripifier.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\vcacheanalyzer.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\vcacheoptimizer.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\vertexcodec.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\vertexfilter.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\vfetchanalyzer.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\vfetchoptimizer.cpp" />
     <ClCompile Include="Scenes\AssimpImporter.cpp" />
     <ClCompile Include="Game\CameraController.cpp" />
     <ClCompile Include="CommonCompute\CommonCompute.cpp" />

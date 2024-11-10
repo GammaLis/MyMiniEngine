@@ -21,7 +21,7 @@ namespace MyDirectX
 		static MotionBlur s_MotionBlur;
 		static TemporalAA s_TemporalAA;
 		static TemporalEffects s_TemporalEffects;
-		static Denoiser s_Denoier;
+		static Denoiser s_Denoiser;
 		// Post effects
 		static PostEffects s_PostEffects;
 

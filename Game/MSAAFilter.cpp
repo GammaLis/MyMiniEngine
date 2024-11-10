@@ -97,7 +97,6 @@ void MSAAFilter::Destroy()
     m_DepthResolve.Destroy();
 
     m_FrameDescriptorHeap.Destroy();
-    
 }
 
 void MSAAFilter::BeginRendering(GraphicsContext &gfx, MFalcor::Scene *pScene) 

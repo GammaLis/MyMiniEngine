@@ -7,7 +7,7 @@
 
 namespace MyDirectX
 {
-	// �����ı�
+	// Text renderer
 	class TextRenderer
 	{
 		friend class TextContext;
@@ -15,8 +15,7 @@ namespace MyDirectX
 	public:
 		class Font;
 
-		// ��Ϊ��ʱFont��δ���壬��Ҫ����Ĭ�Ϲ��캯������ʹΪ�գ� -20-1-26
-		// �������������Ĭ���޲ι��캯��������map<x, unique_ptr<...>> ����
+		// std::map<x, unique_ptr<...>>, 'unique_ptr' needs constructor
 		TextRenderer();
 		~TextRenderer();
 
@@ -77,9 +76,9 @@ namespace MyDirectX
 		void SetCursorX(float x) { m_TextPosX = x; }
 		void SetCursorY(float y) { m_TextPosY = y; }
 		void NewLine() { m_TextPosX = m_LeftMargin; m_TextPosY += m_LineHeight; }
-		float GetLeftMargin() { return m_LeftMargin; }
-		float GetCursorX() { return m_TextPosX; }
-		float GetCursorY() { return m_TextPosY; }
+		float GetLeftMargin() const { return m_LeftMargin; }
+		float GetCursorX() const { return m_TextPosX; }
+		float GetCursorY() const { return m_TextPosY; }
 
 		// turn on or off drop shadow
 		void EnableDropShadow(bool bEnable);
@@ -92,7 +91,7 @@ namespace MyDirectX
 		void SetColor(Color color);
 
 		// get the amount to advance the Y position to begin a new line
-		float GetVerticalSpacing() { return m_LineHeight; }
+		float GetVerticalSpacing() const { return m_LineHeight; }
 
 		/**
 			Rendering commands
@@ -112,7 +111,7 @@ namespace MyDirectX
 
 	private:
 		// __declspec(align(16)) struct VertexShaderParams
-		// or C++11 alignas - �����ڴ���뷽ʽ����С8
+		// or C++11 alignas - ???????????????С8
 		struct alignas(16) VertexShaderParams
 		{
 			Math::Vector4 ViewportTransform;
@@ -145,7 +144,7 @@ namespace MyDirectX
 			A volatile specifier is a hint to a compiler that an object may change its value 
 		in ways not specified by the language so that aggressive optimizations must be avoided.
 		*/ 
-		// ��䶥������
+		// ?????????
 		UINT FillVertexBuffer(TextVert volatile* verts, const char* str, size_t stride, size_t slen);
 
 		GraphicsContext& m_GfxContext;

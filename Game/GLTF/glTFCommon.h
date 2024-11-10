@@ -50,7 +50,7 @@ namespace glTF
 		DOUBLE = 5130
 	};
 
-	enum class glTopology : uint8_t
+	enum class glTopology : int8_t
 	{
 		UNKNOWN = -1,
 
@@ -108,7 +108,7 @@ namespace glTF
 		SAMPLER_2D = 35678
 	};
 
-	enum class glType : uint32_t
+	enum class glType : int8_t
 	{
 		UNKNOWN = -1,
 
@@ -123,7 +123,7 @@ namespace glTF
 		MATRIX = 64 + 16
 	};
 
-	enum class glTextureFormat : uint8_t
+	enum class glTextureFormat : int32_t
 	{
 		UNKNOWN = -1,
 
@@ -134,7 +134,7 @@ namespace glTF
 		LUMINANCE_ALPHA = 6410,
 	};
 
-	enum class glAlphaMode : uint8_t
+	enum class glAlphaMode : int8_t
 	{
 		UNKNOWN = -1,
 

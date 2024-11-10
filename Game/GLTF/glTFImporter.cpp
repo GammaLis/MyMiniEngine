@@ -10,6 +10,7 @@
 #include <future>
 
 #include "Libraries/cgltf/cgltf.h"
+#include "Libraries/meshoptimizer/src/meshoptimizer.h"
 #include "Graphics.h"
 #include "Utilities/FileUtility.h"
 #include "TextureManager.h"
@@ -1606,48 +1607,9 @@ namespace glTF
 	class CGLTFWrapper
 	{
 	public:
+		CGLTFWrapper() = default;
 		CGLTFWrapper(std::string inFileName, const cgltf_options &inOptions) : fileName(std::move(inFileName)), options(inOptions)
 		{ }
-
-		bool Parse()
-		{
-			result = cgltf_parse_file(&options, fileName.c_str(), &gltfData);
-			if (result != cgltf_result_success)
-			{
-				Utility::Printf("Load file %s failed: %s", fileName);
-				return false;
-			}
-			result = cgltf_load_buffers(&options, gltfData, fileName.c_str());
-			if (result != cgltf_result_success)
-			{
-				Utility::Printf("Load buffers failed: %s", fileName);
-				return false;
-			}
-
-			result  = cgltf_validate(gltfData);
-			if (result != cgltf_result_success)
-			{
-				Utility::Printf("gltf file %s has some validation issues: %d", fileName, result);
-				return false;
-			}
-			return true;
-		}
-
-		// Parse the gltf buffer definitions and start loading buffer blobs
-		void ParseBuffers() { }
-		void ParseTextures() { }
-		void ParseMeshes() { }
-		void ParseMaterials() { }
-		void ParseNodes() { }
-
-		~CGLTFWrapper()
-		{
-			if (gltfData != nullptr)
-			{
-				cgltf_free(gltfData);
-				gltfData = nullptr;
-			}	
-		}
 
 		// Compute indices from cgltf element pointers
 		static int gltfBufferIndex(const cgltf_data *data, const cgltf_buffer *buffer)
@@ -1686,97 +1648,282 @@ namespace glTF
 			return static_cast<int>(mesh - data->meshes);
 		}
 
-		std::string fileName{};
-		cgltf_options options{};
-		cgltf_data *gltfData{};
-		cgltf_result result{};
-	};
-
-	class ImporterImpl
-	{
-	public:
-		bool Load(const std::string &fileName)
+		static void Cast(glm::mat4 &matrix, float array[])
 		{
-			cgltf_data *gltf_data = nullptr;
-			cgltf_options options{};
-			cgltf_result result = cgltf_parse_file(&options, fileName.c_str(), &gltf_data);
+			// column-major
+			matrix[0][0] = array[0]; matrix[0][1] = array[1]; matrix[0][2] = array[2]; matrix[0][3] = array[3];
+			matrix[1][0] = array[4]; matrix[1][1] = array[5]; matrix[1][2] = array[6]; matrix[1][3] = array[7];
+			matrix[2][0] = array[8]; matrix[2][1] = array[9]; matrix[2][2] = array[10]; matrix[2][3] = array[11];
+			matrix[3][0] = array[12]; matrix[3][1] = array[13]; matrix[3][2] = array[14]; matrix[3][3] = array[15];
+		}
+
+		bool Parse()
+		{
+			return ParseFile(this->fileName, this->options);
+		}
+		
+		bool ParseFile(const std::string &fileName, const cgltf_options &options)
+		{
+			cgltf_data *gltfData = nullptr;
+			result = cgltf_parse_file(&options, fileName.c_str(), &gltfData);
 			if (result != cgltf_result_success)
 			{
 				Utility::Printf("Load file %s failed: %s", fileName);
 				return false;
 			}
-
-			result = cgltf_load_buffers(&options, gltf_data, fileName.c_str());
+			this->gltfData = gltfData;
+			result = cgltf_load_buffers(&options, gltfData, fileName.c_str());
 			if (result != cgltf_result_success)
 			{
 				Utility::Printf("Load buffers failed: %s", fileName);
 				return false;
 			}
 
-			result  = cgltf_validate(gltf_data);
+			result  = cgltf_validate(gltfData);
 			if (result != cgltf_result_success)
 			{
 				Utility::Printf("gltf file %s has some validation issues: %d", fileName, result);
 				return false;
 			}
-
-			uint32_t meshCount  = gltf_data->meshes_count;
-
-			cgltf_free(gltf_data);
-
 			return true;
 		}
+
+		static const cgltf_accessor *GetAccessor(const cgltf_primitive *primitive, cgltf_attribute_type type, unsigned int index = 0) 
+		{
+			for (uint32_t i = 0; i < primitive->attributes_count; ++i)
+			{
+				const auto &attrib = primitive->attributes[i];
+				if (attrib.type == type && attrib.index == index)
+					return attrib.data;
+			}
+			return nullptr;
+		}
+
+		// Parse the gltf buffer definitions and start loading buffer blobs
+		void ParseBuffers() const { }
+		void ParseTextures() const { }
+		
+		void ParseMeshes(MeshBatch &meshes)
+		{
+			auto numMeshes = static_cast<uint32_t>(gltfData->meshes_count);
+			meshPrimitiveOffsets.resize(numMeshes);
+			uint32_t primitiveOffset = 0;
+			
+			uint32_t vertexOffset = static_cast<uint32_t>(meshes.vertices.size());
+			uint32_t indexOffset = static_cast<uint32_t>(meshes.indices.size());
+			for (uint32_t i = 0; i < numMeshes; ++i)
+			{
+				const auto &srcMesh = gltfData->meshes[i];
+				const uint32_t numPrims = static_cast<uint32_t>(srcMesh.primitives_count);
+				for (uint32_t p = 0; p < numPrims; ++p)
+				{
+					auto &srcPrimitive = srcMesh.primitives[p];
+					ASSERT(srcPrimitive.type == cgltf_primitive_type_triangles);
+					ASSERT(srcPrimitive.indices);
+#if 0
+					for (uint32_t attrib = 0; attrib < srcPrimitive.attributes_count; ++attrib)
+					{
+						const auto &srcAttrib = srcPrimitive.attributes[attrib];
+						cgltf_accessor_unpack_floats(srcAttrib.data, )
+						cgltf_accessor_read_float(srcAttrib.data, )
+					}
+#else
+					auto vertexCount = static_cast<uint32_t>(srcPrimitive.attributes[0].data->count);
+					std::vector<Vertex> vertices(vertexCount);
+					{
+						std::vector<float> scratch(vertexCount * 4);
+
+						// Positions
+						if (auto pos = GetAccessor(&srcPrimitive, cgltf_attribute_type_position, 0))
+						{
+							auto numFloats = vertexCount * 3;
+							ASSERT(pos->type == cgltf_type_vec3 && pos->component_type == cgltf_component_type_r_32f);
+							ASSERT(cgltf_calc_size(pos->type, pos->component_type) == 12);
+							cgltf_accessor_unpack_floats(pos, scratch.data(), numFloats);
+
+							for (uint32_t vi = 0; vi < vertexCount; vi++)
+							{
+								vertices[vi].p.x = scratch[vi * 3 + 0]; 
+								vertices[vi].p.y = scratch[vi * 3 + 1]; 
+								vertices[vi].p.z = scratch[vi * 3 + 2]; 
+							}
+						}
+
+						// Normals
+						if (auto norm = GetAccessor(&srcPrimitive, cgltf_attribute_type_normal, 0))
+						{
+							auto numFloats = vertexCount * 3;
+							ASSERT(norm->type == cgltf_type_vec3 && norm->component_type == cgltf_component_type_r_32f);
+							cgltf_accessor_unpack_floats(norm, scratch.data(), numFloats);
+
+							for (uint32_t vi = 0; vi < vertexCount; vi++)
+							{
+#if USE_VERTEX_COMPRESSION
+								vertices[vi].n.x = static_cast<uint8_t>( scratch[vi * 3 + 0] * 127.f + 127.5f );
+								vertices[vi].n.y = static_cast<uint8_t>( scratch[vi * 3 + 1] * 127.f + 127.5f );
+								vertices[vi].n.z = static_cast<uint8_t>( scratch[vi * 3 + 2] * 127.f + 127.5f );
+#else
+								vertices[vi].n.x = scratch[vi * 3 + 0];
+								vertices[vi].n.y = scratch[vi * 3 + 1];
+								vertices[vi].n.z = scratch[vi * 3 + 2];
+#endif
+							}
+						}
+
+						// UVs
+						if (auto uv0 = GetAccessor(&srcPrimitive, cgltf_attribute_type_texcoord, 0))
+						{
+							auto numFloats = vertexCount * 2;
+							ASSERT(uv0->type == cgltf_type_vec2 && uv0->component_type == cgltf_component_type_r_32f);
+							cgltf_accessor_unpack_floats(uv0, scratch.data(), numFloats);
+
+							for (uint32_t vi = 0; vi < vertexCount; vi++)
+							{
+#if USE_VERTEX_COMPRESSION
+								vertices[vi].uv.x = meshopt_quantizeHalf( scratch[vi * 2 + 0] );
+								vertices[vi].uv.y = meshopt_quantizeHalf( scratch[vi * 2 + 1] );
+#else
+								vertices[vi].uv.x = scratch[vi * 2 + 0];
+								vertices[vi].uv.y = scratch[vi * 2 + 1];
+
+#endif
+							}
+						}
+					}
+					meshes.vertices.insert(meshes.vertices.cend(), vertices.begin(), vertices.end());
+
+					auto indexCount = static_cast<uint32_t>(srcPrimitive.indices->count);
+					std::vector<uint32_t> indices(indexCount);
+					{
+						cgltf_size indexBytes = 4;
+						cgltf_accessor_unpack_indices(srcPrimitive.indices, indices.data(), indexBytes, indexCount);
+					}
+					meshes.indices.insert(meshes.indices.cend(), indices.begin(), indices.end());
+
+					auto& element = meshes.batchElements.emplace_back();
+					element.vertexCount = vertexCount;
+					element.indexCount = indexCount;
+					element.vertexOffset = vertexOffset;
+					element.indexOffset = indexOffset;
+
+					vertexOffset += vertexCount;
+					indexOffset += indexCount;
+
+					// Material
+					ASSERT(srcPrimitive.material);
+					uint32_t materialIndex = gltfMaterialIndex(gltfData, srcPrimitive.material);
+					element.materialIndex = materialIndex;
+#endif
+				}
+
+				meshPrimitiveOffsets[i] = primitiveOffset;
+				primitiveOffset += numPrims;
+			}
+		}
+		
+		void ParseMaterials() const { }
+		
+		void ParseNodes(std::vector<MeshInstance> &instances) const
+		{
+			uint32_t instanceOffset = static_cast<uint32_t>(instances.size());
+			auto numNodes = gltfData->nodes_count;
+			for (uint32_t i = 0; i < numNodes; i++)
+			{
+				auto &node = gltfData->nodes[i];
+				cgltf_float worldMatrix[16];
+				cgltf_node_transform_world(&node, worldMatrix);
+				// Mesh node
+				if (node.mesh)
+				{
+					const auto &srcMesh = node.mesh;					
+					uint32_t meshIndex = gltfMeshIndex(gltfData, srcMesh);
+					uint32_t primitiveOffset = meshPrimitiveOffsets[meshIndex];
+					for (uint32_t p = 0; p < srcMesh->primitives_count; p++)
+					{
+						const auto &srcPrimitive = srcMesh->primitives[p];
+						
+						auto &instance = instances.emplace_back();
+						Cast(instance.transform, worldMatrix);
+						instance.elementIndex = primitiveOffset + p;
+						instance.materialIndex = gltfMaterialIndex(gltfData, srcPrimitive.material); 
+					}
+					
+				}
+				// TODO: camera node, light node...
+			}
+		}
+
+		~CGLTFWrapper()
+		{
+			if (gltfData != nullptr)
+			{
+				cgltf_free(gltfData);
+				gltfData = nullptr;
+			}
+		}
+
+		std::string fileName{};
+		cgltf_options options{};
+		cgltf_data *gltfData{};
+		cgltf_result result{};
+		std::vector<uint32_t> meshPrimitiveOffsets;
+	};
+
+	class ImporterImpl
+	{
+	public:		
+		bool Load(const std::string &fileName)
+		{
+			CGLTFWrapper wrapper;
+			
+			bool result = wrapper.ParseFile(fileName, {});
+			if (result)
+			{
+				m_DrawObject = std::make_shared<DrawObject>();
+				
+				wrapper.ParseMeshes(m_DrawObject->mesh);
+				wrapper.ParseNodes(m_DrawObject->instances);
+			}
+
+			return result;
+		}
+
+		std::future<bool> LoadAsync(const std::string &fileName)
+		{
+			// TODO: 
+			return std::async(std::launch::async, [&]()
+			{
+				return true;
+			});
+		}
+
+		auto GetDrawObject() const { return m_DrawObject.get(); }
 		
 	private:
 		bool ParseMeshes(const cgltf_data *gltfData);
-		std::vector<Batch> m_MeshBatches;
-	};
-
-	
+		std::shared_ptr<DrawObject> m_DrawObject;
+		CGLTFWrapper m_Wrapper;
+	};	
 
 	bool ImporterImpl::ParseMeshes(const cgltf_data *data)
 	{
-		uint32_t meshCount = data->meshes_count;
-		m_MeshBatches.resize(meshCount);
-		for (uint32_t i = 0; i < meshCount; i++)
-		{
-			const auto& srcMesh = data->meshes[i];
-			auto &newMesh = m_MeshBatches[i];
-
-			// Copy vertices
-			uint32_t primitiveCount = srcMesh.primitives_count;
-			for (uint32_t primIndex = 0; primIndex < primitiveCount; ++primIndex)
-			{
-				const auto &srcPrim = srcMesh.primitives[primIndex];
-				if (srcPrim.indices)
-				{
-					
-				}
-			}
-		}
-		// TODO:
-		return false;
 	}
 
 	glTFImporterNew::glTFImporterNew()
 	{
 		
-	}
-
-
-	void ProcessMeshes(glTFImporterNew *importer, cgltf_mesh *meshes, uint32_t count)
-	{
-		ASSERT(meshes != nullptr && count > 0);
-		
-	}
-	
+	}	
 
 	bool glTFImporterNew::Load(const std::string& filePath)
 	{
 		// std::async(std::launch::async)
 		
-		CGLTFWrapper wrapper(filePath, {});
-		wrapper.Parse();
+		ImporterImpl impl;
+		bool bLoaded = impl.Load(filePath);
+		if (!bLoaded || !impl.GetDrawObject())
+			return false;
+
+		m_DrawObjects.emplace_back(std::move(*impl.GetDrawObject()));
 
 		// TODO:
 		return false;
@@ -1788,7 +1935,7 @@ namespace glTF
 	in the standard glTF format, there are 2 options for including external binary resources like buffer
 data and textures: they may be referenced via URIs, or embedded in the JSON part of the glTF using data URIs.
 When they are referenced via URIs, then each external resource implies a new download request. When they are
-embedded as data URIs, the base 64 encoding of the binary data will increase the file size consideably.
+embedded as data URIs, the base 64 encoding of the binary data will increase the file size considerably.
 
 	binary glTF file *.glb*, it contains a header, which gives basic information about the the version and 
 structure of the data, and one or more chunks that contain the actual data. The first chunk always contains

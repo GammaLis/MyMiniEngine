@@ -3,6 +3,7 @@
 #include "GfxCommon.h"
 #include "CommandContext.h"
 #include "TextureManager.h"
+#include "Utilities/GameUtility.h"
 
 #include "glTFImporter.h"
 #include "Libraries/cgltf/cgltf.h"
@@ -106,6 +107,11 @@ void glTFViewer::Render()
 	gfx.Finish();
 }
 
+void glTFViewer::UpdateMeshBuffers()
+{
+	
+}
+
 static std::vector<D3D12_INPUT_ELEMENT_DESC> s_InputElements =
 {
 	{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA },
@@ -127,7 +133,7 @@ bool glTFViewer::InitAssets()
 	}
 	if (!bAnyLoaded)
 	{
-		Utility::Printf("Load file failed! Cannot init viewers!");
+		Utility::Printf("Load file failed! Cannot init viewers!\n");
 		return false;
 	}
 
@@ -183,9 +189,10 @@ bool glTFViewer::InitAssets()
 		m_ModelViewerPSO.SetRenderTargetFormats(1, &colorBuffer.GetFormat(), depthBuffer.GetFormat());
 		m_ModelViewerPSO.Finalize(Graphics::s_Device);
 
-		// viewport & scissor
 		uint32_t bufferWidth = colorBuffer.GetWidth();
 		uint32_t bufferHeight = colorBuffer.GetHeight();
+		// viewport & scissor
+#if 0
 		m_MainViewport.TopLeftX = m_MainViewport.TopLeftY = 0.0f;
 		m_MainViewport.Width = (float)bufferWidth;
 		m_MainViewport.Height = (float)bufferHeight;
@@ -196,6 +203,9 @@ bool glTFViewer::InitAssets()
 		m_MainScissor.top = 0;
 		m_MainScissor.right = (LONG)bufferWidth;
 		m_MainScissor.bottom = (LONG)bufferHeight;
+#else
+		UpdateViewportAndScissor(m_MainViewport, m_MainScissor, 0, 0, static_cast<float>(bufferWidth), static_cast<float>(bufferHeight));
+#endif
 	}
 
 	// camera
@@ -317,6 +327,11 @@ bool glTFViewer::InitAssets()
 	return true;
 }
 
+bool glTFViewer::InitCustom()
+{
+	return true;
+}
+
 void glTFViewer::CleanCustom()
 {
 	if (m_Importer)
@@ -387,6 +402,63 @@ void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 &viewPr
 			DirectX::XMFLOAT3 _SpecularColor;
 			float _Glossiness;
 #endif
+			gfx.SetDynamicConstantBufferView(3, sizeof(PSConstants), &psConstants);
+
+			// textures
+			gfx.SetDynamicDescriptors(4, 0, glTF::Material::TextureNum, m_Importer->GetSRVs(activeMatIdx));
+
+			if (curMesh.indexAccessor >= 0)
+			{
+				gfx.DrawIndexed(curMesh.indexCount, curMesh.indexDataByteOffset / sizeof(uint16_t), curMesh.vertexDataByteOffset / curMesh.vertexStride);
+			}
+			else
+			{
+				gfx.Draw(curMesh.vertexCount, curMesh.vertexDataByteOffset / curMesh.vertexStride);
+			}
+		}
+	}
+#else
+	const auto &drawObjects = m_Importer->GetDrawObjects();
+	if (drawObjects.empty())
+		return;
+
+	ASSERT(drawObjects.size() == m_VertexBuffers.size() && drawObjects.size() == m_IndexBuffers.size());
+	for (size_t i = 0, imax = drawObjects.size(); i < imax; ++i)
+	{
+		const auto curObject = drawObjects[i];
+		const auto &vertexBuffer = m_VertexBuffers[i];
+		const auto &indexBuffer = m_IndexBuffers[i];
+
+		gfx.SetVertexBuffer(0, vertexBuffer.VertexBufferView());
+		gfx.SetIndexBuffer(indexBuffer.IndexBufferView());
+
+		int matIdx = curMesh.materialIndex;
+		if (m_Importer->IsValidMaterial(matIdx))
+		{
+			int activeMatIdx = m_Importer->m_ActiveMaterials[matIdx];
+			const auto& curMat = m_Importer->m_oMaterials[activeMatIdx];
+
+			// CBPerObject
+			glTF::Matrix4x4 trans(std::move(m_Importer->GetMeshTransform(curMesh)));
+			cbPerObject._WorldMat = glm::transpose(trans);
+			cbPerObject._InvWorldMat = glm::transpose(glm::inverse(trans));
+			gfx.SetDynamicConstantBufferView(1, sizeof(CBPerObject), &cbPerObject);
+
+			gfx.SetConstant(0, curMesh.enabledAttribs, 3);	// root0, 3 - enabledAttribs
+
+			// PSConstants
+			const auto& baseColorFactor = curMat.baseColorFactor;
+			psConstants._BaseColorFactor = Math::Vector4(baseColorFactor[0], baseColorFactor[1], baseColorFactor[2], baseColorFactor[3]);
+			const auto& emissiveFactor = curMat.emissiveFactor;
+			psConstants._EmissiveFactor = DirectX::XMFLOAT3(emissiveFactor[0], emissiveFactor[1], emissiveFactor[2]);
+			psConstants._AlphaCutout = curMat.alphaCutoff;
+			memcpy_s(psConstants._Texcoords, sizeof(psConstants._Texcoords), curMat.texcoords, sizeof(curMat.texcoords));
+
+			psConstants._NormalScale = curMat.normalScale;
+			psConstants._OcclusionStrength = curMat.occlusionStrength;
+			psConstants._Metallic = curMat.metallic;
+			psConstants._Roughness = curMat.roughness;
+			psConstants._F0 = 0.04f;
 			gfx.SetDynamicConstantBufferView(3, sizeof(PSConstants), &psConstants);
 
 			// textures

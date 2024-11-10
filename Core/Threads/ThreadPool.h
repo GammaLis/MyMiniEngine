@@ -17,6 +17,11 @@ namespace Timo
         ThreadPool(uint32_t numThreads = std::thread::hardware_concurrency());
         ~ThreadPool();
 
+        static ThreadPool& Get();
+        static void Destroy();
+
+        static void ParallelFor(uint32_t num, const std::function<void(uint32_t)> &func);
+
         ThreadPool(const ThreadPool&) = delete;
         ThreadPool& operator=(const ThreadPool&) = delete;
 
@@ -24,9 +29,13 @@ namespace Timo
         ThreadPool& operator=(ThreadPool&&) = delete;
 
         template <typename F, typename... Args>
-        auto Enqueue(F &&f, Args &&... args) -> std::future<std::invoke_result_t<F>>;
+        auto Enqueue(F &&f, Args &&... args) -> std::future<std::invoke_result_t<F, Args...>>;
+
+        size_t GetNumThreads() const { return threads.size(); }
 
     private:
+        static ThreadPool *s_ThreadPool;
+        
         // Need to keep track of threads so we can join them
         std::vector<std::jthread> threads;
         // The task queue
@@ -55,10 +64,7 @@ namespace Timo
                     {
                         std::unique_lock lock(mtx);
                         cv.wait(lock, [this](){ return !tasks.empty() || stop; }); 
-
-                        if (stop)
-                            break;
-
+                        if (stop) break;
                         task = tasks.front();
                         tasks.pop();
                     }
@@ -70,12 +76,16 @@ namespace Timo
 
     // Enqueue
     template <typename F, typename... Args>
-    auto ThreadPool::Enqueue(F&& f, Args&&... args) -> std::future<std::invoke_result_t<F>>
+    auto ThreadPool::Enqueue(F&& f, Args&&... args) -> std::future<std::invoke_result_t<F, Args...>>
     {
         using return_type = std::invoke_result_t<F, Args...>; // decltype(f(std::forward<Args>(args)...));
         auto task = std::make_shared<std::packaged_task<return_type()>>(
-            std::bind(std::forward<F>(f), std::forward<Args>(args)...)
-            );
+            // std::bind(std::forward<F>(f), std::forward<Args>(args)...)
+            [f, args...]() -> return_type
+            {
+                return std::invoke(f, args...);
+                // f(args...);
+            } );
         std::future<return_type> res = task->get_future();
         {
             std::unique_lock lock(mtx);

@@ -11,7 +11,7 @@ namespace MyDirectX
 	// Temporal effects
 	TemporalEffects Effects::s_TemporalEffects;
 	// Denoiser
-	Denoiser Effects::s_Denoier;
+	Denoiser Effects::s_Denoiser;
 	// Post effects
 	PostEffects Effects::s_PostEffects;
 
@@ -32,7 +32,7 @@ namespace MyDirectX
 		if (GfxStates::s_bEnableTemporalEffects)
 			s_TemporalEffects.Init(pDevice);
 		if (Denoiser::s_bEnabled)
-			s_Denoier.Init(pDevice);
+			s_Denoiser.Init(pDevice);
 
 		s_TextRenderer.Init(pDevice);
 		s_ForwardPlusLighting.Init(pDevice);
@@ -49,7 +49,7 @@ namespace MyDirectX
 		s_MotionBlur.Shutdown();
 		s_TemporalAA.Shutdown();
 		s_TemporalEffects.Shutdown();
-		s_Denoier.Shutdown();
+		s_Denoiser.Shutdown();
 		s_PostEffects.Shutdown();
 
 		s_TextRenderer.Shutdown();

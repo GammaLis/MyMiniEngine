@@ -1,7 +1,6 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "VectorMath.h"
 #include "ColorBuffer.h"
 #include "DepthBuffer.h"
 #include "FrameDescriptorHeap.h"

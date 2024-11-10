@@ -590,6 +590,20 @@ void CommonStates::InitCommonStates(ID3D12Device* pDevice)
 		Generate3DTexMipsRS.InitStaticSampler(0, SamplerLinearClampDesc);
 		Generate3DTexMipsRS.Finalize(pDevice, L"Generate3DTexMipsRS");
 
+		GlobalBindlessRS.Reset(1, 7);
+		GlobalBindlessRS[0].InitAsConstants(0, 64, 1);
+		GlobalBindlessRS.InitStaticSampler(0, Graphics::s_CommonStates.SamplerLinearClampDesc);
+		GlobalBindlessRS.InitStaticSampler(1, Graphics::s_CommonStates.SamplerLinearWrapDesc);
+		GlobalBindlessRS.InitStaticSampler(2, Graphics::s_CommonStates.SamplerPointClampDesc);
+		GlobalBindlessRS.InitStaticSampler(3, Graphics::s_CommonStates.SamplerPointBorderDesc);
+		GlobalBindlessRS.InitStaticSampler(4, Graphics::s_CommonStates.SamplerAnisoWrapDesc);
+		GlobalBindlessRS.InitStaticSampler(5, Graphics::s_CommonStates.SamplerShadowDesc);
+		GlobalBindlessRS.InitStaticSampler(6, Graphics::s_CommonStates.SamplerVolumeWrapDesc);
+		GlobalBindlessRS.Finalize(pDevice, L"GlobalBindlessRS",
+			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+			D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED |
+			D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED);
+
 		/// PSOs
 		// GenerateMipsPSO
 		GenerateMipsPSO.SetRootSignature(GenerateMipsRS);

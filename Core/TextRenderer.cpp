@@ -32,12 +32,11 @@ namespace MyDirectX
 
 		void LoadFromBinary(const wchar_t* fontName, const uint8_t* pBinary, const size_t binarySize)
 		{
-			(fontName);
+			(void)(fontName);
 
 			// we should at least use this to assert that we have a complete file
-			(binarySize);
-
-			// 头部信息
+			(void)(binarySize);
+			
 			struct FontHeader
 			{
 				char FileDescriptor[8];		// "SDFFONT\0"
@@ -94,7 +93,6 @@ namespace MyDirectX
 		}
 
 		// each character has an XY start offset, a width, and they all share the same height
-		// 字形
 		struct Glyph
 		{
 			uint16_t x, y, w;
@@ -186,7 +184,7 @@ namespace MyDirectX
 
 		// input element
 		// the glyph vertex description. One vertex will correspond to a single character
-		// 顶点输入 - instance data，vertex data - 标准四边形
+		// instance data & vertex data, quads
 		D3D12_INPUT_ELEMENT_DESC vertElem[] =
 		{
 			{"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,	   0, 0, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1},
@@ -465,7 +463,7 @@ namespace MyDirectX
 		}
 	}
 
-	// these are made with templates to handle char and wchar_t simutianeously
+	// these are made with templates to handle char and wchar_t simultaneously
 	UINT TextContext::FillVertexBuffer(TextVert volatile* verts, const char* str, size_t stride, size_t slen)
 	{
 		UINT charsDrawn = 0;
@@ -528,18 +526,18 @@ namespace MyDirectX
 	>> Points
 	at the lowest level, each glyph in a TrueType font is described by a sequence of points on a grid.
 While 2 on-curve points are sufficient to describe a straight line, the addition of a third off-curve point
-between 2 on-curve points makes it possible to describe a parabolic curve（抛物曲线）.In such cases, each
+between 2 on-curve points makes it possible to describe a parabolic curve.In such cases, each
 of the on-curve points represents an end point of the curve and the off-curve point is a control point.
 Changing the location of any of the 3 points changes the shape of the curve defined.
 	the definition of such a curve can be made formal as follows: given 3 points p0, p1 and p2, they define
 a curve from point p0 to point p2 with p1 an off-curve point. The control point p1 is at the point of intersection
 of the tangents to the curve at points p0 and p2.
-	p(t) = (1-t)^2 * p0 + 2t * (1-t) * p1 + t^2 * p2	- 即 贝塞尔曲线
+	p(t) = (1-t)^2 * p0 + 2t * (1-t) * p1 + t^2 * p2, Bezier curves
 
 	by combining curves and straight lines, it is possible to build up complex glyphs. 
 
 	>> The direction of contours:
-	the points in a contour must be ordered consecutively begining with, in the case of the first contour, 
+	the points in a contour must be ordered consecutively beginning with, in the case of the first contour, 
 point 0. Subsequent contours will begin with the first unused number. It must be possible to trace around 
 each contour by going from point to point along the contour in the order specified in the font file.
 	the order in which points are specified is significant because it determines the direction of the contour.

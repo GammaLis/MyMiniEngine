@@ -11,16 +11,21 @@
 #include "glTFCommon.h"
 #include "GpuBuffer.h"
 
+#define USE_VERTEX_COMPRESSION 0
+
 // OpenGL glTF, TinyGLTF,...
 namespace glTF
 {
+	struct MeshBatch;
+	struct MeshInstance;
+	
 	class IModelImporter
 	{
 	public:
 		virtual ~IModelImporter() = default;
 
 		virtual bool Load(const std::string &filePath) = 0;
-		virtual void Clear() { };
+		virtual void Clear() { }
 	};
 	
 	class glTFImporter final : public IModelImporter
@@ -145,8 +150,13 @@ namespace glTF
 	struct Vertex
 	{
 		glm::vec3 p;
+#if USE_VERTEX_COMPRESSION
+		glm::u8vec4 n;
+		glm::u16vec2 uv;
+#else
 		glm::vec3 n;
 		glm::vec2 uv;
+#endif
 	};
 
 	struct BatchElement
@@ -155,9 +165,10 @@ namespace glTF
 		uint32_t vertexCount;
 		uint32_t indexOffset;
 		uint32_t indexCount;
+		uint32_t materialIndex;
 	};
 	
-	struct Batch
+	struct MeshBatch
 	{
 		std::vector<Vertex> vertices;
 		std::vector<uint32_t> indices;
@@ -165,6 +176,21 @@ namespace glTF
 		// std::vector<Meshlet> meshlets;
 
 		std::vector<BatchElement> batchElements;
+	};
+
+	// Instance into one MeshBatch's batchElements
+	struct MeshInstance
+	{
+		glm::mat4 transform;
+		uint32_t elementIndex;
+		// TODO: duplicate
+		uint32_t materialIndex;
+	};
+
+	struct DrawObject
+	{
+		MeshBatch mesh;
+		std::vector<MeshInstance> instances;
 	};
 	
 	class glTFImporterNew : public IModelImporter
@@ -174,9 +200,11 @@ namespace glTF
 		
 		bool Load(const std::string &filePath) override;
 
+		const auto& GetDrawObjects() const { return m_DrawObjects; }
+
 	private:
 		std::unique_ptr<class ImporterImpl> m_Impl;
-		std::vector<Batch> m_Batches;
+		std::vector<DrawObject> m_DrawObjects;
 	};
 
 }

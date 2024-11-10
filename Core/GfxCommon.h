@@ -11,7 +11,7 @@
 
 namespace MyDirectX
 {
-	enum class Resolutions
+	enum class Resolutions : uint32_t
 	{
 		k480p,
 		k720p,
@@ -22,14 +22,14 @@ namespace MyDirectX
 		k2160p,
 		kNumRes
 	};
-	enum class EQAAQuality
+	enum class EQAAQuality : uint8_t
 	{
 		kEQAA1x1,
 		kEQAA1x8,
 		kEQAA1x16,
 		kNumEQAA,
 	};
-	enum class DebugZoom
+	enum class DebugZoom : uint_fast8_t
 	{
 		Off,
 		k2x,
@@ -38,7 +38,7 @@ namespace MyDirectX
 		k16x,
 		kNumZoom
 	};
-	enum class UpsampleFilter
+	enum class UpsampleFilter : uint8_t
 	{
 		kBilinear,
 		kBicubic,
@@ -224,6 +224,7 @@ namespace MyDirectX
 		// Common RSs & PSOs
 		RootSignature CommonRS;
 		RootSignature GenerateMipsRS;
+		RootSignature GlobalBindlessRS;
 		// ComputePSO GenerateMipsLinearPSO[4];
 		// ComputePSO GenerateMipsGammaPSO[4];
 		// TODO: Default -> Power_Of_Two, Linear

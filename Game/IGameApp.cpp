@@ -54,7 +54,7 @@ bool IGameApp::Init()
 {
 	if (!m_Window->Init())
 	{
-		Utility::Printf("Init window failed!");
+		Utility::Printf("Init window failed!\n");
 		return false;
 	}
 
@@ -62,13 +62,13 @@ bool IGameApp::Init()
 
 	if (!m_Gfx->Init(hwnd, m_Width, m_Height))
 	{
-		Utility::Printf("Init graphics failed!");
+		Utility::Printf("Init graphics failed!\n");
 		return false;
 	}
 
 	if (!InitAssets())
 	{
-		Utility::Printf("Init custom failed!");
+		Utility::Printf("Init custom failed!\n");
 		return false;
 	}
 

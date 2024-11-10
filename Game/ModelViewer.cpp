@@ -234,7 +234,7 @@ void ModelViewer::Update(float deltaTime)
 		raytracingMode = RaytracingMode::ReSTIRGI;
 
 	bool bNeedDenoising = raytracingMode == RaytracingMode::ReSTIRWithDirectLights;
-	Effects::s_Denoier.SetActive(bNeedDenoising);
+	Effects::s_Denoiser.SetActive(bNeedDenoising);
 
 	// Update camera params
 	auto &cam = *m_Camera.get();
@@ -290,12 +290,12 @@ void ModelViewer::Update(float deltaTime)
 	Effects::s_TemporalAA.Update(frameIndex);
 	Effects::s_TemporalAA.GetJitterOffset(m_MainViewport.TopLeftX, m_MainViewport.TopLeftY);
 
-	if (Effects::s_Denoier.IsActive())
+	if (Effects::s_Denoiser.IsActive())
 	{
-		if (!Effects::s_Denoier.HasInited())
-			Effects::s_Denoier.Init(Graphics::s_Device);
+		if (!Effects::s_Denoiser.HasInited())
+			Effects::s_Denoiser.Init(Graphics::s_Device);
 
-		Effects::s_Denoier.Update(frameIndex);
+		Effects::s_Denoiser.Update(frameIndex);
 	}
 
 	// Viewport & Scissor
@@ -649,8 +649,8 @@ void ModelViewer::Render()
 		Raytrace(gfxContext);
 
 	// Denoising
-	if (Effects::s_Denoier.IsActive())
-		Effects::s_Denoier.Render(gfxContext);
+	if (Effects::s_Denoiser.IsActive())
+		Effects::s_Denoiser.Render(gfxContext);
 
 	// DEBUG
 #if 1
@@ -659,9 +659,9 @@ void ModelViewer::Render()
 		gfxContext.TransitionResource(colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		gfxContext.SetRenderTarget(colorBuffer.GetRTV());
 
-		if (Effects::s_Denoier.IsActive())
+		if (Effects::s_Denoiser.IsActive())
 		{
-			m_DebugPass->Render(gfxContext, Effects::s_Denoier.GetDebugOutput());
+			m_DebugPass->Render(gfxContext, Effects::s_Denoiser.GetDebugOutput());
 		}
 		else if (m_bEnableReSTIRGI)
 		{
@@ -906,7 +906,7 @@ void ModelViewer::CustomUI(GraphicsContext &context)
 	textContext.End();
 }
 
-
+#if 0
 void UpdateViewportAndScissor(D3D12_VIEWPORT &viewport, RECT &scissor,
 	FLOAT x, FLOAT y, FLOAT w, FLOAT h, FLOAT d0 = 0.0f, FLOAT d1 = 1.0f)
 {
@@ -930,6 +930,7 @@ RECT GetScissor(int x, int y, int w, int h)
 	scissor.top = static_cast<LONG>(y); scissor.bottom = static_cast<LONG>(y + h);
 	return scissor;
 }
+#endif
 
 namespace Math
 {

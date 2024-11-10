@@ -14,6 +14,7 @@
 namespace glTF
 {
 	class IModelImporter;
+	class glTFImporterNew;
 }
 
 namespace MyDirectX
@@ -27,10 +28,13 @@ namespace MyDirectX
 		virtual void Update(float deltaTime) override;
 		virtual void Render() override;
 
+		void UpdateMeshBuffers();
+
 	protected:
 		virtual bool InitAssets() override;
 
 	private:
+		bool InitCustom() override;
 		virtual void CleanCustom() override;
 
 		void RenderObjects(GraphicsContext& gfx, const Math::Matrix4 &viewProjMat, ObjectFilter filter = ObjectFilter::kAll);
@@ -42,15 +46,12 @@ namespace MyDirectX
 		GraphicsPSO m_ModelViewerPSO;
 
 		/// Scene info
-		std::unique_ptr<glTF::IModelImporter> m_Importer;
-		StructuredBuffer m_GlobalVertexBuffer;
-		ByteAddressBuffer m_GlobalIndexBuffer;
-
+		std::unique_ptr<glTF::glTFImporterNew> m_Importer;
 		glTF::BoundingBox m_SceneBoundingBox;
 
 		// Mesh draw commands
+		// TODO...
 		
-
 		// Descriptor heap
 		FrameDescriptorHeap m_FrameDescriptorHeap;
 
@@ -58,6 +59,13 @@ namespace MyDirectX
 		StructuredBuffer m_LightBuffer;
 
 		// Mesh buffers
+		StructuredBuffer m_GlobalVertexBuffer;
+		ByteAddressBuffer m_GlobalIndexBuffer;
+		std::vector<StructuredBuffer> m_VertexBuffers;
+		std::vector<ByteAddressBuffer> m_IndexBuffers;
+		std::map<std::string, uint32_t> m_BufferMappings;
+		// Use one global vertex buffer or one vertex buffer per mesh ?
+		bool m_bUseGlobalMeshBuffers = false;
 
 		// SH
 		RootSignature m_SHRS;
