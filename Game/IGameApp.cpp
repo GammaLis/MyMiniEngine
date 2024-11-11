@@ -12,6 +12,7 @@
 #include "Model.h"
 #include <sstream>
 #include <windowsX.h>
+#include "Utilities/GameUtility.h"
 
 #pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -59,6 +60,7 @@ bool IGameApp::Init()
 	}
 
 	HWND hwnd = m_Window->GetWindow();
+	Timo::ThreadPool::Get();
 
 	if (!m_Gfx->Init(hwnd, m_Width, m_Height))
 	{
@@ -123,7 +125,9 @@ void IGameApp::Cleanup()
 
 	m_Input->Shutdown();
 
-	m_Gfx->Shutdown();	
+	m_Gfx->Shutdown();
+
+	Timo::ThreadPool::Destroy();
 }
 
 int IGameApp::Run()

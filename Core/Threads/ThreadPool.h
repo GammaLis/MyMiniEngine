@@ -20,8 +20,6 @@ namespace Timo
         static ThreadPool& Get();
         static void Destroy();
 
-        static void ParallelFor(uint32_t num, const std::function<void(uint32_t)> &func);
-
         ThreadPool(const ThreadPool&) = delete;
         ThreadPool& operator=(const ThreadPool&) = delete;
 
@@ -29,7 +27,7 @@ namespace Timo
         ThreadPool& operator=(ThreadPool&&) = delete;
 
         template <typename F, typename... Args>
-        auto Enqueue(F &&f, Args &&... args) -> std::future<std::invoke_result_t<F, Args...>>;
+        auto Enqueue(F&& f, Args&& ... args) -> std::future<std::invoke_result_t<F, Args...>>;
 
         size_t GetNumThreads() const { return threads.size(); }
 
@@ -81,10 +79,9 @@ namespace Timo
         using return_type = std::invoke_result_t<F, Args...>; // decltype(f(std::forward<Args>(args)...));
         auto task = std::make_shared<std::packaged_task<return_type()>>(
             // std::bind(std::forward<F>(f), std::forward<Args>(args)...)
-            [f, args...]() -> return_type
+            [=]() mutable -> return_type
             {
-                return std::invoke(f, args...);
-                // f(args...);
+                return std::invoke(std::move(f), std::move(args)...); // f(args...);
             } );
         std::future<return_type> res = task->get_future();
         {
@@ -125,3 +122,8 @@ namespace Timo
         threads.clear();
     }
 }
+
+/**
+ * Perfect capture in C++20, https://stackoverflow.com/questions/47496358/c-lambdas-how-to-capture-variadic-parameter-pack-from-the-upper-scope
+ * [f=std::move(f), ...args=std::forward(args)]() mutable -> return_type { ... }
+ */

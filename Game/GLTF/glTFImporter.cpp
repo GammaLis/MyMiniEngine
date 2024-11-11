@@ -1907,6 +1907,7 @@ namespace glTF
 
 	bool ImporterImpl::ParseMeshes(const cgltf_data *data)
 	{
+		return false;
 	}
 
 	glTFImporterNew::glTFImporterNew()

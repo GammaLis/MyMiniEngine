@@ -600,9 +600,10 @@ void CommonStates::InitCommonStates(ID3D12Device* pDevice)
 		GlobalBindlessRS.InitStaticSampler(5, Graphics::s_CommonStates.SamplerShadowDesc);
 		GlobalBindlessRS.InitStaticSampler(6, Graphics::s_CommonStates.SamplerVolumeWrapDesc);
 		GlobalBindlessRS.Finalize(pDevice, L"GlobalBindlessRS",
-			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-			D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED |
-			D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED);
+			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
+			// | D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED
+			// | D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED
+			);
 
 		/// PSOs
 		// GenerateMipsPSO

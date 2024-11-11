@@ -1,6 +1,12 @@
 ﻿#pragma once
+#include <filesystem>
+
 #include "CoreMinimal.h"
 #include "Utility.h"
+#include <future>
+#include <iterator>
+#include "Threads/Task.h"
+#include "Threads/ThreadPool.h"
 
 
 namespace MyDirectX
@@ -8,9 +14,9 @@ namespace MyDirectX
     static constexpr uint32_t INVALID_INDEX = std::numeric_limits<uint32_t>::max();
     static constexpr uint32_t MaxFrameBufferCount = 3;
 
-    inline Math::Vector4 GetSizeAndInvSize(float w, float h) 
+    INLINE Math::Vector4 GetSizeAndInvSize(float w, float h) 
     {
-        return Math::Vector4(w, h, 1.0f / w, 1.0f / h);
+        return {w, h, 1.0f / w, 1.0f / h};
     }
 
     INLINE void UpdateViewportAndScissor(D3D12_VIEWPORT &viewport, RECT &scissor,
@@ -36,4 +42,64 @@ namespace MyDirectX
         scissor.top = static_cast<LONG>(y); scissor.bottom = static_cast<LONG>(y + h);
         return scissor;
     }
+
+    // Async
+    enum class EAsyncExecution : uint8_t
+    {
+        stdAsync,
+        stdDeferred,
+        ThreadPool,
+    };
+    
+    template <typename F, typename... Args>
+    auto Async(EAsyncExecution execution, F &&f, Args &&... args) -> std::future<std::invoke_result_t<F, Args...>>
+    {
+        using return_type = std::invoke_result_t<F, Args...>;
+        std::future<return_type> future;
+        switch (execution)
+        {
+        case EAsyncExecution::stdAsync:
+            future = std::async(std::launch::async, [=]() mutable -> return_type
+            {
+                // return f(args...);
+                // return std::invoke(std::forward<F>(f), std::forward<Args>(args)...);
+                return std::invoke(std::move(f), std::move(args)...);
+            });
+            break;
+            
+        case EAsyncExecution::stdDeferred:
+            future = std::async(std::launch::deferred, [=]() mutable -> return_type
+            {
+                return std::invoke(std::move(f), std::move(args)...);
+            });
+            break;
+            
+        case EAsyncExecution::ThreadPool:
+            future = Timo::ThreadPool::Get().Enqueue(std::forward<F>(f), std::forward<Args>(args)...);
+            break;
+            
+        default:
+            ASSERT(false);
+        }
+        return std::move(future);
+    }
+
+    INLINE void ParallelFor(uint32_t total, std::function<void(uint32_t)> func)
+    {
+        constexpr uint32_t GroupSize = 64;
+        uint32_t numGroups = Math::AlignUp(total, GroupSize);
+        std::vector<std::future<void>> futures(numGroups);
+        if (numGroups > 1)
+        {
+            for (uint32_t groupIndex = 1; groupIndex < numGroups; ++groupIndex)
+            {
+                futures[groupIndex-1] = Async(EAsyncExecution::stdAsync, func, groupIndex);    
+            }
+        }
+        func(0);
+        // Wait
+        for (auto it = std::cbegin(futures); it != std::cend(futures); ++it)
+            it->wait();
+    }
+    
 }

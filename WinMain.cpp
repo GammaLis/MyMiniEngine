@@ -9,7 +9,7 @@
 
 #define IMPLEMENTED_BVH 6
 
-#define IMPLEMENTED IMPLEMENTED_GLTFVIEWER
+#define IMPLEMENTED IMPLEMENTED_SCENEVIEWER
 
 #include "MyBaseApp.h"
 #include "Utility.h"

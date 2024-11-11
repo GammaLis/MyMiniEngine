@@ -76,4 +76,13 @@ namespace MyDirectX
 
 		std::vector<std::string> m_FileNames; 
 	};
+
+	template <typename F, typename... Args>
+	void foo(F&& f, Args&&... args)
+	{
+		[f, tuple=std::make_tuple(std::forward<Args>(args)...)]()
+		{
+			return std::apply(std::forward<F>(f), std::move(tuple));
+		}();
+	}
 }

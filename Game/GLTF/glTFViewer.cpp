@@ -432,47 +432,7 @@ void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 &viewPr
 		gfx.SetVertexBuffer(0, vertexBuffer.VertexBufferView());
 		gfx.SetIndexBuffer(indexBuffer.IndexBufferView());
 
-		int matIdx = curMesh.materialIndex;
-		if (m_Importer->IsValidMaterial(matIdx))
-		{
-			int activeMatIdx = m_Importer->m_ActiveMaterials[matIdx];
-			const auto& curMat = m_Importer->m_oMaterials[activeMatIdx];
-
-			// CBPerObject
-			glTF::Matrix4x4 trans(std::move(m_Importer->GetMeshTransform(curMesh)));
-			cbPerObject._WorldMat = glm::transpose(trans);
-			cbPerObject._InvWorldMat = glm::transpose(glm::inverse(trans));
-			gfx.SetDynamicConstantBufferView(1, sizeof(CBPerObject), &cbPerObject);
-
-			gfx.SetConstant(0, curMesh.enabledAttribs, 3);	// root0, 3 - enabledAttribs
-
-			// PSConstants
-			const auto& baseColorFactor = curMat.baseColorFactor;
-			psConstants._BaseColorFactor = Math::Vector4(baseColorFactor[0], baseColorFactor[1], baseColorFactor[2], baseColorFactor[3]);
-			const auto& emissiveFactor = curMat.emissiveFactor;
-			psConstants._EmissiveFactor = DirectX::XMFLOAT3(emissiveFactor[0], emissiveFactor[1], emissiveFactor[2]);
-			psConstants._AlphaCutout = curMat.alphaCutoff;
-			memcpy_s(psConstants._Texcoords, sizeof(psConstants._Texcoords), curMat.texcoords, sizeof(curMat.texcoords));
-
-			psConstants._NormalScale = curMat.normalScale;
-			psConstants._OcclusionStrength = curMat.occlusionStrength;
-			psConstants._Metallic = curMat.metallic;
-			psConstants._Roughness = curMat.roughness;
-			psConstants._F0 = 0.04f;
-			gfx.SetDynamicConstantBufferView(3, sizeof(PSConstants), &psConstants);
-
-			// textures
-			gfx.SetDynamicDescriptors(4, 0, glTF::Material::TextureNum, m_Importer->GetSRVs(activeMatIdx));
-
-			if (curMesh.indexAccessor >= 0)
-			{
-				gfx.DrawIndexed(curMesh.indexCount, curMesh.indexDataByteOffset / sizeof(uint16_t), curMesh.vertexDataByteOffset / curMesh.vertexStride);
-			}
-			else
-			{
-				gfx.Draw(curMesh.vertexCount, curMesh.vertexDataByteOffset / curMesh.vertexStride);
-			}
-		}
+		
 	}
 #endif
 }
