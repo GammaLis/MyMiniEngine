@@ -703,6 +703,7 @@
     <ClCompile Include="Core\Skybox.cpp" />
     <ClCompile Include="Core\ReadbackBuffer.cpp" />
     <ClCompile Include="Game\SceneViewer.cpp" />
+    <ClCompile Include="Utilities\GameUtility.cpp" />
     <ClCompile Include="Utilities\ShadowUtility.cpp" />
     <ClCompile Include="Game\Texture3D.cpp" />
     <ClCompile Include="Game\VoronoiTextureGenerator.cpp" />

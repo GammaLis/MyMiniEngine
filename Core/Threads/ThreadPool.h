@@ -108,7 +108,7 @@ namespace Timo
          * before it gets the chance to park the thread, the main threads set the flag to true and calls 'notify_all'.
          * 'notify_all' will not wake threads that aren't currently waiting on the condition variable.
          */
-        // stop = true;
+        // stop = true; // atomic_bool
         // =>
         // The correct way to go here is to ditch the atomic and grab the mutex in the destructor. This ensures that
         // the state of kill flag can't change between checking the predicate state. 

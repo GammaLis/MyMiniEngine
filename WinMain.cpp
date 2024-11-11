@@ -9,7 +9,7 @@
 
 #define IMPLEMENTED_BVH 6
 
-#define IMPLEMENTED IMPLEMENTED_SCENEVIEWER
+#define IMPLEMENTED IMPLEMENTED_GLTFVIEWER
 
 #include "MyBaseApp.h"
 #include "Utility.h"
@@ -107,6 +107,13 @@ int main(int argc, const char* argv[])
 		ret = gApp->Run();
 	}
 
+	std::atomic_int sum = 0;
+	MyDirectX::ParallelFor(1000, [&sum](uint32_t index)
+	{
+		sum += 2;
+	});
+
+	ASSERT(sum == 2000);
 	gApp->Cleanup();
 	
 #elif defined(COMMON_COMPUTE)

@@ -19,6 +19,17 @@ namespace MyDirectX
         return {w, h, 1.0f / w, 1.0f / h};
     }
 
+    INLINE uint32_t DivideAndRoundUp(uint32_t x, uint32_t y)
+    {
+        ASSERT((y & (y-1)) == 0);
+        return (x + y - 1) / y;
+    }
+
+    INLINE uint32_t DivideAndRoundDown(uint32_t x, uint32_t y)
+    {
+        return x / y;
+    }
+
     INLINE void UpdateViewportAndScissor(D3D12_VIEWPORT &viewport, RECT &scissor,
         FLOAT x, FLOAT y, FLOAT w, FLOAT h, FLOAT d0 = 0.0f, FLOAT d1 = 1.0f)
     {
@@ -84,22 +95,7 @@ namespace MyDirectX
         return std::move(future);
     }
 
-    INLINE void ParallelFor(uint32_t total, std::function<void(uint32_t)> func)
-    {
-        constexpr uint32_t GroupSize = 64;
-        uint32_t numGroups = Math::AlignUp(total, GroupSize);
-        std::vector<std::future<void>> futures(numGroups);
-        if (numGroups > 1)
-        {
-            for (uint32_t groupIndex = 1; groupIndex < numGroups; ++groupIndex)
-            {
-                futures[groupIndex-1] = Async(EAsyncExecution::stdAsync, func, groupIndex);    
-            }
-        }
-        func(0);
-        // Wait
-        for (auto it = std::cbegin(futures); it != std::cend(futures); ++it)
-            it->wait();
-    }
+    void ParallelFor(uint32_t total, std::function<void(uint32_t)> func);
+    void Dispatch(uint32_t numGroups, uint32_t groupSize, std::function<void(uint32_t)> func);
     
 }
