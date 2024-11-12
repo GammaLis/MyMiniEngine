@@ -13,6 +13,7 @@
 
 namespace glTF
 {
+	struct MeshBatch;
 	class IModelImporter;
 	class glTFImporterNew;
 }
@@ -28,7 +29,7 @@ namespace MyDirectX
 		virtual void Update(float deltaTime) override;
 		virtual void Render() override;
 
-		void UpdateMeshBuffers();
+		void UpdateMeshBuffers(const std::pair<std::string, glTF::MeshBatch> &meshData);
 
 	protected:
 		virtual bool InitAssets() override;
@@ -61,9 +62,12 @@ namespace MyDirectX
 		// Mesh buffers
 		StructuredBuffer m_GlobalVertexBuffer;
 		ByteAddressBuffer m_GlobalIndexBuffer;
-		std::vector<StructuredBuffer> m_VertexBuffers;
-		std::vector<ByteAddressBuffer> m_IndexBuffers;
-		std::map<std::string, uint32_t> m_BufferMappings;
+		std::vector<std::shared_ptr<StructuredBuffer>> m_VertexBuffers;
+		std::vector<std::shared_ptr<ByteAddressBuffer>> m_IndexBuffers;
+		std::map<std::string, uint32_t> m_MeshNameAndIndex;
+		std::vector<std::shared_ptr<StructuredBuffer>> m_UpdateVertexBuffers;
+		std::vector<std::shared_ptr<ByteAddressBuffer>> m_UpdateIndexBuffers;
+		std::queue<std::pair<uint64_t, uint32_t>> m_UpdateQueue;
 		// Use one global vertex buffer or one vertex buffer per mesh ?
 		bool m_bUseGlobalMeshBuffers = false;
 

@@ -13,6 +13,9 @@
 #include "glTFCommonPS.h"
 
 #include "CubemapSH.h"
+#include "Graphics.h"
+#include "GfxCommon.h"
+#include "CommandContext.h"
 
 using namespace MyDirectX;
 using namespace DirectX;
@@ -107,9 +110,103 @@ void glTFViewer::Render()
 	gfx.Finish();
 }
 
-void glTFViewer::UpdateMeshBuffers()
+uint64_t UpdateBuffersAsync(const std::vector<std::tuple<GpuBuffer*, const uint8_t*, uint32_t>> &buffersToUpdate)
 {
+	CommandContext& updateContext = CommandContext::Begin(L"UpdateBufferAsync");
+
+	// Find max bytes needed
+	uint32_t maxBytes = 0;
+	for (const auto &buffer : buffersToUpdate )
+	{
+		maxBytes = std::max(maxBytes, std::get<2>(buffer));
+	}
+	ASSERT(maxBytes > 0);
+
+	// TODO: optimize
+	for (const auto &bufferData : buffersToUpdate)
+	{
+		uint32_t numBytes = std::get<2>(bufferData);
+		auto initialData = std::get<1>(bufferData);
+		auto &buffer = *std::get<0>(bufferData);
 	
+		DynAlloc mem = updateContext.ReserveUploadMemory(numBytes);
+		memcpy(mem.dataPtr, initialData, numBytes);
+
+		// Copy data to the intermediate upload heap and then schedule a copy from the upload heap to the default buffer
+		updateContext.TransitionResource(buffer, D3D12_RESOURCE_STATE_COPY_DEST, true);
+		updateContext.GetCommandList()->CopyBufferRegion(buffer.GetResource(), 0, mem.buffer.GetResource(), 0, numBytes);
+		updateContext.TransitionResource(buffer, D3D12_RESOURCE_STATE_GENERIC_READ, true);	
+	}	
+
+	// Execute the command list and wait for it to finish so we can release the upload buffer
+	uint64_t fenceValue = updateContext.Finish();
+	return fenceValue;
+}
+
+// [Tag] | [index (4 bits)]
+uint32_t EncodeBufferIndex(uint32_t index, uint32_t tag)
+{
+	return (tag << 4) | index;
+}
+
+std::pair<uint32_t, uint32_t> DecodeBufferIndex(uint32_t value)
+{
+	return { value & 0x0F, value >> 4 };
+}
+
+void glTFViewer::UpdateMeshBuffers(const std::pair<std::string, glTF::MeshBatch> &meshData)
+{
+	auto fileName = meshData.first;
+	const auto &srcMesh = meshData.second;
+	
+	ASSERT(m_UpdateVertexBuffers.size() == m_UpdateIndexBuffers.size());
+	uint32_t index = static_cast<uint32_t>(m_UpdateVertexBuffers.size());
+
+	std::shared_ptr<StructuredBuffer> *targetVertexBuffer = nullptr;;
+	std::shared_ptr<ByteAddressBuffer> *targetIndexBuffer = nullptr;
+	auto iter = m_MeshNameAndIndex.find(fileName);
+	if (iter == m_MeshNameAndIndex.end())
+	{
+		m_MeshNameAndIndex[fileName] = index;
+		targetVertexBuffer = &m_UpdateVertexBuffers.emplace_back(nullptr);
+		targetIndexBuffer = &m_UpdateIndexBuffers.emplace_back(nullptr);
+		m_VertexBuffers.emplace_back(nullptr);
+		m_IndexBuffers.emplace_back(nullptr);
+	}
+	else
+	{
+		index = iter->second;
+		targetVertexBuffer = &m_UpdateVertexBuffers[index];
+		targetIndexBuffer = &m_UpdateIndexBuffers[index];
+	}
+
+	auto meshName = Utility::RemoveBasePath(fileName);
+
+	std::vector<std::tuple<GpuBuffer*, const uint8_t*, uint32_t>> buffersToUpdate;
+	// New vertex buffer
+	auto pVertexBuffer = std::make_shared<StructuredBuffer>();
+	{
+		auto numElements = static_cast<uint32_t>(srcMesh.vertices.size());
+		auto elementSize = sizeof(srcMesh.vertices[0]);
+		pVertexBuffer->Create(Graphics::s_Device, Utility::UTF8ToWideString(meshName+"_VB"), numElements, elementSize);
+		buffersToUpdate.emplace_back(std::tuple{pVertexBuffer.get(), reinterpret_cast<const uint8_t*>(srcMesh.vertices.data()), numElements * elementSize});
+	}
+	// New index buffer
+	auto pIndexBuffer = std::make_shared<ByteAddressBuffer>();
+	{
+		auto numElements = static_cast<uint32_t>(srcMesh.indices.size());
+		auto elementSize = sizeof(srcMesh.indices[0]);
+		pIndexBuffer->Create(Graphics::s_Device, Utility::UTF8ToWideString(meshName+"_IB"), numElements, elementSize);
+		buffersToUpdate.emplace_back(std::tuple{pIndexBuffer.get(), reinterpret_cast<const uint8_t*>(srcMesh.indices.data()), numElements * elementSize});
+	}
+
+	// Update fence value
+	auto fenceValue = UpdateBuffersAsync(buffersToUpdate);
+
+	*targetVertexBuffer = std::move(pVertexBuffer);
+	*targetIndexBuffer = std::move(pIndexBuffer);
+	m_UpdateQueue.push(std::pair{ fenceValue, EncodeBufferIndex(index, 0u) });
+	m_UpdateQueue.push(std::pair{ fenceValue, EncodeBufferIndex(index, 1u) });
 }
 
 static std::vector<D3D12_INPUT_ELEMENT_DESC> s_InputElements =
@@ -334,12 +431,44 @@ bool glTFViewer::InitCustom()
 
 void glTFViewer::CleanCustom()
 {
+	if (!m_UpdateQueue.empty())
+	{
+		// TODO: WAIT
+	}
+	
 	if (m_Importer)
 	{
 		m_Importer->Clear();
 	}
 	
 	m_LightBuffer.Destroy();
+
+	// Mesh buffers
+	for (uint32_t i = 0, imax = 4; i < imax; i++)
+	{
+		if (m_VertexBuffers[i])
+		{
+			m_VertexBuffers[i]->Destroy();
+			m_VertexBuffers[i] = nullptr; 
+		}
+		if (m_IndexBuffers[i])
+		{
+			m_IndexBuffers[i]->Destroy();
+			m_IndexBuffers[i] = nullptr; 
+		}
+		if (m_UpdateVertexBuffers[i])
+		{
+			m_UpdateVertexBuffers[i]->Destroy();
+			m_UpdateVertexBuffers[i] = nullptr; 
+		}
+		if (m_UpdateIndexBuffers[i])
+		{
+			m_UpdateIndexBuffers[i]->Destroy();
+			m_UpdateIndexBuffers[i] = nullptr; 
+		}
+	}
+	m_GlobalVertexBuffer.Destroy();
+	m_GlobalIndexBuffer.Destroy();
 
 	// SH
 	m_SHOutput.Destroy();
@@ -426,8 +555,8 @@ void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 &viewPr
 	for (size_t i = 0, imax = drawObjects.size(); i < imax; ++i)
 	{
 		const auto curObject = drawObjects[i];
-		const auto &vertexBuffer = m_VertexBuffers[i];
-		const auto &indexBuffer = m_IndexBuffers[i];
+		const auto &vertexBuffer = *m_VertexBuffers[i];
+		const auto &indexBuffer = *m_IndexBuffers[i];
 
 		gfx.SetVertexBuffer(0, vertexBuffer.VertexBufferView());
 		gfx.SetIndexBuffer(indexBuffer.IndexBufferView());
