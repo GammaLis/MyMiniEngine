@@ -79,7 +79,8 @@ namespace Timo
         using return_type = std::invoke_result_t<F, Args...>; // decltype(f(std::forward<Args>(args)...));
         auto task = std::make_shared<std::packaged_task<return_type()>>(
             // std::bind(std::forward<F>(f), std::forward<Args>(args)...)
-            [=]() mutable -> return_type
+            // Perfect capture in C++20
+            [f=std::forward<F>(f), ...args=std::forward<Args>(args)]() mutable -> return_type
             {
                 return std::invoke(std::move(f), std::move(args)...); // f(args...);
             } );

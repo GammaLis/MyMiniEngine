@@ -1913,7 +1913,7 @@ namespace glTF
 	glTFImporterNew::glTFImporterNew()
 	{
 		
-	}	
+	}
 
 	bool glTFImporterNew::Load(const std::string& filePath)
 	{

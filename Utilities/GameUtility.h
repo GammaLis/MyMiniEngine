@@ -67,26 +67,29 @@ namespace MyDirectX
     {
         using return_type = std::invoke_result_t<F, Args...>;
         std::future<return_type> future;
+
+        auto task = [f=std::forward<F>(f), ...args=std::forward<Args>(args)]() mutable -> return_type
+        {
+            // return f(args...);
+            // return std::invoke(std::forward<F>(f), std::forward<Args>(args)...);
+            return std::invoke(std::move(f), std::move(args)...);
+        };
+        
         switch (execution)
         {
         case EAsyncExecution::stdAsync:
-            future = std::async(std::launch::async, [=]() mutable -> return_type
-            {
-                // return f(args...);
-                // return std::invoke(std::forward<F>(f), std::forward<Args>(args)...);
-                return std::invoke(std::move(f), std::move(args)...);
-            });
+            // Ref: https://stackoverflow.com/questions/8640393/move-capture-in-lambda
+            // Note if you need to move object from lambda to some other function you need to make lambda 'mutable'
+            future = std::async(std::launch::async, std::move(task));
             break;
             
         case EAsyncExecution::stdDeferred:
-            future = std::async(std::launch::deferred, [=]() mutable -> return_type
-            {
-                return std::invoke(std::move(f), std::move(args)...);
-            });
+            future = std::async(std::launch::deferred, std::move(task));
             break;
             
         case EAsyncExecution::ThreadPool:
-            future = Timo::ThreadPool::Get().Enqueue(std::forward<F>(f), std::forward<Args>(args)...);
+            // future = Timo::ThreadPool::Get().Enqueue(std::forward<F>(f), std::forward<Args>(args)...);
+            future = Timo::ThreadPool::Get().Enqueue(std::move(task));
             break;
             
         default:
