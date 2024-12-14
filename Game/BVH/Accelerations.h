@@ -3,12 +3,20 @@
 #include "CoreMinimal.h"
 #include "Math/GLMath.h"
 
+// Ref: typebvh
+
 namespace rtrt
 {
 	// Basic types
-	using uchar = unsigned char;
-	using uint = unsigned int;
-	using ushort = unsigned short;
+	using uint8 = uint8_t;
+	using uint32 = uint32_t;
+	using uint16 = uint16_t;
+	using uint64 = uint64_t;
+
+	using int8 = int8_t;
+	using int16 = int16_t;
+	using int32 = int32_t;
+	using int64 = int64_t;
 
 	using float2 = glm::vec2;
 	using float3 = glm::vec3;
@@ -16,6 +24,9 @@ namespace rtrt
 
 	constexpr float g_Min = -1e10f;
 	constexpr float g_Max = +1e10f;
+
+	constexpr float kBVHFar = 1e30f;	// actual valid ieee range: 3.40282347E+38
+	constexpr double kBVHFarD = 1e300;	// actual valid ieee range: 1.797693134862315E+308
 
 	struct Triangle;
 	class Mesh;
@@ -26,29 +37,29 @@ namespace rtrt
 		enum { OWNER = 1 };
 	public:
 		Surface() = default;
-		Surface(int w, int h, uint* buffer = nullptr);
+		Surface(int w, int h, uint32* buffer = nullptr);
 		Surface(const char* file);
 		~Surface();
 
 		void InitCharset();
 		void SetChar(int c, const char* c1, const char* c2, const char* c3, const char* c4, const char* c5);
-		void Print(const char* s, int x, int y, uint c);
-		void Clear(uint c);
-		void Line(float x0, float y0, float x1, float y1, uint c);
-		void Plot(int x, int y, uint c);
+		void Print(const char* s, int x, int y, uint32 c);
+		void Clear(uint32 c);
+		void Line(float x0, float y0, float x1, float y1, uint32 c);
+		void Plot(int x, int y, uint32 c);
 		void LoadTexture(const char* file);
 		void CopyTo(Surface* dst, int x, int y);
-		void Box(int x0, int y0, int x1, int y1, uint color);
-		void Bar(int x0, int y0, int x1, int y1, uint color);
+		void Box(int x0, int y0, int x1, int y1, uint32 color);
+		void Bar(int x0, int y0, int x1, int y1, uint32 color);
 
 		// Attributes
-		uint* pixels = nullptr;
+		uint32* pixels = nullptr;
 		int width = 1, height = 1;
 		bool ownBuffer = false;
 		bool flipY = false;
 	};
 
-	struct Ray
+	struct alignas(16) Ray
 	{
 		static constexpr float TMAX = 1e5f;
 		static constexpr float TMIN = 1e-3f;
@@ -166,11 +177,17 @@ namespace rtrt
 	};
 
 	// Intersection record, carefully tuned to be 16 bytes in size
+	/**
+	 * An intersection result is designed to fit in no more than four 32-bit values. This allows efficient storage of a result
+	 * in GPU code.
+	 * Using this data and the original triangle data, all other info for shading (such as normal, texture color, etc.) can
+	 * be reconstructed.
+	 */
 	struct Intersection
 	{
-		float t;		// Intersection distance along ray
+		float t;		// intersection distance along ray
 		float u, v;		// barycentric coordinates of the intersection
-		uint inst_prim; // instance index (12 bit) and primitive index (20 bit)
+		uint32 inst_prim; // instance index (12 bit) and primitive index (20 bit)
 	};
 
 	// 32-bytes BVH node struct
@@ -187,12 +204,12 @@ namespace rtrt
 
 		union 
 		{
-			struct { float3 bmin; uint leftFirst; };
+			struct { float3 bmin; uint32 leftFirst; };
 			__m128 bmin4;
 		};
 		union 
 		{
-			struct { float3 bmax; uint triCount; };
+			struct { float3 bmax; uint32 triCount; };
 			__m128 bmax4;
 		};
 		bool IsLeaf() const { return triCount > 0; }
@@ -213,7 +230,7 @@ namespace rtrt
 
 		void Build();
 		void Refit();
-		bool Intersect(Ray& ray, Intersection &isect, uint instanceIndex);
+		bool Intersect(Ray& ray, Intersection &isect, uint32 instanceIndex);
 		Bounds AABB() const
 		{
 			Bounds bounds;
@@ -227,16 +244,16 @@ namespace rtrt
 		}
 
 	private:
-		void Subdivide(uint nodeIndex);
-		void UpdateNodeBounds(uint nodeIndex);
+		void Subdivide(uint32 nodeIndex);
+		void UpdateNodeBounds(uint32 nodeIndex);
 		float FindBestSplitPlane(BVHNode& node, int& axis, float& splitPos);
 
 		Mesh* m_Mesh = nullptr;
 
 	public:
 		std::unique_ptr<BVHNode[]> m_BVHNodes;
-		uint m_NodesUsed = 0;
-		std::unique_ptr<uint[]> m_TriIndices;
+		uint32 m_NodesUsed = 0;
+		std::unique_ptr<uint32[]> m_TriIndices;
 
 	};
 
@@ -249,7 +266,7 @@ namespace rtrt
 
 		Mesh() = default;
 		Mesh(const char* objFile, const char* texFile);
-		Mesh(uint primCount);
+		Mesh(uint32 primCount);
 
 		void Init();
 
@@ -267,9 +284,9 @@ namespace rtrt
 	{
 	public:
 		BVHInstance() = default;
-		BVHInstance(BVH* blas, uint index);
+		BVHInstance(BVH* blas, uint32 index);
 
-		void Init(BVH* blas, uint index, const glm::mat4& transform = glm::mat4());
+		void Init(BVH* blas, uint32 index, const glm::mat4& transform = glm::mat4());
 		void SetTransform(const glm::mat4& transform);
 		const glm::mat4& GetTransform() const { return m_Transform; }
 
@@ -282,7 +299,7 @@ namespace rtrt
 		glm::mat4 m_InvTransform;
 
 		BVH* m_BVH = nullptr;
-		uint m_Index = 0;
+		uint32 m_Index = 0;
 	};
 
 	struct alignas(32) TLASNode
@@ -296,10 +313,10 @@ namespace rtrt
 		float3 bmin;
 		union 
 		{
-			uint leftRight;
-			struct { ushort left, right; };
+			uint32 leftRight;
+			struct { uint16 left, right; };
 		};
-		float3 bmax; uint BLASIndex;
+		float3 bmax; uint32 BLASIndex;
 
 		bool IsLeaf() const { return leftRight == 0; }
 	};
@@ -319,14 +336,14 @@ namespace rtrt
 
 	public:
 		std::unique_ptr<TLASNode[]> m_TLASNodes;
-		std::unique_ptr<uint[]> m_NodeIndices;
+		std::unique_ptr<uint32[]> m_NodeIndices;
 		BVHInstance* m_BLAS = nullptr;
-		uint m_NodesUsed = 0, m_BLASCount = 0;
+		uint32 m_NodesUsed = 0, m_BLASCount = 0;
 
 		void BuildQuick();
 	};
 
-	extern bool IntersectTriangle(Ray& ray, Intersection& isect, const Triangle& tri, const uint inst_prim);
+	extern bool IntersectTriangle(Ray& ray, Intersection& isect, const Triangle& tri, const uint32 inst_prim);
 
 #pragma region KdTree
 	// Custom Kd-Tree, used for quick TLAS construction
@@ -340,8 +357,8 @@ namespace rtrt
 
 			union
 			{
-				struct { uint left, right, parax; float splitPos;  }; // for an interior node
-				struct { uint first, count, dummy0, dummy1; };	// for a leaf node, 16 bytes
+				struct { uint32 left, right, parax; float splitPos;  }; // for an interior node
+				struct { uint32 first, count, dummy0, dummy1; };	// for a leaf node, 16 bytes
 			};
 
 			union 
@@ -366,26 +383,155 @@ namespace rtrt
 			bool IsLeaf() const { return (parax & 7) > 3; }
 		};
 
-		static uint* s_Leaf;
+		static uint32* s_Leaf;
 
 		KdTree() = default;
-		KdTree(TLASNode* tlasNodes, uint N, uint O = 0);
+		KdTree(TLASNode* tlasNodes, uint32 N, uint32 O = 0);
 
 		void Rebuild();
-		void RecursiveRefit(uint index);
-		void Subdivide(KdNode& node, uint depth = 0);
+		void RecursiveRefit(uint32 index);
+		void Subdivide(KdNode& node, uint32 depth = 0);
 		// Return left child node count
-		uint Partition(KdNode& node, uint axis, float splitPos);
-		void Add(uint index);
-		void RemoveLeaf(uint index);
-		int FindNearest(uint A, uint& startB, float& startSA);
+		uint32 Partition(KdNode& node, uint32 axis, float splitPos);
+		void Add(uint32 index);
+		void RemoveLeaf(uint32 index);
+		int FindNearest(uint32 A, uint32& startB, float& startSA);
 
 		std::unique_ptr<KdNode[]> m_Nodes;
 		TLASNode* m_TLAS = nullptr;
-		std::unique_ptr<uint[]> m_TLASIndices;
-		uint m_NodeCount = 0, m_TLASCount = 0, m_BLASCount = 0, m_Offset = 0, m_Freed[2] = { 0, 0 };
+		std::unique_ptr<uint32[]> m_TLASIndices;
+		uint32 m_NodeCount = 0, m_TLASCount = 0, m_BLASCount = 0, m_Offset = 0, m_Freed[2] = { 0, 0 };
 
 	};
 #pragma  endregion
 
+	// Ref: tinybvh.h
+	namespace tiny
+	{
+		// Strided slice of float4
+		struct Float4Slice
+		{
+			const uint8* data {nullptr};
+			uint32 count{0}, stride{0};
+			
+			Float4Slice() = default;
+			/**
+			 * @param data pointer to the first element
+			 * @param count number of 'float4' in the slice, not 'bytes'
+			 * @param stride byte stride between each 'float4' element
+			 */
+			Float4Slice(const float4* data, uint32 count, uint32 stride = sizeof(float4))
+				: data( reinterpret_cast<const uint8*>(data) ), count(count), stride(stride) {}
+
+			operator bool() const { return data != nullptr; }
+			const float4& operator[](uint32 index) const
+			{
+				return *reinterpret_cast<const float4*>( data + index * stride );	
+			}
+		};
+		
+		struct BVHBase
+		{
+		public:
+			/**
+			 * A fragment stores the bounds of an input primitive. The name 'fragment' is from 'Parallel Spatial Splits in
+			 * Bounding Volume Hierarchies', 2016, Fuetterling et al., and refers to the potential splitting of these boxes
+			 * for SBVH construction.
+			 */
+			struct Fragment
+			{
+				float3 bmin;	// AABB min x,y,z
+				uint32 primIndex;	// index of the original primitive
+				float3 bmax;	// AABB max x,y,z
+				uint32 clipped = 0;	// fragment is the result of clipping if > 0
+				bool isValidBox() const { return bmin.x < kBVHFar; }
+			};
+
+			// BVH flags
+			bool bRebuildable = true;	// rebuilds are safe only if a tree has not been converted
+			bool bRefittable = true;	// refits are safe only if the tree has no spatial splits
+			bool bFragMinFlipped = false;	// AVX builders flip aabb min
+			bool bMayHaveHolds = false;	// threads builds and MergeLeafs produce BVHs with unused nodes
+			bool bBVHOverAABB = false;;	// a BVH or AABBs is useful for e.g. TLAS traversal
+
+			// Keep track of allocated buffer size to avoid repeated allocation during layout conversion
+			uint32 allocatedNodes = 0;	// number of allocated for the BVh
+			uint32 usedNodes = 0;		// number of nodes used for the BVH
+			uint32 triCount = 0;		// number of primitives in the BVH
+			uint32 idxCount = 0;		// number of primitive indices; can exceed triCount for SBVH
+
+			// copy flags from one BVH to another
+			void CopyBasePropertiesFrom(const BVHBase &other);
+
+		protected:
+			void IntersectTri(Ray &r, const uint32 triIdx) const;
+			static float Intersect(const Ray &ray, const float3 &bmin, const float3 &bmax);
+			static void PrecomputeTri(uint32 triIdx);
+			static float SA(const float3 &bmin, const float3 &bmax);
+
+			static void* AlignedAlloc(size_t size);
+			static void AlignedFree(void* ptr);
+		};
+
+		struct BLASInstance;
+		struct BVH_Verbose;
+	
+		struct BVH : public BVHBase
+		{
+			enum EBuildFlag : uint32
+			{
+				None = 0,	// default building behavior (binned, SAH-driven)
+				FullSplit,	// split as far as possible, even when SAH doesn't agree
+			};
+			
+			struct BVHNode
+			{
+				// 'Traditional' 32-byte BVH node layout, as proposed by Ingo Wald.
+				// When aligned to a cache line boundary, two of these fit together.
+				float3 bmin; uint32 leftFirst;	// 16 bytes
+				float3 bmax; uint32 triCount;	// 16 bytes, total 32 bytes
+				// Empty BVH leaves do not exist
+				bool IsLeaf() const { return triCount > 0; }
+				float Intersect(const Ray &ray) const { return IntersectAABB(ray, bmin, bmax); }
+				float SurfaceArea() const { return SA(bmin, bmax); }
+			};
+			
+			BVH() = default;
+			
+			float SAHCost(uint32 nodeIdx = 0) const;
+			uint32 NodeCount() const;
+			uint32 PrimCount() const;
+			void Compact();
+
+			void BuildDefault(const float4 *vertices, uint32 primCount)
+			{
+				BuildDefault({ vertices, primCount * 3 });
+			}
+			void BuildDefault(const Float4Slice &vertices);
+			void BuildQuick(const float4 *vertices, uint32 primCount);
+			void BuildQuick(const Float4Slice &vertices);
+			void Build(const float4 *vertices, uint32 primCount);
+			void Build(const Float4Slice &vertices);
+			void BuildHQ(const float4 *vertices, uint32 primCount);
+			void BuildHQ(const Float4Slice &vertices);
+			
+			void Intersect(Ray &ray) const;
+			void IntersectTLAS(Ray &ray) const;
+			bool IsOccluded(const Ray &ray) const;
+
+			// Basic BVH data
+			Float4Slice vertices{};		// pointer to input primitive array: 3x16 byte per tri
+			uint32 *indices{nullptr};	// primitive index array
+			BVHNode *bvhNodes{nullptr};	// BVH node pool, 32-byte format. Root is always in node 0.
+			Fragment *fragments{nullptr};	// input primitive bounding boxes
+			EBuildFlag flag = EBuildFlag::None;	// hint to the builder
+			
+		};
+
+		struct BVH8_CWBVH : public BVHBase
+		{
+		public:
+			
+		};
+	}
 }

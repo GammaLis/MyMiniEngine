@@ -138,7 +138,7 @@ namespace MFalcor
 			return BoundingBox(newMin, newMax);
 		}
 
-		const BoundingBox& Union(const BoundingBox other)
+		const BoundingBox& Union(const BoundingBox &other)
 		{
 			vMin = MMATH::min(vMin, other.vMin);
 			vMax = MMATH::max(vMax, other.vMax);

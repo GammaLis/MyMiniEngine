@@ -12,7 +12,7 @@
 
 namespace rtrt
 {
-	bool IntersectTriangle(Ray &ray, Intersection &isect, const Triangle &tri, const uint inst_prim)
+	bool IntersectTriangle(Ray &ray, Intersection &isect, const Triangle &tri, const uint32 inst_prim)
 	{
 		// Moeller-Trumbore ray/triangle intersection algorithm
 		const float3 edge1 = tri.v1 - tri.v0;
@@ -85,11 +85,11 @@ namespace rtrt
 	int  g_Translation[256];
 
 #pragma  region Surface
-	Surface::Surface(int w, int h, uint* buffer) : pixels(buffer), width(w), height(h)
+	Surface::Surface(int w, int h, uint32* buffer) : pixels(buffer), width(w), height(h)
 	{
 		if (buffer == nullptr)
 		{
-			pixels = (uint*)_aligned_malloc(w * h * sizeof(uint), ALIGNMENT);
+			pixels = (uint32*)_aligned_malloc(w * h * sizeof(uint32), ALIGNMENT);
 			ownBuffer = true; // Needs to be deleted in destructor
 		}
 	}
@@ -116,17 +116,17 @@ namespace rtrt
 	void Surface::LoadTexture(const char* file)
 	{
 		int n;
-		uchar* data = stbi_load(file, &width, &height, &n, 0);
+		uint8* data = stbi_load(file, &width, &height, &n, 0);
 		if (data)
 		{
-			pixels = (uint*)_aligned_malloc(width * height * sizeof(uint), ALIGNMENT);
+			pixels = (uint32*)_aligned_malloc(width * height * sizeof(uint32), ALIGNMENT);
 			ownBuffer = true;
 			const int s = width * height;
 			if (n == 1) // Greyscale
 			{
 				for (int i = 0; i < s; ++i)
 				{
-					const uchar p = data[i];
+					const uint8 p = data[i];
 					pixels[i] = p | (p << 8) | (p << 16);
 				}
 			}
@@ -148,14 +148,14 @@ namespace rtrt
 			_aligned_free(pixels); // Free only if we allocated the buffer ourselves
 	}
 
-	void Surface::Clear(uint c)
+	void Surface::Clear(uint32 c)
 	{
 		const int s = width * height;
 		for (int i = 0; i < s; ++i)
 			pixels[i] = c;
 	}
 
-	void Surface::Plot(int x, int y, uint c)
+	void Surface::Plot(int x, int y, uint32 c)
 	{
 		if (x < 0 || x >= width || y < 0 || y >= height)
 			return;
@@ -163,7 +163,7 @@ namespace rtrt
 		pixels[index] = c;
 	}
 
-	void Surface::Print(const char* s, int x, int y, uint c)
+	void Surface::Print(const char* s, int x, int y, uint32 c)
 	{
 		static int c_offset = 'A' - 'a';
 		if (!g_bFontInited)
@@ -171,15 +171,15 @@ namespace rtrt
 			InitCharset();
 			g_bFontInited = true;
 		}
-		uint* t = pixels + x + y * width;
+		uint32* t = pixels + x + y * width;
 		for (int i = 0, imax = (int)strlen(s); i < imax; ++i)
 		{
 			int pos = 0;
 			if ((s[i] >= 'A') && (s[i] <= 'Z'))
-				pos = g_Translation[(ushort)(s[i] - c_offset)];
+				pos = g_Translation[(uint16)(s[i] - c_offset)];
 			else
-				pos = g_Translation[(ushort)s[i]];
-			uint* a = t;
+				pos = g_Translation[(uint16)s[i]];
+			uint32* a = t;
 			const char* u = (const char*)g_Font[pos];
 			for (int v = 0; v < 5; ++v, ++u, a += width)
 			{
@@ -195,15 +195,15 @@ namespace rtrt
 		}
 	}
 
-	void Surface::Line(float x0, float y0, float x1, float y1, uint c)
+	void Surface::Line(float x0, float y0, float x1, float y1, uint32 c)
 	{
 		// TODO
 	}
 
 	void Surface::CopyTo(Surface* dst, int x, int y)
 	{
-		uint* pDst = dst->pixels;
-		uint* pSrc = pixels;
+		uint32* pDst = dst->pixels;
+		uint32* pSrc = pixels;
 		if (pDst && pSrc)
 		{
 			int srcWidth = width, srcHeight = height;
@@ -297,7 +297,7 @@ namespace rtrt
 		char c[] = "abcdefghijklmnopqrstuvwxyz0123456789!?:=,.-() #'*/";
 		int i;
 		for (i = 0; i < 256; i++) g_Translation[i] = 45;
-		for (i = 0; i < 50; i++) g_Translation[(uchar)c[i]] = i;
+		for (i = 0; i < 50; i++) g_Translation[(uint8)c[i]] = i;
 	}
 #pragma endregion
 
@@ -374,7 +374,7 @@ namespace rtrt
 	}
 
 	// Basic constructor, for top-down TLAS construction
-	Mesh::Mesh(uint primCount)
+	Mesh::Mesh(uint32 primCount)
 	{
 		m_TriCount = primCount;
 		m_Triangles.reset(new Triangle[primCount]);
@@ -402,24 +402,24 @@ namespace rtrt
 
 		int triCount = pMesh->m_TriCount;
 		m_BVHNodes.reset(new BVHNode[triCount * 2]);
-		m_TriIndices.reset(new uint[triCount]);
+		m_TriIndices.reset(new uint32[triCount]);
 
 		Build();
 	}
 
-	bool BVH::Intersect(Ray& ray, Intersection &isect, uint instanceIndex)
+	bool BVH::Intersect(Ray& ray, Intersection &isect, uint32 instanceIndex)
 	{
 		BVHNode* node = &m_BVHNodes[0], * stack[128];
-		uint stackCount = 0;
+		uint32 stackCount = 0;
 		bool bIntersect = false;
 		while (true)
 		{
 			if (node->IsLeaf())
 			{
-				for (uint i = node->leftFirst, imax = node->leftFirst + node->triCount; i < imax; ++i)
+				for (uint32 i = node->leftFirst, imax = node->leftFirst + node->triCount; i < imax; ++i)
 				{
-					uint index = m_TriIndices[i];
-					uint inst_prim = (instanceIndex << 20) | index;
+					uint32 index = m_TriIndices[i];
+					uint32 inst_prim = (instanceIndex << 20) | index;
 					bIntersect |= IntersectTriangle(ray, isect, m_Mesh->m_Triangles[index], inst_prim);
 				}
 				if (stackCount == 0)
@@ -486,14 +486,14 @@ namespace rtrt
 		Subdivide(rootNodeIdx);
 	}
 
-	void BVH::UpdateNodeBounds(uint nodeIndex)
+	void BVH::UpdateNodeBounds(uint32 nodeIndex)
 	{
 		BVHNode& node = m_BVHNodes[nodeIndex];
 		node.bmin = float3(g_Max);
 		node.bmax = float3(g_Min);
 		for (int i = node.leftFirst, imax = node.leftFirst + node.triCount; i < imax; ++i)
 		{
-			uint leafTriIdx = m_TriIndices[i];
+			uint32 leafTriIdx = m_TriIndices[i];
 			const Triangle& leafTri = m_Mesh->m_Triangles[leafTriIdx];
 			node.bmin = glm::min(node.bmin, leafTri.v0); node.bmax = glm::max(node.bmax, leafTri.v0);
 			node.bmin = glm::min(node.bmin, leafTri.v1); node.bmax = glm::max(node.bmax, leafTri.v1);
@@ -501,7 +501,7 @@ namespace rtrt
 		}
 	}
 
-	void BVH::Subdivide(uint nodeIndex)
+	void BVH::Subdivide(uint32 nodeIndex)
 	{
 		auto& node = m_BVHNodes[nodeIndex];
 		if (node.triCount == 1)
@@ -535,8 +535,8 @@ namespace rtrt
 			return;
 
 		// Creat child nodes
-		int lChildIdx = m_NodesUsed++;
-		int rChildIdx = m_NodesUsed++;
+		uint32 lChildIdx = m_NodesUsed++;
+		uint32 rChildIdx = m_NodesUsed++;
 
 		auto& lChildNode = m_BVHNodes[lChildIdx];
 		lChildNode.leftFirst = node.leftFirst;
@@ -621,7 +621,7 @@ namespace rtrt
 
 	void BVH::Refit()
 	{
-		for (int i= m_NodesUsed-1; i >= 0; --i)
+		for (int i = static_cast<int>(m_NodesUsed-1); i >= 0; --i)
 		{
 			auto& node = m_BVHNodes[i];
 			if (!node.IsValid())
@@ -645,12 +645,12 @@ namespace rtrt
 
 
 	/// BVHInstance
-	BVHInstance::BVHInstance(BVH* blas, uint index)
+	BVHInstance::BVHInstance(BVH* blas, uint32 index)
 	{
 		Init(blas, index);
 	}
 
-	void BVHInstance::Init(BVH* blas, uint index, const glm::mat4 &transform)
+	void BVHInstance::Init(BVH* blas, uint32 index, const glm::mat4 &transform)
 	{
 		m_BVH = blas;
 		m_Index = index;
@@ -698,15 +698,15 @@ namespace rtrt
 		m_BLASCount = N;
 		// Allocate TLAS nodes
 		m_TLASNodes.reset(new TLASNode[2 * N]);
-		m_NodeIndices.reset(new uint[N]);
+		m_NodeIndices.reset(new uint32[N]);
 		m_NodesUsed = 2;
 	}
 
 	void TLAS::Build()
 	{
-		// Assign a TLASLeaf node to each BLAS
+		// Assign a TLAS leaf node to each BLAS
 		m_NodesUsed = 1;
-		for (uint i = 0; i < m_BLASCount; ++i)
+		for (uint32 i = 0; i < m_BLASCount; ++i)
 		{
 			m_NodeIndices[i] = m_NodesUsed;
 			auto& tlasNode = m_TLASNodes[m_NodesUsed];
@@ -766,7 +766,7 @@ namespace rtrt
 		ray.rcpD = float3(1.0f / ray.rd.x, 1.0f / ray.rd.y, 1.0f / ray.rd.z);
 		// Use a local stack instead of a recursive function
 		TLASNode* node = &m_TLASNodes[0], * stack[64];
-		uint stackCount = 0;
+		uint32 stackCount = 0;
 		bool bIntersect = false;
 		while (true)
 		{
@@ -895,7 +895,7 @@ namespace rtrt
 		// 2. building the TLAS top-down
 		if (s_Mesh == nullptr)
 			s_Mesh = new Mesh(m_BLASCount);
-		for (uint i = 0; i < m_BLASCount; ++i)
+		for (uint32 i = 0; i < m_BLASCount; ++i)
 		{
 			s_Mesh->m_Triangles[i].v0 = m_BLAS[i].m_Bounds.bmin;
 			s_Mesh->m_Triangles[i].v1 = m_BLAS[i].m_Bounds.bmax;
@@ -906,7 +906,7 @@ namespace rtrt
 			s_Mesh->m_BVH.reset(new BVH(s_Mesh));
 		}
 		s_Mesh->m_BVH->Build();
-		for (uint i = 0, imax = s_Mesh->m_BVH->m_NodesUsed; i < imax; ++i)
+		for (uint32 i = 0, imax = s_Mesh->m_BVH->m_NodesUsed; i < imax; ++i)
 		{
 			const auto& bvhNode = s_Mesh->m_BVH->m_BVHNodes[i];
 			auto& tlasNode = m_TLASNodes[i];
@@ -957,24 +957,24 @@ namespace rtrt
 	}
 
 	/// KdTree
-	uint* KdTree::s_Leaf = nullptr;
+	uint32* KdTree::s_Leaf = nullptr;
 
-	uint DominantAxis(const float2 &v)
+	uint32 DominantAxis(const float2 &v)
 	{
 		float x = std::abs(v.x), y = std::abs(v.y);
 		return x > y ? 0 : 1;
 	}
-	uint DominantAxis(const float3 v)
+	uint32 DominantAxis(const float3 v)
 	{
 		float x = std::abs(v.x), y = std::abs(v.y), z = std::abs(v.z);
-		uint axis = 0;
+		uint32 axis = 0;
 		float m = x;
 		if (m < y) { axis = 1; m = y; }
 		if (m < z) { axis = 2; }
 		return axis;
 	}
 
-	KdTree::KdTree(TLASNode* tlasNodes, uint N, uint O)
+	KdTree::KdTree(TLASNode* tlasNodes, uint32 N, uint32 O)
 	{
 		// Allocate space for nodes and indices
 		m_TLAS = tlasNodes;		// copy of the original array of tlas nodes
@@ -982,17 +982,17 @@ namespace rtrt
 		m_TLASCount = N;		// m_TLASCount will grow during clustering
 		m_Offset = O;			// index of the first TLAS node in the array
 
-		if (s_Leaf == nullptr) s_Leaf = new uint[1000];
+		if (s_Leaf == nullptr) s_Leaf = new uint32[1000];
 
 		m_Nodes.reset(new KdNode[2 * N]); // pre-allocate kdtree nodes, aligned
-		m_TLASIndices.reset(new uint[2 * N + 64]); // tlas array indirection so we can store ranges of nodes in leaves
+		m_TLASIndices.reset(new uint32[2 * N + 64]); // tlas array indirection so we can store ranges of nodes in leaves
 	}
 
 	void KdTree::Rebuild()
 	{
 		// We'll assume we get the same number of TLAS nodes each time
 		m_TLASCount = m_BLASCount;
-		for (uint i = 0; i < m_BLASCount; ++i)
+		for (uint32 i = 0; i < m_BLASCount; ++i)
 			m_TLASIndices[i] = i;
 
 		// Subdivide root node
@@ -1009,9 +1009,9 @@ namespace rtrt
 			if (node.IsLeaf())
 			{
 				node.minSize = float3(g_Max);
-				for (uint j = node.first, jmax = node.first + node.count; j < jmax; ++j)
+				for (uint32 j = node.first, jmax = node.first + node.count; j < jmax; ++j)
 				{
-					uint index = m_TLASIndices[j];
+					uint32 index = m_TLASIndices[j];
 					s_Leaf[index + m_Offset] = i; // we can find m_TLAS[index] in leaf node[i]
 					float3 size = (m_TLAS[index].bmax - m_TLAS[index].bmin) * 0.5f;
 					node.minSize = glm::min(node.minSize, size);
@@ -1024,12 +1024,12 @@ namespace rtrt
 		}
 	}
 
-	void KdTree::Subdivide(KdNode& node, uint depth)
+	void KdTree::Subdivide(KdNode& node, uint32 depth)
 	{
 		// Update node bounds
 		node.bmin = float3(g_Max), node.bmax = float3(g_Min);
 		node.minSize = float3(g_Max);
-		for (uint i = 0; i < node.count; ++i)
+		for (uint32 i = 0; i < node.count; ++i)
 		{
 			const TLASNode &tlasNode = m_TLAS[ m_TLASIndices[node.first + i]];
 			float3 c = (tlasNode.bmin + tlasNode.bmax) * 0.5f;
@@ -1043,7 +1043,7 @@ namespace rtrt
 			return;
 
 		// Claim left and right child nodes
-		uint axis = DominantAxis(node.bmax - node.bmin);
+		uint32 axis = DominantAxis(node.bmax - node.bmin);
 		float center = (node.bmin[axis] + node.bmax[axis]) * 0.5f;
 #if 1
 		// Try to balance (works quite well but doesn't seem to pay off)
@@ -1051,7 +1051,7 @@ namespace rtrt
 		{
 			// Count how many would go to the left
 			int leftCount = 0;
-			for (uint i = 0; i < node.count; ++i)
+			for (uint32 i = 0; i < node.count; ++i)
 			{
 				const TLASNode& tlasNode = m_TLAS[m_TLASIndices[node.first + i]];
 				float3 c = (tlasNode.bmin + tlasNode.bmax) * 0.5f;
@@ -1062,7 +1062,7 @@ namespace rtrt
 			center = ratio * node.bmin[axis] + (1.0f - ratio) * node.bmax[axis];
 		}
 #endif
-		uint leftChildCount = Partition(node, axis, center);
+		uint32 leftChildCount = Partition(node, axis, center);
 		if (leftChildCount == 0 || leftChildCount == node.count) // split failed
 			return;
 
@@ -1075,7 +1075,7 @@ namespace rtrt
 		Subdivide(m_Nodes[node.right], depth + 1);
 	}
 
-	uint KdTree::Partition(KdNode& node, uint axis, float splitPos)
+	uint32 KdTree::Partition(KdNode& node, uint32 axis, float splitPos)
 	{
 		int N = node.count, first = node.first, last = first + N;
 		if (N < 3)
@@ -1098,22 +1098,22 @@ namespace rtrt
 		lNode.first = node.first; lNode.count = last - node.first;
 		KdNode& rNode = m_Nodes[m_NodeCount + 1];
 		rNode.first = last; rNode.count = node.count - lNode.count;
-		lNode.parax = rNode.parax = (((uint)(&node - m_Nodes.get())) << 3) | 7;
+		lNode.parax = rNode.parax = (((uint32)(&node - m_Nodes.get())) << 3) | 7;
 
 		return lNode.count;
 	}
 
-	void KdTree::Add(uint index)
+	void KdTree::Add(uint32 index)
 	{
 		// TODO...
 	}
 
-	void KdTree::RemoveLeaf(uint index)
+	void KdTree::RemoveLeaf(uint32 index)
 	{
 		// TODO...
 	}
 
-	int KdTree::FindNearest(uint A, uint& startB, float& startSA)
+	int KdTree::FindNearest(uint32 A, uint32& startB, float& startSA)
 	{
 		// TODO...
 		return 0;
@@ -1121,4 +1121,69 @@ namespace rtrt
 
 #pragma endregion
 
+	namespace tiny
+	{
+		constexpr size_t kAlignment = 64;
+		
+		void* BVHBase::AlignedAlloc(size_t size)
+		{
+			size = Math::AlignUp(size, kAlignment);
+			return _aligned_malloc(size, kAlignment);
+		}
+
+		void BVHBase::AlignedFree(void* ptr)
+		{
+			_aligned_free(ptr);
+		}
+		
+		void BVHBase::CopyBasePropertiesFrom(const BVHBase& other)
+		{
+			this->bRebuildable = other.bRebuildable;
+			this->bRefittable = other.bRefittable;
+			this->bFragMinFlipped = other.bFragMinFlipped;
+			this->bMayHaveHolds = other.bMayHaveHolds;
+			this->bBVHOverAABB = other.bBVHOverAABB;
+			this->triCount = other.triCount;
+			this->idxCount = other.idxCount;
+		}
+
+		/**
+		 * Basic single-function binned-SAH-builder
+		 * This is the reference builder; it yields a decent tree suitable for ray tracing on the CPU.
+		 * This code uses no SIMD instructions.
+		 * For GPU rendering, the resulting BVH should be converted to a more optimal format after construction,
+		 * e.g. BVH::ALIA_LAINE. 
+		 */
+		void BVH::Build(const float4* vertices, uint32 primCount)
+		{
+			// Build the BVH with a continuous array of float4 vertices
+			// in this case, the stride for the slice is 16 bytes.
+			Build(Float4Slice{ vertices, primCount * 3, 16u });
+		}
+
+		void BVH::Build(const Float4Slice& vertices)
+		{
+			ASSERT(vertices.count > 0, "ERROR:: BVH::Build, primCount == 0");
+			
+			// Allocate on first build
+			const uint32 primCount = vertices.count / 3;
+			const uint32 spaceNeeded = primCount * 2; // upper limit
+			if (allocatedNodes < spaceNeeded)
+			{
+				AlignedFree(bvhNodes);
+				AlignedFree(fragments);
+				AlignedFree(indices);
+
+				bvhNodes = static_cast<BVHNode*>( AlignedAlloc(spaceNeeded * sizeof(BVHNode)) );
+				allocatedNodes = spaceNeeded;
+				memset(&bvhNodes[1], 0, /*sizeof(BVHNode)*/ 32);	// node 1 remains unused, for cache line alignment
+				
+				indices = static_cast<uint32*>( AlignedAlloc(primCount * sizeof(uint32)) );
+			}
+		}
+
+
+
+	}
+	
 }
