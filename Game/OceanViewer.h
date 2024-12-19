@@ -5,7 +5,7 @@
 #include "GPUBuffer.h"
 #include "ColorBuffer.h"
 #include "Camera.h"
-#include "CameraController.h"
+#include "Common/CameraController.h"
 #include "Scenes/DebugPass.h"
 
 namespace MyDirectX

@@ -10,7 +10,7 @@
 #include "RootSignature.h"
 #include "CommandSignature.h"
 #include "PipelineState.h"
-#include "FrameDescriptorHeap.h"
+#include "Common/FrameDescriptorHeap.h"
 #include "LightDefines.h"
 
 #define USE_ROOT_CONSTANT_SIGNATURE 0

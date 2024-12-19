@@ -20,6 +20,7 @@
 		"filter = FILTER_MIN_MAG_MIP_POINT)"
 
 #define GL_UV_STARTS_AT_BOTTOMLEFT
+#define USE_SIMPLE_VERTEX 1
 
 // cbuffer CBConstants	: register(b0)
 // {

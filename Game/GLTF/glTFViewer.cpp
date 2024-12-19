@@ -3,6 +3,7 @@
 #include "GfxCommon.h"
 #include "CommandContext.h"
 #include "TextureManager.h"
+#include "Common/CameraController.h"
 #include "Utilities/GameUtility.h"
 
 #include "glTFImporter.h"
@@ -16,64 +17,111 @@
 #include "Graphics.h"
 #include "GfxCommon.h"
 #include "CommandContext.h"
+#include "CommandListManager.h"
 
 using namespace MyDirectX;
 using namespace DirectX;
 
-// SIMDMemcpy needs 16-byte aligned, but not in StructuredBuffer, so we need padding
-struct alignas(16) FLight
+namespace
 {
-	XMFLOAT3 color = XMFLOAT3(1.0f, 1.0f, 1.0f);		// the color of emitted light, as a linear RGB color
-	float intensity = 1.0f;	// the light's brightness. The unit depends on the type of light
-	XMFLOAT3 positionOrDirection = XMFLOAT3(1.0f, 1.0f, 1.0f);
-	float type = 0;			// 0 - directional lights, 1 - punctual lights
-	XMFLOAT3 spotDirection = XMFLOAT3(0.0f, -1.0f, 0.0f);
-	float falloffRadius = 50.0f;	// maximum distance of influence
-	XMFLOAT2 spotAttenScaleOffset = XMFLOAT2(0.0f, 1.0f);	// Dot(...) * scaleOffset.x + scaleOffset.y
-	// or float2 spotAngles;		// x - innerAngle, y - outerAngle
-};
+	// SIMDMemcpy needs 16-byte aligned, but not in StructuredBuffer, so we need padding
+	struct alignas(16) FLight
+	{
+		XMFLOAT3 color = XMFLOAT3(1.0f, 1.0f, 1.0f);		// the color of emitted light, as a linear RGB color
+		float intensity = 1.0f;	// the light's brightness. The unit depends on the type of light
+		XMFLOAT3 positionOrDirection = XMFLOAT3(1.0f, 1.0f, 1.0f);
+		float type = 0;			// 0 - directional lights, 1 - punctual lights
+		XMFLOAT3 spotDirection = XMFLOAT3(0.0f, -1.0f, 0.0f);
+		float falloffRadius = 50.0f;	// maximum distance of influence
+		XMFLOAT2 spotAttenScaleOffset = XMFLOAT2(0.0f, 1.0f);	// Dot(...) * scaleOffset.x + scaleOffset.y
+		// or float2 spotAngles;		// x - innerAngle, y - outerAngle
+	};
 
-struct alignas(16) CBPerObject
-{
-	glTF::Matrix4x4 _WorldMat;
-	glTF::Matrix4x4 _InvWorldMat;
-};
+	struct alignas(16) CBPerObject
+	{
+		glTF::Matrix4x4 worldMat;
+		glTF::Matrix4x4 invWorldMat;
+	};
 
-struct alignas(16) CBPerCamera
-{
-	Math::Matrix4 _ViewProjMat;
-	Math::Vector3 _CamPos;
-};
+	struct alignas(16) CBPerCamera
+	{
+		Math::Matrix4 viewProjMat;
+		Math::Vector3 camPos;
+	};
 
-struct alignas(16) PSConstants
-{
-	Math::Vector4 _BaseColorFactor;
-	DirectX::XMFLOAT3 _EmissiveFactor;
-	float _AlphaCutout;
-	DirectX::XMUINT4 _Texcoords[2];
+	struct alignas(16) PSConstants
+	{
+		Math::Vector4 baseColorFactor { 1.0f, 1.0f, 1.0f, 1.0f };
+		DirectX::XMFLOAT3 emissiveFactor { 1.0f, 1.0f, 1.0f };
+		float alphaCutout { 0.5f };
+		DirectX::XMUINT4 texcoords[2];
 #if defined(SHADING_MODEL_METALLIC_ROUGHNESS)
-	float _Metallic;
-	float _Roughness;
-	float _F0;
-	float _Padding;
+		float metallic { 0.5f };
+		float roughness { 0.5f };
+		float f0 { 0.04f };
+		float padding;
 #elif defined(SHADING_MODEL_SPECULAR_GLOSSINESS)
-	DirectX::XMFLOAT3 _SpecularColor;
-	float _Glossiness;
+		DirectX::XMFLOAT3 _SpecularColor;
+		float _Glossiness;
 #endif
-	float _NormalScale;
-	float _OcclusionStrength;
-};
+		float normalScale { 1.0f };
+		float occlusionStrength { 1.0f };
+	};
+}
 
 glTFViewer::glTFViewer(HINSTANCE hInstance, const std::string& glTFFileName, const wchar_t* title, UINT width, UINT height)
 	: IGameApp(hInstance, title, width, height)
-	, m_Importer(std::make_unique<glTF::glTFImporterNew>())
+	, m_Importer(std::make_unique<glTF::glTFImporter>())
 {
 	m_FileNames.emplace_back(glTFFileName);
 }
 
 void glTFViewer::Update(float deltaTime)
 {
+	static std::vector<std::string> s_ReadyImporters;
+	
 	IGameApp::Update(deltaTime);
+
+	// Update mesh buffers
+	if (m_UpdateVertexBuffers.size())
+	{
+		auto updateInfo = m_UpdateVertexBuffers.front();
+		if (updateInfo.fenceValue == 0 || Graphics::s_CommandManager.IsFenceComplete(updateInfo.fenceValue))
+		{
+			ASSERT(updateInfo.index < static_cast<uint32_t>(m_VertexBuffers.size()));
+			m_VertexBuffers[updateInfo.index] = std::static_pointer_cast<StructuredBuffer>(updateInfo.buffer); 
+			m_UpdateVertexBuffers.pop_front();
+		}
+	}
+	if (m_UpdateIndexBuffers.size())
+	{
+		auto updateInfo = m_UpdateIndexBuffers.front();
+		if (updateInfo.fenceValue == 0 ||  Graphics::s_CommandManager.IsFenceComplete(updateInfo.fenceValue))
+		{
+			ASSERT(updateInfo.index < static_cast<uint32_t>(m_IndexBuffers.size()));
+			m_IndexBuffers[updateInfo.index] = std::static_pointer_cast<ByteAddressBuffer>(updateInfo.buffer); 
+			m_UpdateIndexBuffers.pop_front();
+		}		
+	}
+
+	// Update importers
+	if (m_Importer->UpdateImporters(s_ReadyImporters))
+	{
+		for (const auto &fileName : s_ReadyImporters)
+		{
+			Utility::Printf("File loaded %s", fileName.c_str());
+			
+			if (auto&& drawObject = m_Importer->MoveDrawObject(fileName))
+			{
+				auto it = m_NameAndObjIndexMap.find(fileName);
+				ASSERT(it != m_NameAndObjIndexMap.end());
+				m_DrawObjects[it->second] = std::move(drawObject);
+
+				UpdateMeshBuffers(std::pair{ fileName, &(m_DrawObjects[it->second]->mesh) }); 
+			}
+		}
+		s_ReadyImporters.clear();
+	}
 
 	m_CameraController->Update(deltaTime);
 	m_ViewProjMatrix = m_Camera.GetViewProjMatrix();
@@ -110,6 +158,42 @@ void glTFViewer::Render()
 	gfx.Finish();
 }
 
+bool glTFViewer::LoadFile(const std::string& fileName)
+{
+	auto it = m_NameAndObjIndexMap.find(fileName);
+	if (it != m_NameAndObjIndexMap.end())
+	{
+		Utility::Printf("File %s already added", fileName.c_str());
+		return true;
+	}
+
+	uint32_t index = static_cast<uint32_t>(m_DrawObjects.size());
+	m_DrawObjects.emplace_back(nullptr);
+	m_VertexBuffers.emplace_back(nullptr);
+	m_IndexBuffers.emplace_back(nullptr);
+	m_NameAndObjIndexMap.insert({ fileName, index });
+	m_Importer->LoadAsync(fileName);
+	
+	return true;
+}
+
+void glTFViewer::AddDrawObject(const std::string &name, const std::shared_ptr<glTF::DrawObject>& drawObject)
+{
+	auto it = m_NameAndObjIndexMap.find(name);
+	if (it != m_NameAndObjIndexMap.end())
+	{
+		Utility::Printf("DrawObject %s already added", name.c_str());
+		return;
+	}
+
+	uint32_t index = static_cast<uint32_t>(m_DrawObjects.size());
+	m_DrawObjects.emplace_back(std::move(drawObject));
+	m_VertexBuffers.emplace_back(nullptr);
+	m_IndexBuffers.emplace_back(nullptr);
+	m_NameAndObjIndexMap.insert({ name, index });
+	UpdateMeshBuffers({ name, &drawObject->mesh });
+}
+
 uint64_t UpdateBuffersAsync(const std::vector<std::tuple<GpuBuffer*, const uint8_t*, uint32_t>> &buffersToUpdate)
 {
 	CommandContext& updateContext = CommandContext::Begin(L"UpdateBufferAsync");
@@ -125,18 +209,18 @@ uint64_t UpdateBuffersAsync(const std::vector<std::tuple<GpuBuffer*, const uint8
 	// TODO: optimize
 	for (const auto &bufferData : buffersToUpdate)
 	{
-		uint32_t numBytes = std::get<2>(bufferData);
-		auto initialData = std::get<1>(bufferData);
 		auto &buffer = *std::get<0>(bufferData);
+		auto initialData = std::get<1>(bufferData);
+		uint32_t numBytes = std::get<2>(bufferData);
 	
 		DynAlloc mem = updateContext.ReserveUploadMemory(numBytes);
 		memcpy(mem.dataPtr, initialData, numBytes);
 
 		// Copy data to the intermediate upload heap and then schedule a copy from the upload heap to the default buffer
 		updateContext.TransitionResource(buffer, D3D12_RESOURCE_STATE_COPY_DEST, true);
-		updateContext.GetCommandList()->CopyBufferRegion(buffer.GetResource(), 0, mem.buffer.GetResource(), 0, numBytes);
+		updateContext.GetCommandList()->CopyBufferRegion(buffer.GetResource(), 0, mem.buffer.GetResource(), mem.offset, numBytes);
 		updateContext.TransitionResource(buffer, D3D12_RESOURCE_STATE_GENERIC_READ, true);	
-	}	
+	}
 
 	// Execute the command list and wait for it to finish so we can release the upload buffer
 	uint64_t fenceValue = updateContext.Finish();
@@ -154,59 +238,41 @@ std::pair<uint32_t, uint32_t> DecodeBufferIndex(uint32_t value)
 	return { value & 0x0F, value >> 4 };
 }
 
-void glTFViewer::UpdateMeshBuffers(const std::pair<std::string, glTF::MeshBatch> &meshData)
+void glTFViewer::UpdateMeshBuffers(const std::pair<std::string, glTF::MeshBatch*> &meshData)
 {
 	auto fileName = meshData.first;
 	const auto &srcMesh = meshData.second;
 	
 	ASSERT(m_UpdateVertexBuffers.size() == m_UpdateIndexBuffers.size());
-	uint32_t index = static_cast<uint32_t>(m_UpdateVertexBuffers.size());
-
-	std::shared_ptr<StructuredBuffer> *targetVertexBuffer = nullptr;;
-	std::shared_ptr<ByteAddressBuffer> *targetIndexBuffer = nullptr;
-	auto iter = m_MeshNameAndIndex.find(fileName);
-	if (iter == m_MeshNameAndIndex.end())
-	{
-		m_MeshNameAndIndex[fileName] = index;
-		targetVertexBuffer = &m_UpdateVertexBuffers.emplace_back(nullptr);
-		targetIndexBuffer = &m_UpdateIndexBuffers.emplace_back(nullptr);
-		m_VertexBuffers.emplace_back(nullptr);
-		m_IndexBuffers.emplace_back(nullptr);
-	}
-	else
-	{
-		index = iter->second;
-		targetVertexBuffer = &m_UpdateVertexBuffers[index];
-		targetIndexBuffer = &m_UpdateIndexBuffers[index];
-	}
-
+		
 	auto meshName = Utility::RemoveBasePath(fileName);
 
 	std::vector<std::tuple<GpuBuffer*, const uint8_t*, uint32_t>> buffersToUpdate;
+	
 	// New vertex buffer
 	auto pVertexBuffer = std::make_shared<StructuredBuffer>();
 	{
-		auto numElements = static_cast<uint32_t>(srcMesh.vertices.size());
-		auto elementSize = sizeof(srcMesh.vertices[0]);
+		auto numElements = static_cast<uint32_t>(srcMesh->vertices.size());
+		auto elementSize = sizeof(srcMesh->vertices[0]);
 		pVertexBuffer->Create(Graphics::s_Device, Utility::UTF8ToWideString(meshName+"_VB"), numElements, elementSize);
-		buffersToUpdate.emplace_back(std::tuple{pVertexBuffer.get(), reinterpret_cast<const uint8_t*>(srcMesh.vertices.data()), numElements * elementSize});
+		buffersToUpdate.emplace_back(std::tuple{pVertexBuffer.get(), reinterpret_cast<const uint8_t*>(srcMesh->vertices.data()), numElements * elementSize});
 	}
 	// New index buffer
 	auto pIndexBuffer = std::make_shared<ByteAddressBuffer>();
 	{
-		auto numElements = static_cast<uint32_t>(srcMesh.indices.size());
-		auto elementSize = sizeof(srcMesh.indices[0]);
-		pIndexBuffer->Create(Graphics::s_Device, Utility::UTF8ToWideString(meshName+"_IB"), numElements, elementSize);
-		buffersToUpdate.emplace_back(std::tuple{pIndexBuffer.get(), reinterpret_cast<const uint8_t*>(srcMesh.indices.data()), numElements * elementSize});
+		auto numElements = static_cast<uint32_t>(srcMesh->indices.size());
+		uint32_t elementSize = sizeof(srcMesh->indices[0]);
+		pIndexBuffer->Create(Graphics::s_Device, Utility::UTF8ToWideString(meshName+"_IB"), numElements, elementSize /*, srcMesh->indices.data() */ );
+		buffersToUpdate.emplace_back(std::tuple{pIndexBuffer.get(), reinterpret_cast<const uint8_t*>(srcMesh->indices.data()), numElements * elementSize});
 	}
 
 	// Update fence value
+	auto it = m_NameAndObjIndexMap.find(fileName);
+	ASSERT(it != m_NameAndObjIndexMap.end());
+	
 	auto fenceValue = UpdateBuffersAsync(buffersToUpdate);
-
-	*targetVertexBuffer = std::move(pVertexBuffer);
-	*targetIndexBuffer = std::move(pIndexBuffer);
-	m_UpdateQueue.push(std::pair{ fenceValue, EncodeBufferIndex(index, 0u) });
-	m_UpdateQueue.push(std::pair{ fenceValue, EncodeBufferIndex(index, 1u) });
+	m_UpdateVertexBuffers.push_back( { fenceValue, std::move(pVertexBuffer), it->second } );
+	m_UpdateIndexBuffers.push_back( { fenceValue, std::move(pIndexBuffer), it->second } );
 }
 
 static std::vector<D3D12_INPUT_ELEMENT_DESC> s_InputElements =
@@ -224,9 +290,13 @@ bool glTFViewer::InitAssets()
 	using glTF::Attrib;
 
 	bool bAnyLoaded = false;
-	for (auto i = 0; i < m_FileNames.size(); i++)
+	for (const auto &fileName : m_FileNames)
 	{
-		bAnyLoaded |= m_Importer->Load(m_FileNames[i]);
+#if 0
+		bAnyLoaded |= m_Importer->Load(fileName);
+#else
+		bAnyLoaded |= LoadFile(fileName); // m_Importer->LoadAsync(fileName);
+#endif
 	}
 	if (!bAnyLoaded)
 	{
@@ -235,21 +305,21 @@ bool glTFViewer::InitAssets()
 	}
 
 	// Init model
-	// Graphics::s_TextureManager.Init(L"Textures/");
 	// ASSERT(m_Importer->Create(Graphics::s_Device));
+	Graphics::s_TextureManager.Init(L"Textures/");
 
 	// root signature & pso
 	{
 		// root signature
 		m_CommonRS.Reset(7, 2);
-		m_CommonRS[0].InitAsConstants(0, 4);
-		m_CommonRS[1].InitAsConstantBuffer(1);
-		m_CommonRS[2].InitAsConstantBuffer(2);
-		m_CommonRS[3].InitAsConstantBuffer(3, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+		m_CommonRS[ERSId::Constants].InitAsConstants(0, 4);
+		m_CommonRS[ERSId::PerObject].InitAsConstantBuffer(1);
+		m_CommonRS[ERSId::PerCamera].InitAsConstantBuffer(2);
+		m_CommonRS[ERSId::PerMaterial].InitAsConstantBuffer(3, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 		// m_CommonRS[3].InitAsConstants(3, 8, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-		m_CommonRS[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 8, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-		m_CommonRS[5].InitAsBufferSRV(1, 1);	// light buffer
-		m_CommonRS[6].InitAsBufferSRV(2, 1);	// sh buffer
+		m_CommonRS[ERSId::Textures].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 8, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+		m_CommonRS[ERSId::LightBuffer].InitAsBufferSRV(1, 1);	// light buffer
+		m_CommonRS[ERSId::GIBuffer].InitAsBufferSRV(2, 1);	// sh buffer
 		m_CommonRS.InitStaticSampler(0, Graphics::s_CommonStates.SamplerLinearWrapDesc);
 		m_CommonRS.InitStaticSampler(1, Graphics::s_CommonStates.SamplerPointClampDesc);
 		m_CommonRS.Finalize(Graphics::s_Device, L"CommonRS", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
@@ -266,8 +336,10 @@ bool glTFViewer::InitAssets()
 			{"TANGENT", 0, vAttribs[Attrib::attrib_tangent].format, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA },
 			{"COLOR", 0, vAttribs[Attrib::attrib_color0].format, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA }
 		};
+#elseif 0
+		const auto& inputElements = s_InputElements;
 #else
-		const auto& inputElements = s_InputElements; 
+		const auto &inputElements = glTF::kInputElements;
 #endif
 
 		const auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
@@ -278,7 +350,7 @@ bool glTFViewer::InitAssets()
 		m_ModelViewerPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 		m_ModelViewerPSO.SetVertexShader(glTFCommonVS, sizeof(glTFCommonVS));
 		m_ModelViewerPSO.SetPixelShader(glTFCommonPS, sizeof(glTFCommonPS));
-		m_ModelViewerPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerDefault);
+		m_ModelViewerPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerDefaultCw);
 			// RasterizerDefaultWireframe
 		m_ModelViewerPSO.SetBlendState(Graphics::s_CommonStates.BlendDisable);
 		m_ModelViewerPSO.SetDepthStencilState(Graphics::s_CommonStates.DepthStateReadWrite);
@@ -340,7 +412,7 @@ bool glTFViewer::InitAssets()
 		}
 
 		m_LightBuffer.Create(Graphics::s_Device, L"LightBuffer",
-			(uint32_t)lights.size(), sizeof(FLight), lights.data());
+			static_cast<uint32_t>(lights.size()), sizeof(FLight), lights.data());
 	}
 
 #pragma region SH
@@ -378,8 +450,8 @@ bool glTFViewer::InitAssets()
 		}
 
 		// 		
-		const UINT GroupSizeX = 32;
-		const UINT GroupSizeY = 32;
+		constexpr UINT GroupSizeX = 32;
+		constexpr UINT GroupSizeY = 32;
 		UINT picWidth;
 		UINT picHeight;
 		{
@@ -431,10 +503,14 @@ bool glTFViewer::InitCustom()
 
 void glTFViewer::CleanCustom()
 {
-	if (!m_UpdateQueue.empty())
+	// No need to wait for fence
+#if 0
+	if (!m_UpdateVertexBuffers.empty())
 	{
-		// TODO: WAIT
+		const auto &updateInfo = m_UpdateVertexBuffers.back();
+		Graphics::s_CommandManager.WaitForFence(updateInfo.fenceValue);
 	}
+#endif
 	
 	if (m_Importer)
 	{
@@ -444,7 +520,8 @@ void glTFViewer::CleanCustom()
 	m_LightBuffer.Destroy();
 
 	// Mesh buffers
-	for (uint32_t i = 0, imax = 4; i < imax; i++)
+	ASSERT(m_VertexBuffers.size() == m_IndexBuffers.size());
+	for (uint32_t i = 0, imax = static_cast<uint32_t>(m_IndexBuffers.size()); i < imax; i++)
 	{
 		if (m_VertexBuffers[i])
 		{
@@ -456,17 +533,26 @@ void glTFViewer::CleanCustom()
 			m_IndexBuffers[i]->Destroy();
 			m_IndexBuffers[i] = nullptr; 
 		}
-		if (m_UpdateVertexBuffers[i])
+	}
+
+	ASSERT(m_UpdateVertexBuffers.size() == m_UpdateIndexBuffers.size());
+	for (auto &updateInfo : m_UpdateVertexBuffers)
+	{
+		if (auto &buffer = updateInfo.buffer)
 		{
-			m_UpdateVertexBuffers[i]->Destroy();
-			m_UpdateVertexBuffers[i] = nullptr; 
-		}
-		if (m_UpdateIndexBuffers[i])
-		{
-			m_UpdateIndexBuffers[i]->Destroy();
-			m_UpdateIndexBuffers[i] = nullptr; 
+			buffer->Destroy();
+			buffer = nullptr;
 		}
 	}
+	for (auto &updateInfo : m_UpdateIndexBuffers)
+	{
+		if (auto &buffer = updateInfo.buffer)
+		{
+			buffer->Destroy();
+			buffer = nullptr;
+		}
+	}
+	
 	m_GlobalVertexBuffer.Destroy();
 	m_GlobalIndexBuffer.Destroy();
 
@@ -476,17 +562,21 @@ void glTFViewer::CleanCustom()
 
 void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 &viewProjMat, ObjectFilter filter)
 {
+	const auto &drawObjects = m_DrawObjects;
+	if (drawObjects.empty())
+		return;
+		
 	// camera
 	CBPerCamera cbPerCamera;
-	cbPerCamera._ViewProjMat = Math::Transpose(viewProjMat);
-	cbPerCamera._CamPos = m_Camera.GetPosition();
-	gfx.SetDynamicConstantBufferView(2, sizeof(CBPerCamera), &cbPerCamera);
+	cbPerCamera.viewProjMat = Math::Transpose(viewProjMat);
+	cbPerCamera.camPos = m_Camera.GetPosition();
+	gfx.SetDynamicConstantBufferView(ERSId::PerCamera, sizeof(CBPerCamera), &cbPerCamera);
 	// constants
-	gfx.SetConstants(0, 2, 0, 0, 0);	// root0
+	gfx.SetConstants(ERSId::Constants, 2, 0, 0, 0);	// root0
 	// lights
-	gfx.SetBufferSRV(5, m_LightBuffer);
+	gfx.SetBufferSRV(ERSId::LightBuffer, m_LightBuffer);
 	// sh
-	gfx.SetBufferSRV(6, m_SHOutput);
+	gfx.SetBufferSRV(ERSId::GIBuffer, m_SHOutput);
 	
 	gfx.SetPipelineState(m_ModelViewerPSO);
 
@@ -547,21 +637,69 @@ void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 &viewPr
 		}
 	}
 #else
-	const auto &drawObjects = m_Importer->GetDrawObjects();
-	if (drawObjects.empty())
-		return;
 
-	ASSERT(drawObjects.size() == m_VertexBuffers.size() && drawObjects.size() == m_IndexBuffers.size());
+	constexpr auto kTextureNum = glTF::Material::TextureNum;
+	static D3D12_CPU_DESCRIPTOR_HANDLE kDefaultTextures[kTextureNum] = {
+		TextureManager::GetDefaultTexture(EDefaultTexture::kMagenta2D),
+		TextureManager::GetDefaultTexture(EDefaultTexture::kBlackOpaque2D),
+		TextureManager::GetDefaultTexture(EDefaultTexture::kDefaultNormalMap),
+		TextureManager::GetDefaultTexture(EDefaultTexture::kWhiteOpaque2D),
+		TextureManager::GetDefaultTexture(EDefaultTexture::kBlackOpaque2D),
+	};
+	
+	ASSERT(drawObjects.size() >= m_VertexBuffers.size() && drawObjects.size() >= m_IndexBuffers.size());
+	ASSERT(m_VertexBuffers.size() == m_IndexBuffers.size());
 	for (size_t i = 0, imax = drawObjects.size(); i < imax; ++i)
 	{
-		const auto curObject = drawObjects[i];
-		const auto &vertexBuffer = *m_VertexBuffers[i];
-		const auto &indexBuffer = *m_IndexBuffers[i];
-
-		gfx.SetVertexBuffer(0, vertexBuffer.VertexBufferView());
-		gfx.SetIndexBuffer(indexBuffer.IndexBufferView());
-
+		const auto pObject = drawObjects[i].get();
+		if (pObject == nullptr)
+			continue;
 		
+		const auto pVB = m_VertexBuffers[i].get();
+		const auto pIB = m_IndexBuffers[i].get();
+		if (pVB == nullptr || pIB == nullptr)
+			continue;
+
+		gfx.SetVertexBuffer(0, pVB->VertexBufferView());
+		gfx.SetIndexBuffer(pIB->IndexBufferView());
+
+		const auto &instances = pObject->instances;
+		for (const auto &instance : instances)
+		{
+			const auto &batchElement = pObject->mesh.batchElements[ instance.elementIndex ];
+			
+			// Per instance
+			const glTF::Matrix4x4 &worldMatrix = instance.transform;
+			// Not use 'InvWorldMat'
+			cbPerObject.worldMat = glm::transpose(worldMatrix);
+			gfx.SetDynamicConstantBufferView(ERSId::PerObject, sizeof(cbPerObject), &cbPerObject);
+
+			gfx.SetConstant(ERSId::Constants, 0, 3); // roo0, 3 - enabledAttribs (Note: not used yet)
+
+			// PS constants
+			gfx.SetDynamicConstantBufferView(ERSId::PerMaterial, sizeof(psConstants), &psConstants);
+
+			// Textures
+			gfx.SetDynamicDescriptors(ERSId::Textures, 0, kTextureNum, kDefaultTextures);
+
+			// Draw
+			gfx.DrawIndexed(batchElement.indexCount, batchElement.indexOffset, batchElement.vertexOffset);
+		}
+
+		// Draw materials
 	}
 #endif
 }
+
+
+
+
+
+
+
+
+
+
+
+
+

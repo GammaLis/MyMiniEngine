@@ -2,7 +2,7 @@
 #include "Graphics.h"
 #include "CommandContext.h"
 #include "TemporalEffects.h"
-#include "UniformBuffers.h"
+#include "Common/UniformBuffers.h"
 #include "ProfilingScope.h"
 
 // Compiled shader bytecode

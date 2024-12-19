@@ -1,6 +1,8 @@
 #pragma once
 #include "CoreMinimal.h"
+#include "glTFMesh.h"
 #include <set>
+#include <optional>
 
 // rapidjson
 #define RAPIDJSON_NOMEMBERITERATORCLASS
@@ -24,17 +26,17 @@ namespace glTF
 	public:
 		virtual ~IModelImporter() = default;
 
-		virtual bool Load(const std::string &filePath) = 0;
+		virtual bool Load(const std::string &fileName) = 0;
 		virtual void Clear() { }
 	};
 	
-	class glTFImporter final : public IModelImporter
+	class glTFImporterDeprecated final : public IModelImporter
 	{
 	public:
-		glTFImporter();
-		glTFImporter(const std::string &filePath);
+		glTFImporterDeprecated();
+		glTFImporterDeprecated(const std::string &fileName);
 
-		bool Load(const std::string &filePath) override;
+		bool Load(const std::string &fileName) override;
 		void Clear() override;
 
 		bool Create(ID3D12Device* pDevice);
@@ -145,66 +147,23 @@ namespace glTF
 		std::map<int, int> m_ActiveMaterials;
 		std::set<int> m_ActiveImages;
 	};
-
-
-	struct Vertex
-	{
-		glm::vec3 p;
-#if USE_VERTEX_COMPRESSION
-		glm::u8vec4 n;
-		glm::u16vec2 uv;
-#else
-		glm::vec3 n;
-		glm::vec2 uv;
-#endif
-	};
-
-	struct BatchElement
-	{
-		uint32_t vertexOffset;
-		uint32_t vertexCount;
-		uint32_t indexOffset;
-		uint32_t indexCount;
-		uint32_t materialIndex;
-	};
 	
-	struct MeshBatch
-	{
-		std::vector<Vertex> vertices;
-		std::vector<uint32_t> indices;
-		// std::vector<uint32_t> meshletData;
-		// std::vector<Meshlet> meshlets;
-
-		std::vector<BatchElement> batchElements;
-	};
-
-	// Instance into one MeshBatch's batchElements
-	struct MeshInstance
-	{
-		glm::mat4 transform;
-		uint32_t elementIndex;
-		// TODO: duplicate
-		uint32_t materialIndex;
-	};
-
-	struct DrawObject
-	{
-		MeshBatch mesh;
-		std::vector<MeshInstance> instances;
-	};
-	
-	class glTFImporterNew : public IModelImporter
+	class glTFImporter : public IModelImporter
 	{
 	public:
-		glTFImporterNew();
+		glTFImporter();
 		
-		bool Load(const std::string &filePath) override;
+		bool Load(const std::string &fileName) override;
+		bool LoadAsync(const std::string &fileName);
 
+		bool UpdateImporters(std::vector<std::string> &readyImporters);
 		const auto& GetDrawObjects() const { return m_DrawObjects; }
+		std::optional<DrawObject*> GetDrawObject(const std::string &name);
+		std::shared_ptr<DrawObject> MoveDrawObject(const std::string &name);
 
 	private:
-		std::unique_ptr<class ImporterImpl> m_Impl;
-		std::vector<DrawObject> m_DrawObjects;
+		std::list<std::shared_ptr<class ImporterImpl>> m_ImporterArray;
+		std::map<std::string, std::shared_ptr<DrawObject>> m_DrawObjects;
 	};
 
 }

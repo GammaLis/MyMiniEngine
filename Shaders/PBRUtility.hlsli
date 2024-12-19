@@ -70,7 +70,6 @@ float D_GGX(float NdotH, float roughness)
  *	we can compute 1 - (NdotH)^2 directly with half precision floats by using 
  *a simple cross product.
  */
-// 注：针对移动端的优化，PC端不必
 float D_GGX_Optimized(float roughness, float NdotH, const float3 n, const float3 h)
 {
 	float3 NxH = cross(n, h);

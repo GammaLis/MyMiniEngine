@@ -15,6 +15,30 @@ cbuffer CBPerCamera	: register(b2)
 	float3 _CamPos;
 };
 
+#if USE_SIMPLE_VERTEX
+
+struct VSInput
+{
+	float3 position : POSITION;
+	float2 uv0		: TEXCOORD0;
+	float3 normal 	: NORMAL;
+};
+
+// TODO: optimization
+struct VSOutput
+{
+	float4 pos 	: SV_POSITION;
+	float2 uv0 	: TEXCOORD0;
+	float2 uv1	: TEXCOORD1;
+	float3 worldPos	: TEXCOORD2;
+	float3 normal 	: NORMAL;
+	float3 tangent 	: TANGENT;
+	float3 bitangent: TEXCOORD3;
+	float3 color 	: COLOR0;
+};
+
+#else
+
 struct VSInput
 {
 	float3 position : POSITION;
@@ -36,6 +60,7 @@ struct VSOutput
 	float3 bitangent: TEXCOORD3;
 	float3 color 	: COLOR0;
 };
+#endif
 
 [RootSignature(Common_RootSig)]
 VSOutput main( VSInput v )
@@ -46,9 +71,12 @@ VSOutput main( VSInput v )
 	// wPos = float4(v.position, 1.0);
 	float4 cPos = mul(wPos, _ViewProjMat);
 
-	float3 wNormal = normalize(mul((float3x3)_InvWorldMat, v.normal));
-	float3 wTangent = normalize(mul(v.tangent.xyz, (float3x3)_WorldMat));
-	float3 wBitangent = cross(wNormal, wTangent) * v.tangent.w;
+	// float3 wNormal = normalize(mul((float3x3)_InvWorldMat, v.normal));
+	// No uniform scale here
+	float3 wNormal = normalize(mul(v.normal, (float3x3)_WorldMat));
+	// TODO: no tangents yet
+	float3 wTangent = float3(0, 0, 0); // normalize(mul(v.tangent.xyz, (float3x3)_WorldMat));
+	float3 wBitangent = float3( 0, 0, 0); // cross(wNormal, wTangent) * v.tangent.w;
 
 	o.pos = cPos;
 	o.worldPos = wPos.xyz;
@@ -56,7 +84,8 @@ VSOutput main( VSInput v )
 	// o.uv0 = float2(v.uv0.x, 1.0 - v.uv0.y);
 	// o.uv1 = float2(v.uv1.x, 1.0 - v.uv1.y);
 	o.uv0 = v.uv0;
-	o.uv1 = v.uv1;
+	// TODO: no uv1 yet
+	o.uv1 = v.uv0; // v.uv1;
 #else
 	o.uv0 = v.uv0;
 	o.uv1 = v.uv1;
@@ -64,7 +93,8 @@ VSOutput main( VSInput v )
 	o.normal = wNormal;
 	o.tangent = wTangent;
 	o.bitangent = wBitangent;
-	o.color = v.color;
+	// TODO: no color yet
+	o.color = float4(0, 0, 0, 0); // v.color;
 
 	return o;
 }

@@ -3,6 +3,7 @@
 #include "CommandContext.h"
 #include "MyBasicGeometry.h"
 #include "GameTimer.h"
+#include "Common/CameraController.h"
 
 // compiled shader bytecode
 #include "InitH0SpectrumCS.h"

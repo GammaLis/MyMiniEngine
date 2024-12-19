@@ -8,7 +8,7 @@
 #include "TextureManager.h"	// Graphics::s_TextureManager
 #include "GpuBuffer.h"
 #include "GameTimer.h"
-#include "GameInput.h"
+#include "Common/GameInput.h"
 #include "Model.h"
 #include <sstream>
 #include <windowsX.h>

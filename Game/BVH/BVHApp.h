@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "IGameApp.h"
 #include "Camera.h"
-#include "CameraController.h"
+#include "Common/CameraController.h"
 #include "ColorBuffer.h"
 #include "Math/GLMath.h"
 #include "Scenes/DebugPass.h"

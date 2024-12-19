@@ -34,7 +34,7 @@ namespace MyDirectX
         FLOAT x, FLOAT y, FLOAT w, FLOAT h, FLOAT d0 = 0.0f, FLOAT d1 = 1.0f)
     {
         viewport.TopLeftX = x; viewport.TopLeftY = y;
-        viewport.Width = w; viewport.MaxDepth = h;
+        viewport.Width = w; viewport.Height = h;
         viewport.MinDepth = d0; viewport.MaxDepth = d1;
 
         scissor.left = static_cast<LONG>(x); scissor.right = static_cast<LONG>(x + w);

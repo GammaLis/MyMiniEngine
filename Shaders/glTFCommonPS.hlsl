@@ -101,8 +101,11 @@ float4 main(VSOutput i) : SV_TARGET
 #endif
 
 	float3 worldPos = i.worldPos;
-	// normal
 	float3 wNormal = normalize(i.normal);
+	// normal
+#if USE_SIMPLE_VERTEX
+	float3 normal = wNormal;	
+#else
 	float3 wTangent = normalize(i.tangent);
 	float3 wBitangent = normalize(i.bitangent);
 	float3 normal = _TexNormal.Sample(s_LinearRSamper, uvs[_Texcoords[0].z]);
@@ -111,6 +114,7 @@ float4 main(VSOutput i) : SV_TARGET
 	// debug end
 	normal = normalize((2.0 * normal - 1) * float3(_NormalScale, _NormalScale, 1.0));
 	normal = wTangent * normal.x + wBitangent * normal.y + wNormal * normal.z;
+#endif
 
 	// view direction
 	float3 viewDir = normalize(_CamPos - worldPos);

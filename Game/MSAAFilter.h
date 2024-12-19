@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "ColorBuffer.h"
 #include "DepthBuffer.h"
-#include "FrameDescriptorHeap.h"
+#include "Common/FrameDescriptorHeap.h"
 #include "RootSignature.h"
 #include "PipelineState.h"
 #include "Utilities/GameUtility.h"

@@ -166,17 +166,20 @@ namespace MyDirectX
         m_DisplayWidth = std::max<UINT>(width, 1);
         m_DisplayHeight = std::max<UINT>(height, 1);
 
-        // 静态缓存 width height
+        // Cache width height
         GfxStates::s_DisplayWidth = m_DisplayWidth;
         GfxStates::s_DisplayHeight = m_DisplayHeight;
 
         CreateDeviceResources();
         CreateWindowSizeDependentResources();
 
-        //
+        // Init some common resources (shaders, textures, states, etc.)
         s_ShaderManager.CreateFromByteCode();
         s_CommonStates.InitCommonStates(m_Device.Get());
+        s_TextureManager.InitDefaultTextures(m_Device.Get());
         GfxStates::SetNativeResolution(m_Device.Get(), m_CurNativeRes);
+
+        // Customization
         InitCustom();
 
         return true;

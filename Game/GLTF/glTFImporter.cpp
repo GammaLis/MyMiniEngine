@@ -14,6 +14,7 @@
 #include "Graphics.h"
 #include "Utilities/FileUtility.h"
 #include "TextureManager.h"
+#include "Utilities/GameUtility.h"
 
 #define MATRIX_SIZE 16
 
@@ -217,32 +218,32 @@ namespace glTF
 
 	/// glTFImporter
 	//
-	glTFImporter::glTFImporter()
+	glTFImporterDeprecated::glTFImporterDeprecated()
 	{
 	}
 
-	glTFImporter::glTFImporter(const std::string & filePath)
+	glTFImporterDeprecated::glTFImporterDeprecated(const std::string & fileName)
 	{
-		Load(filePath);
+		Load(fileName);
 	}
 
-	bool glTFImporter::Load(const std::string & filePath)
+	bool glTFImporterDeprecated::Load(const std::string & fileName)
 	{
-		m_FileDir = GetBaseDir(filePath);
-		m_FileName = GetFileNameWithNoExtensions(filePath);
+		m_FileDir = GetBaseDir(fileName);
+		m_FileName = GetFileNameWithNoExtensions(fileName);
 
 		std::regex reg(".gltf$", std::regex_constants::icase);
-		bool bValid = std::regex_search(filePath, reg);	// regex_match - full match	regex_search - part match
+		bool bValid = std::regex_search(fileName, reg);	// regex_match - full match	regex_search - part match
 		if (!bValid)
 		{
 			std::cout << "File format is not gltf" << std::endl;
 			return false;
 		}
 
-		std::ifstream ifs(filePath);
+		std::ifstream ifs(fileName);
 		if (!ifs.is_open())
 		{
-			std::cout << "Failed to open file " << filePath << std::endl;
+			std::cout << "Failed to open file " << fileName << std::endl;
 			return false;
 		}
 
@@ -259,7 +260,7 @@ namespace glTF
 		return true;
 	}
 
-	bool glTFImporter::Create(ID3D12Device* pDevice)
+	bool glTFImporterDeprecated::Create(ID3D12Device* pDevice)
 	{
 		m_pDevice = pDevice;
 		bool bValid = BuildScenes();
@@ -281,7 +282,7 @@ namespace glTF
 		return bValid;
 	}
 
-	void glTFImporter::Clear()
+	void glTFImporterDeprecated::Clear()
 	{
 		m_BinData.clear();
 
@@ -292,7 +293,7 @@ namespace glTF
 		m_IndexBuffer.Destroy();
 	}
 
-	Matrix4x4 glTFImporter::GetMeshTransform(const Mesh& mesh) const
+	Matrix4x4 glTFImporterDeprecated::GetMeshTransform(const Mesh& mesh) const
 	{
 		if (mesh.nodeIndex >= 0 && mesh.nodeIndex < m_Nodes.size())
 		{
@@ -306,7 +307,7 @@ namespace glTF
 		}		
 	}
 
-	void glTFImporter::Parse(const rapidjson::Document& dom)
+	void glTFImporterDeprecated::Parse(const rapidjson::Document& dom)
 	{
 		// scenes
 		{
@@ -892,7 +893,7 @@ namespace glTF
 		}
 	}
 
-	void glTFImporter::ReadBuffers()
+	void glTFImporterDeprecated::ReadBuffers()
 	{
 		for (size_t i = 0, imax = m_Buffers.size(); i < imax; ++i)
 		{
@@ -912,7 +913,7 @@ namespace glTF
 		}
 	}
 
-	bool glTFImporter::ReadFromFile(const std::string& fileName, uint32_t bufferLength)
+	bool glTFImporterDeprecated::ReadFromFile(const std::string& fileName, uint32_t bufferLength)
 	{
 		std::ifstream ifs(fileName, std::ifstream::in | std::ifstream::binary);
 		if (!ifs.is_open())
@@ -947,7 +948,7 @@ namespace glTF
 		return true;
 	}
 
-	void glTFImporter::BuildNodeTree()
+	void glTFImporterDeprecated::BuildNodeTree()
 	{
 		for (int i = 0, imax = (uint32_t)m_Nodes.size(); i < imax; ++i)
 		{
@@ -967,7 +968,7 @@ namespace glTF
 		}
 	}
 
-	void glTFImporter::CacheTransform()
+	void glTFImporterDeprecated::CacheTransform()
 	{
 		if (m_bDirty)
 		{
@@ -1015,7 +1016,7 @@ namespace glTF
 		}
 	}
 
-	bool glTFImporter::BuildScenes()
+	bool glTFImporterDeprecated::BuildScenes()
 	{
 		BuildNodeTree();
 		CacheTransform();
@@ -1027,7 +1028,7 @@ namespace glTF
 		return BuildMeshes() && BuildMaterials();
 	}
 
-	bool glTFImporter::BuildMeshes()
+	bool glTFImporterDeprecated::BuildMeshes()
 	{
 		m_ActiveNodes.clear();
 		m_ActiveMeshes.clear();
@@ -1310,7 +1311,7 @@ namespace glTF
 		return true;
 	}
 
-	bool glTFImporter::BuildMaterials()
+	bool glTFImporterDeprecated::BuildMaterials()
 	{
 		m_ActiveImages.clear();
 
@@ -1378,7 +1379,7 @@ namespace glTF
 		return true;
 	}
 
-	void glTFImporter::ComputeBoundingBox()
+	void glTFImporterDeprecated::ComputeBoundingBox()
 	{
 		m_BoundingBox.min = Vector3(10000.0f, 10000.0f, 10000.0f);
 		m_BoundingBox.max = Vector3(-10000.0f, -10000.0f, -10000.0f);
@@ -1390,7 +1391,7 @@ namespace glTF
 		}
 	}
 
-	std::string glTFImporter::GetImagePath(int curTexIdx, const std::string& defaultPath)
+	std::string glTFImporterDeprecated::GetImagePath(int curTexIdx, const std::string& defaultPath)
 	{
 		if (curTexIdx >= 0)
 		{
@@ -1407,7 +1408,7 @@ namespace glTF
 		return defaultPath;
 	}
 
-	void glTFImporter::LoadTextures(ID3D12Device* pDevice)
+	void glTFImporterDeprecated::LoadTextures(ID3D12Device* pDevice)
 	{
 		using namespace MyDirectX;
 
@@ -1491,7 +1492,7 @@ namespace glTF
 		}
 	}
 
-	void glTFImporter::InitVAttribFormats()
+	void glTFImporterDeprecated::InitVAttribFormats()
 	{
 		int attribCounter = 0;
 		for (size_t i = 0, imax = m_Meshes.size(); i < imax; ++i)
@@ -1573,7 +1574,7 @@ namespace glTF
 		m_VertexStride = byteOffset;
 	}
 
-	void glTFImporter::InitTextures()
+	void glTFImporterDeprecated::InitTextures()
 	{
 		m_DefaultBaseColor = "default";
 		m_DefaultMetallicRoughness = "";
@@ -1874,6 +1875,8 @@ namespace glTF
 	public:		
 		bool Load(const std::string &fileName)
 		{
+			m_FileName = fileName;
+			
 			CGLTFWrapper wrapper;
 			
 			bool result = wrapper.ParseFile(fileName, {});
@@ -1885,22 +1888,58 @@ namespace glTF
 				wrapper.ParseNodes(m_DrawObject->instances);
 			}
 
+			// Set immediately
+			std::promise<bool> promise;
+			m_FutureState = promise.get_future();
+			promise.set_value(true);
+
+			m_LoadState.store(1, std::memory_order_relaxed);
+			
 			return result;
 		}
 
-		std::future<bool> LoadAsync(const std::string &fileName)
+		bool LoadAsync(const std::string &fileName)
 		{
+			using namespace MyDirectX;
 			// TODO: 
-			return std::async(std::launch::async, [&]()
+			// return std::async(std::launch::async, [&]()
+			// {
+			// 	return true;
+			// });
+
+			// Future from async
+			m_FutureState = Async(EAsyncExecution::ThreadPool, [this, fileName]()
 			{
-				return true;
+				return this->Load(fileName);
 			});
+			return m_LoadState > 0;
 		}
 
 		auto GetDrawObject() const { return m_DrawObject.get(); }
+		bool HasValue() const
+		{
+			return m_LoadState > 0; // m_FutureState._Is_ready();
+		}
+		std::optional<std::shared_ptr<DrawObject>> GetValue()
+		{
+			if (!HasValue())
+			{
+				return std::nullopt;
+			}
+			if (m_FutureState.get() && m_DrawObject)
+			{
+				return { std::exchange(m_DrawObject, nullptr) };
+			}
+			return std::nullopt;
+		}
+		const auto& GetFileName() const { return m_FileName; }
 		
 	private:
 		bool ParseMeshes(const cgltf_data *gltfData);
+
+		std::string m_FileName;
+		std::future<bool> m_FutureState;
+		std::atomic<uint32_t> m_LoadState{ 0 };
 		std::shared_ptr<DrawObject> m_DrawObject;
 		CGLTFWrapper m_Wrapper;
 	};	
@@ -1910,26 +1949,89 @@ namespace glTF
 		return false;
 	}
 
-	glTFImporterNew::glTFImporterNew()
+	glTFImporter::glTFImporter()
 	{
 		
 	}
 
-	bool glTFImporterNew::Load(const std::string& filePath)
+	bool glTFImporter::Load(const std::string& fileName)
 	{
-		// std::async(std::launch::async)
+		if (m_DrawObjects.contains(fileName))
+			return true;
 		
 		ImporterImpl impl;
-		bool bLoaded = impl.Load(filePath);
+		bool bLoaded = impl.Load(fileName);
 		if (!bLoaded || !impl.GetDrawObject())
 			return false;
 
-		m_DrawObjects.emplace_back(std::move(*impl.GetDrawObject()));
-
-		// TODO:
-		return false;
+		m_DrawObjects.insert(std::pair{ fileName, std::move(impl.GetDrawObject()) });
+		return true;
 	}
 
+	bool glTFImporter::LoadAsync(const std::string& fileName)
+	{
+		if (m_DrawObjects.contains(fileName))
+			return true;
+		
+		auto impl = std::make_shared<ImporterImpl>();
+		bool bRet = impl->LoadAsync(fileName);
+		if (!bRet) [[likely]]
+		{
+			m_ImporterArray.emplace_back(impl);
+		}
+		return bRet;
+	}
+
+	std::optional<DrawObject*> glTFImporter::GetDrawObject(const std::string& name)
+	{
+		auto it = m_DrawObjects.find(name);
+		if (it != m_DrawObjects.end())
+		{
+			return { it->second.get() };
+		}
+		return std::nullopt;
+	}
+
+	std::shared_ptr<DrawObject> glTFImporter::MoveDrawObject(const std::string& name)
+	{
+		auto it = m_DrawObjects.find(name);
+		if (it != m_DrawObjects.end())
+		{
+			// Ref: Efficient way to move elements from a map to another
+			// https://stackoverflow.com/questions/35544203/efficient-way-to-move-elements-from-a-map-to-another
+			auto obj = m_DrawObjects.extract(it);
+			// m_DrawObjects.erase(it);
+			return std::move(obj.mapped());
+		}
+		return nullptr;
+	}
+
+	bool glTFImporter::UpdateImporters(std::vector<std::string> &readyImporters)
+	{
+		bool ret = false;
+		if (!m_ImporterArray.empty())
+		{
+			auto removedNumber = m_ImporterArray.remove_if([this, &readyImporters](const auto &importer)
+			{
+				if (importer->HasValue())
+				{
+					auto ret = importer->GetValue();
+					if (ret.has_value())
+					{
+						const auto &fileName = importer->GetFileName();
+						m_DrawObjects.insert(std::pair{ fileName, std::move(ret.value()) });
+						readyImporters.emplace_back(fileName);
+					}
+					return true;
+				}
+				return false;
+			} );
+			ret = removedNumber > 0;
+		}
+		return ret;
+	}
+
+	
 }
 /**
 	Binary glTF files

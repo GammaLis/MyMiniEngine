@@ -5,11 +5,11 @@
 #include "Model.h"
 #include "Effects.h"
 #include "ProfilingScope.h"
-#include "UniformBuffers.h"
+#include "Common/UniformBuffers.h"
 
 #include "Camera.h"
 #include "ShadowCamera.h"
-#include "CameraController.h"
+#include "Common/CameraController.h"
 
 #include "Threads/Task.h"
 

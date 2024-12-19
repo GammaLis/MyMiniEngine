@@ -3,7 +3,7 @@
 #include "DescriptorHeap.h"
 #include "ColorBuffer.h"
 #include "DynamicUploadBuffer.h"
-#include "GameInput.h"
+#include "Common/GameInput.h"
 #include "ModelViewerRayInputs.h"
 
 namespace Math 

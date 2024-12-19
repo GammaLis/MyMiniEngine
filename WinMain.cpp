@@ -43,7 +43,7 @@ namespace DX12 = MyDirectX;
 *	for now by disabling /permissive- by changing "Conformance Mode" to "No" in the C/C++ -> Language project settings.
 */
 
-// I. windows程序 预处理定义-_WINDOWS,连接器子系统SubSystem:WINDOWS
+// I. windows program, Predefines-_WINDOWS, LinkerSubSystem:WINDOWS
 #if 0
 int WINAPI WinMain(_In_ HINSTANCE hInstance,
 	_In_opt_ HINSTANCE hPrevInstance,
@@ -62,8 +62,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance,
 }
 #endif
 
-// II.console程序 预处理定义-_CONSOLE,连接器子系统SubSystem:CONSOLE
-// 还需链接 runtimeobject.lib
+// II.console program, Predefines-_CONSOLE, LinkerSubSystem:CONSOLE
+// link runtimeobject.lib
 #pragma comment(lib, "runtimeobject.lib")
 
 int main(int argc, const char* argv[])
@@ -106,14 +106,7 @@ int main(int argc, const char* argv[])
 	{
 		ret = gApp->Run();
 	}
-
-	std::atomic_int sum = 0;
-	MyDirectX::ParallelFor(1000, [&sum](uint32_t index)
-	{
-		sum += 2;
-	});
-
-	ASSERT(sum == 2000);
+	
 	gApp->Cleanup();
 	
 #elif defined(COMMON_COMPUTE)
