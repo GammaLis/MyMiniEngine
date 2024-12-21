@@ -9,6 +9,7 @@
 
 #include <future>
 
+#include "Camera.h"
 #include "Libraries/cgltf/cgltf.h"
 #include "Libraries/meshoptimizer/src/meshoptimizer.h"
 #include "Graphics.h"
@@ -1603,6 +1604,76 @@ namespace glTF
 		}
 	}
 
+	
+	/// MeshOptimizer
+	/**
+	 * When optimizing a mesh, you should typically feed it through a set of optimizations
+	 * * Indexing
+	 * * (optional) Simplification
+	 * * Vertex cache optimization
+	 * * Overdraw optimization
+	 * * Vertex fetch optimization
+	 * * Vertex quantization
+	 * * Shadowing indexing
+	 * * (optional) Vertex/index buffer compression
+	 */
+	class MeshOptWrapper
+	{
+	public:
+		/**
+		 * Most algorithms in this library assume that a mesh has a vertex buffer and an index buffer. For algorithms to work well
+		 * and also for GPU to render the mesh efficiently, the vertex buffer has to have no redundant vertices.
+		 */
+		template <class TVertex>
+		static void Indexing(std::vector<TVertex> &vertices, std::vector<uint32_t> &indices)
+		{
+			// First, generate a remap table from existing vertex (and, optionally index) data
+			auto vertexCount = vertices.size();
+			std::vector<uint32_t> remap(vertexCount); // allocate temporary memory for the remap table
+			auto uniqueVertices = meshopt_generateVertexRemap(remap.data(), indices.data(), indices.size(), vertices.data(), vertices.size(), sizeof(TVertex));
+
+			// After generating the remap table, you can allocate space for the target vertex buffer ('vertexCount' elements) and
+			// index buffer ('indexCount' elements) and generate them
+			meshopt_remapVertexBuffer(vertices.data(), vertices.data(), vertices.size(), sizeof(TVertex), remap.data());
+			meshopt_remapIndexBuffer(indices.data(), indices.data(), indices.size(), remap.data());
+
+			// You can further optimize the resulting buffers by calling the other functions on them in-place.
+		}
+
+		/**
+		 * Vertex cache optimization
+		 * When the GPU renders the mesh, it has to run the vertex shader for each vertex; usually GPUs have a built-in fixed size cache
+		 * that stores the transformed vertices (the result of running the vertex shader), and uses this cache to reduce the number
+		 * of vertex shader invocations. This cache is usually small, 16-32 vertices, and can have different replacement policies;
+		 * to use this cache efficiently, you have to reorder your triangles to maximize the locality of reused vertex references.
+		 */
+		static void VertexCacheOpt(std::vector<uint32_t> &indices, uint32_t vertexCount, bool bFast = false, uint32_t cacheSize = 16)
+		{
+			if (bFast)
+			{
+				meshopt_optimizeVertexCacheFifo(indices.data(), indices.data(), indices.size(), vertexCount, cacheSize);
+			}
+			else
+			{
+				meshopt_optimizeVertexCache(indices.data(), indices.data(), indices.size(), vertexCount);
+			}
+		}
+
+		/**
+		 * Overdraw optimization
+		 * After transforming the vertices, GPU sends the triangles for rasterization which results in generating pixels that
+		 * are usually first ran through the depth test, and pixels that pass it get the pixel shader executed to generate
+		 * the final color. This library provides an algorithm to reorder triangles to minimize the overdraw from all directions,
+		 * which you should run after vertex cache optimization.
+		 */
+		template <class TVertex>
+		static void OverdrawOpt(std::vector<uint32_t> &indices, const std::vector<TVertex> &vertices)
+		{
+			
+		}
+	};
+
+	
 	/// cgltf
 	
 	class CGLTFWrapper
@@ -1613,40 +1684,46 @@ namespace glTF
 		{ }
 
 		// Compute indices from cgltf element pointers
-		static int gltfBufferIndex(const cgltf_data *data, const cgltf_buffer *buffer)
+		static uint32_t gltfBufferIndex(const cgltf_data *data, const cgltf_buffer *buffer)
 		{
 			ASSERT(buffer);
-			return static_cast<int>(buffer - data->buffers);
+			return cgltf_buffer_index(data, buffer);
+			// return static_cast<uint32_t>(buffer - data->buffers);
 		}
 
-		static int gltfBufferViewIndex(const cgltf_data *data, const cgltf_buffer_view *bufferView)
+		static uint32_t gltfBufferViewIndex(const cgltf_data *data, const cgltf_buffer_view *bufferView)
 		{
 			ASSERT(bufferView);
-			return static_cast<int>(bufferView - data->buffer_views);
+			return cgltf_buffer_view_index(data, bufferView);
+			// return static_cast<uint32_t>(bufferView - data->buffer_views);
 		}
 
-		static int gltfImageIndex(const cgltf_data *data, const cgltf_image *image)
+		static uint32_t gltfImageIndex(const cgltf_data *data, const cgltf_image *image)
 		{
 			ASSERT(image);
-			return static_cast<int>(image - data->images);
+			return cgltf_image_index(data, image);
+			// return static_cast<uint32_t>(image - data->images);
 		}
 
-		static int gltfTextureIndex(const cgltf_data *data, const cgltf_texture *texture)
+		static uint32_t gltfTextureIndex(const cgltf_data *data, const cgltf_texture *texture)
 		{
 			ASSERT(texture);
-			return static_cast<int>(texture - data->textures);
+			return cgltf_texture_index(data, texture);
+			// return static_cast<uint32_t>(texture - data->textures);
 		}
 
-		static int gltfMaterialIndex(const cgltf_data *data, const cgltf_material *material)
+		static uint32_t gltfMaterialIndex(const cgltf_data *data, const cgltf_material *material)
 		{
 			ASSERT(material);
-			return static_cast<int>(material - data->materials);
+			return cgltf_material_index(data, material);
+			// return static_cast<uint32_t>(material - data->materials);
 		}
 
-		static int gltfMeshIndex(const cgltf_data *data, const cgltf_mesh *mesh)
+		static uint32_t gltfMeshIndex(const cgltf_data *data, const cgltf_mesh *mesh)
 		{
 			ASSERT(mesh);
-			return static_cast<int>(mesh - data->meshes);
+			return cgltf_mesh_index(data, mesh);
+			// return static_cast<uint32_t>(mesh - data->meshes);
 		}
 
 		static void Cast(glm::mat4 &matrix, float array[])
@@ -1656,6 +1733,26 @@ namespace glTF
 			matrix[1][0] = array[4]; matrix[1][1] = array[5]; matrix[1][2] = array[6]; matrix[1][3] = array[7];
 			matrix[2][0] = array[8]; matrix[2][1] = array[9]; matrix[2][2] = array[10]; matrix[2][3] = array[11];
 			matrix[3][0] = array[12]; matrix[3][1] = array[13]; matrix[3][2] = array[14]; matrix[3][3] = array[15];
+		}
+
+		static void Cast(Math::Camera &camera, const cgltf_camera *gltfCamera)
+		{
+			ASSERT(gltfCamera != nullptr);
+			if (gltfCamera->type == cgltf_camera_type_perspective)
+			{
+				const auto &perspective = gltfCamera->data.perspective;
+				camera.SetPerspectiveMatrix(perspective.yfov, perspective.aspect_ratio, perspective.znear, perspective.zfar);
+			}
+			// TODO: orthographic camera
+		}
+
+		static Math::AffineTransform GetAffineTransform(float array[16])
+		{
+			Math::AffineTransform transform;
+			transform.SetX({ array[0], array[1], array[2] });
+			transform.SetY({ array[4], array[5], array[6] });
+			transform.SetZ({ array[8], array[9], array[10] });
+			return transform;
 		}
 
 		bool Parse()
@@ -1712,6 +1809,12 @@ namespace glTF
 			
 			uint32_t vertexOffset = static_cast<uint32_t>(meshes.vertices.size());
 			uint32_t indexOffset = static_cast<uint32_t>(meshes.indices.size());
+
+			// Remap 
+			{
+				// meshopt_generateVertexRemapMulti()
+			}
+			
 			for (uint32_t i = 0; i < numMeshes; ++i)
 			{
 				const auto &srcMesh = gltfData->meshes[i];
@@ -1739,7 +1842,7 @@ namespace glTF
 						{
 							auto numFloats = vertexCount * 3;
 							ASSERT(pos->type == cgltf_type_vec3 && pos->component_type == cgltf_component_type_r_32f);
-							ASSERT(cgltf_calc_size(pos->type, pos->component_type) == 12);
+							ASSERT(cgltf_calc_size(pos->type, pos->component_type) == sizeof(glm::vec3)); // 12
 							cgltf_accessor_unpack_floats(pos, scratch.data(), numFloats);
 
 							for (uint32_t vi = 0; vi < vertexCount; vi++)
@@ -1824,7 +1927,7 @@ namespace glTF
 		
 		void ParseMaterials() const { }
 		
-		void ParseNodes(std::vector<MeshInstance> &instances) const
+		void ParseNodes(std::vector<MeshInstance> &instances, std::optional<Math::Camera> &camera) const
 		{
 			uint32_t instanceOffset = static_cast<uint32_t>(instances.size());
 			auto numNodes = gltfData->nodes_count;
@@ -1851,6 +1954,14 @@ namespace glTF
 					
 				}
 				// TODO: camera node, light node...
+				// Camera node
+				if (node.camera)
+				{
+					Math::Camera cam;
+					cam.SetTransform(GetAffineTransform(node.matrix));
+					Cast(cam, node.camera);
+					camera = cam;
+				}
 			}
 		}
 
@@ -1885,7 +1996,7 @@ namespace glTF
 				m_DrawObject = std::make_shared<DrawObject>();
 				
 				wrapper.ParseMeshes(m_DrawObject->mesh);
-				wrapper.ParseNodes(m_DrawObject->instances);
+				wrapper.ParseNodes(m_DrawObject->instances, m_Camera);
 			}
 
 			// Set immediately
@@ -1893,7 +2004,7 @@ namespace glTF
 			m_FutureState = promise.get_future();
 			promise.set_value(true);
 
-			m_LoadState.store(1, std::memory_order_relaxed);
+			m_LoadState.store(result ? 1 : -1, std::memory_order_relaxed);
 			
 			return result;
 		}
@@ -1901,26 +2012,23 @@ namespace glTF
 		bool LoadAsync(const std::string &fileName)
 		{
 			using namespace MyDirectX;
-			// TODO: 
-			// return std::async(std::launch::async, [&]()
-			// {
-			// 	return true;
-			// });
-
+			 
 			// Future from async
 			m_FutureState = Async(EAsyncExecution::ThreadPool, [this, fileName]()
 			{
 				return this->Load(fileName);
 			});
-			return m_LoadState > 0;
+			return m_LoadState != 0;
 		}
 
 		auto GetDrawObject() const { return m_DrawObject.get(); }
+		const auto &GetCamera() const { return m_Camera; }
+		
 		bool HasValue() const
 		{
-			return m_LoadState > 0; // m_FutureState._Is_ready();
+			return m_LoadState != 0; // m_FutureState._Is_ready();
 		}
-		std::optional<std::shared_ptr<DrawObject>> GetValue()
+		std::optional<std::shared_ptr<DrawObject>> GetOptionalDrawObject()
 		{
 			if (!HasValue())
 			{
@@ -1941,6 +2049,7 @@ namespace glTF
 		std::future<bool> m_FutureState;
 		std::atomic<uint32_t> m_LoadState{ 0 };
 		std::shared_ptr<DrawObject> m_DrawObject;
+		std::optional<Math::Camera> m_Camera;
 		CGLTFWrapper m_Wrapper;
 	};	
 
@@ -1951,7 +2060,6 @@ namespace glTF
 
 	glTFImporter::glTFImporter()
 	{
-		
 	}
 
 	bool glTFImporter::Load(const std::string& fileName)
@@ -1964,7 +2072,15 @@ namespace glTF
 		if (!bLoaded || !impl.GetDrawObject())
 			return false;
 
+		// Draw objects
 		m_DrawObjects.insert(std::pair{ fileName, std::move(impl.GetDrawObject()) });
+
+		// Camera
+		if (!m_Camera && impl.GetCamera())
+		{
+			m_Camera = impl.GetCamera();
+		}
+		
 		return true;
 	}
 
@@ -2015,12 +2131,17 @@ namespace glTF
 			{
 				if (importer->HasValue())
 				{
-					auto ret = importer->GetValue();
+					auto ret = importer->GetOptionalDrawObject();
 					if (ret.has_value())
 					{
 						const auto &fileName = importer->GetFileName();
-						m_DrawObjects.insert(std::pair{ fileName, std::move(ret.value()) });
+						m_DrawObjects.insert(std::pair{ fileName, std::move(ret.value()) });						
 						readyImporters.emplace_back(fileName);
+					}
+					// Camera
+					if (!m_Camera && importer->GetCamera())
+					{
+						m_Camera = importer->GetCamera();
 					}
 					return true;
 				}

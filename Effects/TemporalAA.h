@@ -38,7 +38,7 @@ namespace MyDirectX
 		// choosing the next jittered sample position
 		void Update(uint64_t frameIndex);
 
-		// returns whether the frame is odd or even, relavant to checkerboard rendering
+		// returns whether the frame is odd or even, relevant to checkerboard rendering
 		uint32_t GetFrameIndexMod2() const { return m_FrameIndexMod2; }
 
 		// jitter values are neutral at 0.5 and vary from [0, 1). Jittering only occurs when temporal antialiasing

@@ -3,8 +3,6 @@
 #include "IGameApp.h"
 #include "RootSignature.h"
 #include "PipelineState.h"
-#include "Camera.h"
-#include "Common/CameraController.h"
 #include "Common/FrameDescriptorHeap.h"
 #include "glTFCommon.h"
 #include "GpuBuffer.h"
@@ -19,11 +17,18 @@ namespace glTF
 	class glTFImporter;
 }
 
+namespace Math
+{
+	class Camera;
+}
+
 namespace MyDirectX
 {
+	class CameraController;
+	
 	class glTFViewer : public IGameApp
 	{
-		enum ERSId : uint32_t
+		enum ERSId : uint8_t
 		{
 			Constants = 0,
 			PerObject = 1,
@@ -61,7 +66,11 @@ namespace MyDirectX
 
 		void RenderObjects(GraphicsContext& gfx, const Math::Matrix4 &viewProjMat, ObjectFilter filter = ObjectFilter::kAll);
 
-		Math::Camera m_Camera;
+		void ResetCamera(const std::optional<Math::Vector3> &position, const std::optional<Math::AffineTransform> &transform);
+		void ResetCamera(const Math::Camera &camera);
+
+		std::string m_CameraName;
+		std::unique_ptr<Math::Camera> m_Camera;
 		std::unique_ptr<CameraController> m_CameraController;
 		Math::Matrix4 m_ViewProjMatrix;
 
@@ -101,13 +110,4 @@ namespace MyDirectX
 
 		std::vector<std::string> m_FileNames; 
 	};
-
-	template <typename F, typename... Args>
-	void foo(F&& f, Args&&... args)
-	{
-		[f=std::forward<F>(f), tuple=std::make_tuple(std::forward<Args>(args)...)]() mutable
-		{
-			return std::apply(std::move(f), std::move(tuple));
-		}();
-	}
 }

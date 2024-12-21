@@ -3,6 +3,7 @@
 #include "GfxCommon.h"
 #include "CommandContext.h"
 #include "TextureManager.h"
+#include "Camera.h"
 #include "Common/CameraController.h"
 #include "Utilities/GameUtility.h"
 
@@ -18,6 +19,7 @@
 #include "GfxCommon.h"
 #include "CommandContext.h"
 #include "CommandListManager.h"
+#include "Scenes/AssimpImporter.h"
 
 using namespace MyDirectX;
 using namespace DirectX;
@@ -110,6 +112,15 @@ void glTFViewer::Update(float deltaTime)
 		for (const auto &fileName : s_ReadyImporters)
 		{
 			Utility::Printf("File loaded %s", fileName.c_str());
+
+			// Update camera
+			auto &sceneCamera = m_Importer->GetOptionalCamera();
+			if (sceneCamera.has_value() && m_CameraName.empty())
+			{
+				ResetCamera(sceneCamera.value());
+				m_CameraName = fileName;
+				sceneCamera = std::nullopt;
+			}
 			
 			if (auto&& drawObject = m_Importer->MoveDrawObject(fileName))
 			{
@@ -122,9 +133,9 @@ void glTFViewer::Update(float deltaTime)
 		}
 		s_ReadyImporters.clear();
 	}
-
+	
 	m_CameraController->Update(deltaTime);
-	m_ViewProjMatrix = m_Camera.GetViewProjMatrix();
+	m_ViewProjMatrix = m_Camera->GetViewProjMatrix();
 }
 
 void glTFViewer::Render()
@@ -383,10 +394,13 @@ bool glTFViewer::InitAssets()
 		glTF::Vector3 center = (boundingBox.max + boundingBox.min) / 2.0f;
 		glTF::Vector3 extent = (boundingBox.max - boundingBox.min);
 		Math::Vector3 eye(center.x, center.y, center.z + extent.z);
-		m_Camera.SetEyeAtUp(eye, Math::Vector3(Math::kZero), Math::Vector3(Math::kYUnitVector));
-		m_Camera.SetZRange(1.0f, 1000.0f);
+		m_Camera.reset(new Math::Camera());
+		m_Camera->SetEyeAtUp(eye, Math::Vector3(Math::kZero), Math::Vector3(Math::kYUnitVector));
+		m_Camera->SetZRange(1.0f, 1000.0f);
 		// m_Camera.Update();	// if no CameraController, need manual update
-		m_CameraController.reset(new CameraController(m_Camera, Math::Vector3(Math::kYUnitVector), *m_Input));
+		m_CameraController.reset(new CameraController(*m_Camera, Math::Vector3(Math::kYUnitVector), *m_Input));
+		m_CameraController->SetMoveSpeed(200.0f);
+		m_CameraController->SetStrafeSpeed(200.0f);
 	}
 
 	// lights
@@ -569,7 +583,7 @@ void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 &viewPr
 	// camera
 	CBPerCamera cbPerCamera;
 	cbPerCamera.viewProjMat = Math::Transpose(viewProjMat);
-	cbPerCamera.camPos = m_Camera.GetPosition();
+	cbPerCamera.camPos = m_Camera->GetPosition();
 	gfx.SetDynamicConstantBufferView(ERSId::PerCamera, sizeof(CBPerCamera), &cbPerCamera);
 	// constants
 	gfx.SetConstants(ERSId::Constants, 2, 0, 0, 0);	// root0
@@ -689,6 +703,23 @@ void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 &viewPr
 		// Draw materials
 	}
 #endif
+}
+
+void glTFViewer::ResetCamera(const std::optional<Math::Vector3> &position, const std::optional<Math::AffineTransform> &transform)
+{
+	if (position.has_value())
+	{
+		m_Camera->SetPosition(position.value());
+	}
+	if (transform.has_value())
+	{
+		m_Camera->SetTransform(transform.value());
+	}
+}
+
+void glTFViewer::ResetCamera(const Math::Camera& camera)
+{
+	*m_Camera = camera;
 }
 
 

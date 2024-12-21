@@ -1,6 +1,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "glTFMesh.h"
+#include "Camera.h"
 #include <set>
 #include <optional>
 
@@ -157,13 +158,17 @@ namespace glTF
 		bool LoadAsync(const std::string &fileName);
 
 		bool UpdateImporters(std::vector<std::string> &readyImporters);
+		
 		const auto& GetDrawObjects() const { return m_DrawObjects; }
 		std::optional<DrawObject*> GetDrawObject(const std::string &name);
 		std::shared_ptr<DrawObject> MoveDrawObject(const std::string &name);
 
+		auto &GetOptionalCamera() { return m_Camera; }
+
 	private:
 		std::list<std::shared_ptr<class ImporterImpl>> m_ImporterArray;
 		std::map<std::string, std::shared_ptr<DrawObject>> m_DrawObjects;
+		std::optional<Math::Camera> m_Camera;
 	};
 
 }
