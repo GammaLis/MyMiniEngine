@@ -1,11 +1,12 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "GpuResource.h"
+#include "Utilities/FileUtility.h"
 #include <mutex>
 
 namespace MyDirectX
 {
-	enum class EDefaultTexture
+	enum class EDefaultTexture : uint8_t
 	{
 		kMagenta2D,
 		kBlackOpaque2D,
@@ -46,7 +47,7 @@ namespace MyDirectX
 
 		const D3D12_CPU_DESCRIPTOR_HANDLE& GetSRV() const { return m_hCpuDescriptorHandle; }
 
-		bool operator! () { return m_hCpuDescriptorHandle.ptr == 0; }
+		bool operator! () const { return m_hCpuDescriptorHandle.ptr == 0; }
 
 		uint32_t GetWidth()  const { return m_Width; }
 		uint32_t GetHeight() const { return m_Height; }
@@ -60,24 +61,28 @@ namespace MyDirectX
 		D3D12_CPU_DESCRIPTOR_HANDLE m_hCpuDescriptorHandle;
 	};
 
+	/**
+	 * A ManagedTexture allows for multiple threads to request a Texture load of the same file. It also contains a reference
+	 * count of the Texture so that it can be freed when it is no longer referenced.
+	 */
 	class ManagedTexture : public Texture
 	{
 		friend class TextureRef;
 		friend class TextureManager;
 	public:
-		ManagedTexture(const std::wstring& fileName) : m_MapKey(fileName), m_IsValid(false), m_IsLoading(true), m_ReferenceCount(0) {  }
+		ManagedTexture(const std::wstring& fileName) : m_MapKey(fileName), m_IsLoading(true) {  }
 
 		void WaitForLoad() const;
 		void Unload();
 
-		void SetDefault(EDefaultTexture detaultTex = EDefaultTexture::kMagenta2D);
+		void SetDefault(EDefaultTexture defaultTex = EDefaultTexture::kMagenta2D);
 		void SetToInvalidTexture();
 		bool IsValid() const { return m_IsValid; }
 
 	private:
 		std::wstring m_MapKey;	// for deleting from the map later
-		bool m_IsValid;
-		bool m_IsLoading;
+		bool m_IsValid = false;
+		bool m_IsLoading = false;
 		size_t m_ReferenceCount = 0;
 	};
 
@@ -92,8 +97,8 @@ namespace MyDirectX
 		TextureRef(const TextureRef &);
 		~TextureRef();
 
-		void operator= (const TextureRef &rhs);
-		void operator= (std::nullptr_t);
+		TextureRef& operator= (const TextureRef &rhs);
+		TextureRef& operator= (std::nullptr_t);
 
 		// check that this points to a valid texture (which loaded successfully)
 		bool IsValid() const { return m_ref != nullptr && m_ref->IsValid(); }
@@ -113,7 +118,7 @@ namespace MyDirectX
 
 	/**
 	*	Texture file loading system
-	*	references to textures are passed around so that a texture may be shared. 
+	*	References to textures are passed around so that a texture may be shared. 
 	* When all references to a texture expire, the texture memory is reclaimed.
 	*/ 
 	class TextureManager
@@ -158,8 +163,7 @@ namespace MyDirectX
 			return LoadPIXImageFromFile(pDevice, MakeWStr(fileName));
 		}
 
-		// 
-		void ReleaseTextures(size_t numTex, const std::wstring fileName[]);
+		void ReleaseTextures(const std::wstring fileName[], size_t numTex);
 
 		// static members
 		static const Texture& GetBlackTex2D();
@@ -167,7 +171,8 @@ namespace MyDirectX
 		static const Texture& GetMagentaTex2D();
 
 		/// Default Textures
-		static Texture s_DefaultTexture[(int)EDefaultTexture::kNumDefaultTextures];
+		static std::wstring s_DefaultTextureName[EDefaultTexture::kNumDefaultTextures];
+		static Texture s_DefaultTexture[EDefaultTexture::kNumDefaultTextures];
 		static D3D12_CPU_DESCRIPTOR_HANDLE GetDefaultTexture(EDefaultTexture texID);
 		static void DestroyDefaultTextures();
 

@@ -1841,7 +1841,20 @@ namespace glTF
 
 		// Parse the gltf buffer definitions and start loading buffer blobs
 		void ParseBuffers() const { }
-		void ParseTextures() const { }
+		void ParseTextures() const
+		{
+			auto numTextures = static_cast<uint32_t>(gltfData->textures_count);
+			for (uint32_t i = 0; i < numTextures; ++i)
+			{
+				const auto &texture = gltfData->textures[i];
+				ASSERT(texture.image != nullptr);
+
+				const auto image = texture.image;
+				ASSERT(image->uri);
+
+				cgltf_decode_uri(image->uri);
+			}
+		}
 		
 		void ParseMeshes(MeshBatch &meshes)
 		{
@@ -1969,7 +1982,7 @@ namespace glTF
 				primitiveOffset += numPrims;
 			}
 		}
-		
+
 		void ParseMaterials() const { }
 		
 		void ParseNodes(std::vector<MeshInstance> &instances, std::optional<Math::Camera> &camera) const

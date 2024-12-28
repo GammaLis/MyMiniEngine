@@ -122,7 +122,7 @@ float4 main(VSOutput i) : SV_TARGET
 	float4 color = baseColor;
 	float3 lighting = 0;
 	// direct lighting
-	// [unroll]	// _LightNum不是常量，无法展开
+	// [unroll]	// '_LightNum' is not a compile time variable, cannot unroll
 	for (uint i = 0; i < _LightNum; ++i)
 	{
 		FLight curLight = _Lights[i];
@@ -149,7 +149,12 @@ float4 main(VSOutput i) : SV_TARGET
 	// ** debug indirectLighting **
 	// color.rgb = indirectLighting;
 
-	color.rgb = normal.xyz * 0.5f + 0.5f;
+	FLight curLight = _Lights[0];
+	float diffuse = saturate( dot(normal, curLight.positionOrDirection.xyz) );
+
+	color.rgb = diffuse.xxx;
+	
+	// color.rgb = normal.xyz * 0.5f + 0.5f;
 	
 	return color;
 }

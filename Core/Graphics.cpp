@@ -511,7 +511,7 @@ namespace MyDirectX
             }
 
             ComPtr<ID3D12Device> pDevice;
-            // Check to see if the adpater supports Direct3D 12, but don't create the actual device yet.
+            // Check to see if the adapter supports Direct3D 12, but don't create the actual device yet.
             if (SUCCEEDED(D3D12CreateDevice(dxgiAdapter1.Get(), m_D3DMinFeatureLevel, __uuidof(ID3D12Device), &pDevice)))
             {
                 // Check raytracing support
@@ -876,7 +876,7 @@ namespace MyDirectX
         m_PresentHDRPSO.Finalize(m_Device.Get());
 
         auto CreatePSO = [&](GraphicsPSO &pso, const CD3DX12_SHADER_BYTECODE &pixelShader, const GraphicsPSO &templatePSO /*= m_PresentSDRPSO*/)
-            // 错误	C2648	“MyDirectX::Graphics::m_PresentSDRPSO”: 将成员作为默认参数使用要求静态成员
+            // Error C2648	“MyDirectX::Graphics::m_PresentSDRPSO”
         {
             pso = templatePSO;
             pso.SetPixelShader(pixelShader);
@@ -928,8 +928,8 @@ namespace MyDirectX
             pso.Finalize(m_Device.Get());
         };
 
-        // 目前仅添加DefaultUpsample -2021-4-16
-        // TODO: 完善剩余CS
+        // Only DefaultUpsample currently -2021-4-16
+        // TODO: Other CS
         CreateCS(m_BicubicCS[(uint32_t)UpsampleCS::kDefaultCS], s_ShaderManager.m_BicubicUpsampleCS);
         CreateCS(m_LanczosCS[(uint32_t)UpsampleCS::kDefaultCS], s_ShaderManager.m_LanczosCS);
     }

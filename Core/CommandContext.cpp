@@ -22,25 +22,24 @@ using namespace MyDirectX;
 
 CommandContext* ContextManager::AllocateContext(D3D12_COMMAND_LIST_TYPE type)
 {
-	std::lock_guard<std::mutex> lockGuard(m_ContextAllocationMutex);
-
 	auto& availableContexts = m_AvailableContexts[type];
-
 	CommandContext* ret = nullptr;
-	if (availableContexts.empty())
 	{
-		ret = new CommandContext(type);
-		m_ContextPool[type].emplace_back(ret);
-		ret->Initialize(Graphics::s_Device);
-	}
-	else
-	{
-		ret = availableContexts.front();
-		availableContexts.pop();
-		ret->Reset();
+		std::lock_guard<std::mutex> lockGuard(m_ContextAllocationMutex);
+		if (availableContexts.empty())
+		{
+			ret = new CommandContext(type);
+			m_ContextPool[type].emplace_back(ret);
+			ret->Initialize(Graphics::s_Device);
+		}
+		else
+		{
+			ret = availableContexts.front();
+			availableContexts.pop();
+			ret->Reset();
+		}
 	}
 	ASSERT(ret != nullptr);
-
 	ASSERT(ret->m_Type == type);
 
 	return ret;

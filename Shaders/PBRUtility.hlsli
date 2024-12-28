@@ -21,7 +21,7 @@ struct FLight
 	float3 positionOrDirection;
 	uint type;		// 0 - directional lights, 1 - punctual lights
 	float3 color;	// the color of emitted light, as a linear RGB color
-	float intensity;	// the light's brighness. The unit depends on the type of light
+	float intensity;	// the light's brightness. The unit depends on the type of light
 	float3 spotDirection;
 	float falloffRadius;	// maximum distance of influence
 	float2 spotAttenScaleOffset;	// Dot(...) * scaleOffset.x + scaleOffset.y
