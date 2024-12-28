@@ -361,7 +361,7 @@ bool glTFViewer::InitAssets()
 		m_ModelViewerPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 		m_ModelViewerPSO.SetVertexShader(glTFCommonVS, sizeof(glTFCommonVS));
 		m_ModelViewerPSO.SetPixelShader(glTFCommonPS, sizeof(glTFCommonPS));
-		m_ModelViewerPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerDefaultCw);
+		m_ModelViewerPSO.SetRasterizerState(Graphics::s_CommonStates.RasterizerDefault); // RasterizerDefaultCw
 			// RasterizerDefaultWireframe
 		m_ModelViewerPSO.SetBlendState(Graphics::s_CommonStates.BlendDisable);
 		m_ModelViewerPSO.SetDepthStencilState(Graphics::s_CommonStates.DepthStateReadWrite);
@@ -685,7 +685,8 @@ void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 &viewPr
 			// Per instance
 			const glTF::Matrix4x4 &worldMatrix = instance.transform;
 			// Not use 'InvWorldMat'
-			cbPerObject.worldMat = glm::transpose(worldMatrix);
+			// No transpose, use 'mul(mat, vec)' instead (matrix right mul)
+			cbPerObject.worldMat = /*glm::transpose */(worldMatrix);
 			gfx.SetDynamicConstantBufferView(ERSId::PerObject, sizeof(cbPerObject), &cbPerObject);
 
 			gfx.SetConstant(ERSId::Constants, 0, 3); // roo0, 3 - enabledAttribs (Note: not used yet)

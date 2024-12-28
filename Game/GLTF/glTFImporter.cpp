@@ -1625,7 +1625,7 @@ namespace glTF
 		 * and also for GPU to render the mesh efficiently, the vertex buffer has to have no redundant vertices.
 		 */
 		template <class TVertex>
-		static void Indexing(std::vector<TVertex> &vertices, std::vector<uint32_t> &indices)
+		static void Indexing(std::vector<uint32_t> &indices, std::vector<TVertex> &vertices)
 		{
 			// First, generate a remap table from existing vertex (and, optionally index) data
 			auto vertexCount = vertices.size();
@@ -1638,6 +1638,8 @@ namespace glTF
 			meshopt_remapIndexBuffer(indices.data(), indices.data(), indices.size(), remap.data());
 
 			// You can further optimize the resulting buffers by calling the other functions on them in-place.
+
+			vertices.resize(uniqueVertices);
 		}
 
 		/**
@@ -1647,7 +1649,7 @@ namespace glTF
 		 * of vertex shader invocations. This cache is usually small, 16-32 vertices, and can have different replacement policies;
 		 * to use this cache efficiently, you have to reorder your triangles to maximize the locality of reused vertex references.
 		 */
-		static void VertexCacheOpt(std::vector<uint32_t> &indices, uint32_t vertexCount, bool bFast = false, uint32_t cacheSize = 16)
+		static void VertexCacheOpt(std::vector<uint32_t> &indices, size_t vertexCount, bool bFast = false, uint32_t cacheSize = 16)
 		{
 			if (bFast)
 			{
@@ -1663,13 +1665,46 @@ namespace glTF
 		 * Overdraw optimization
 		 * After transforming the vertices, GPU sends the triangles for rasterization which results in generating pixels that
 		 * are usually first ran through the depth test, and pixels that pass it get the pixel shader executed to generate
-		 * the final color. This library provides an algorithm to reorder triangles to minimize the overdraw from all directions,
+		 * the final color. This library provides an algorithm to reorder triangles to minimize overdraw from all directions,
 		 * which you should run after vertex cache optimization.
+		 * The overdraw optimizer needs to read vertex positions as a 'float3' from the vertex. When performing
+		 * the overdraw optimization you have to specify a floating-point threshold parameter. The algorithm tries to
+		 * maintain a balance between vertex cache efficiency and overdraw; the threshold determines how much
+		 * the algorithm can compromise the vertex cache hit ratio, with 1.05 meaning that the resulting ratio should
+		 * be at most 5% worse than before the optimization.
 		 */
 		template <class TVertex>
 		static void OverdrawOpt(std::vector<uint32_t> &indices, const std::vector<TVertex> &vertices)
 		{
-			
+			meshopt_optimizeOverdraw(indices.data(), indices.data(), indices.size(), reinterpret_cast<float*>(&vertices[0]), vertices.size(), sizeof(TVertex), 1.05f);
+		}
+
+		/**
+		 * Vertex fetch optimization
+		 * After the final triangle order has been established, we still can optimize the vertex buffer for memory
+		 * efficiency. Before running the vertex shader GPU has to fetch the vertex attributes from the vertex buffer;
+		 * the fetch is usually backed by a memory cache, and as such optimizing the data for the locality of
+		 * memory access is important.
+		 * This will reorder the vertices in the vertex buffer to try to improve the locality of reference, and
+		 * rewrite the indices in place to match; if the vertex data is stored using multiple streams, you should
+		 * use `meshopt_optimizeVertexFetchRemap` instead.
+		 */
+		template <class TVertex>
+		static void VertexFetchOpt(std::vector<uint32_t> &indices, std::vector<TVertex> &vertices)
+		{
+			meshopt_optimizeVertexFetch(vertices.data(), indices.data(), indices.size(), vertices.data(), vertices.size(), sizeof(TVertex));
+		}
+
+		template <class TVertex>
+		static void MeshOpt(std::vector<uint32_t> &indices, std::vector<TVertex> &vertices)
+		{
+			// Indexing
+			Indexing(indices, vertices);
+
+			// Vertex cache optimization
+			VertexCacheOpt(indices, vertices.size(), true);
+
+			VertexFetchOpt(indices, vertices);
 		}
 	};
 
@@ -1684,55 +1719,62 @@ namespace glTF
 		{ }
 
 		// Compute indices from cgltf element pointers
-		static uint32_t gltfBufferIndex(const cgltf_data *data, const cgltf_buffer *buffer)
+		static size_t gltfBufferIndex(const cgltf_data *data, const cgltf_buffer *buffer)
 		{
 			ASSERT(buffer);
 			return cgltf_buffer_index(data, buffer);
-			// return static_cast<uint32_t>(buffer - data->buffers);
+			// return buffer - data->buffers;
 		}
 
-		static uint32_t gltfBufferViewIndex(const cgltf_data *data, const cgltf_buffer_view *bufferView)
+		static size_t gltfBufferViewIndex(const cgltf_data *data, const cgltf_buffer_view *bufferView)
 		{
 			ASSERT(bufferView);
 			return cgltf_buffer_view_index(data, bufferView);
-			// return static_cast<uint32_t>(bufferView - data->buffer_views);
+			// return bufferView - data->buffer_views;
 		}
 
-		static uint32_t gltfImageIndex(const cgltf_data *data, const cgltf_image *image)
+		static size_t gltfImageIndex(const cgltf_data *data, const cgltf_image *image)
 		{
 			ASSERT(image);
 			return cgltf_image_index(data, image);
-			// return static_cast<uint32_t>(image - data->images);
+			// return image - data->images;
 		}
 
-		static uint32_t gltfTextureIndex(const cgltf_data *data, const cgltf_texture *texture)
+		static size_t gltfTextureIndex(const cgltf_data *data, const cgltf_texture *texture)
 		{
 			ASSERT(texture);
 			return cgltf_texture_index(data, texture);
-			// return static_cast<uint32_t>(texture - data->textures);
+			// return texture - data->textures;
 		}
 
-		static uint32_t gltfMaterialIndex(const cgltf_data *data, const cgltf_material *material)
+		static size_t gltfMaterialIndex(const cgltf_data *data, const cgltf_material *material)
 		{
 			ASSERT(material);
 			return cgltf_material_index(data, material);
-			// return static_cast<uint32_t>(material - data->materials);
+			// return material - data->materials;
 		}
 
-		static uint32_t gltfMeshIndex(const cgltf_data *data, const cgltf_mesh *mesh)
+		static size_t gltfMeshIndex(const cgltf_data *data, const cgltf_mesh *mesh)
 		{
 			ASSERT(mesh);
 			return cgltf_mesh_index(data, mesh);
-			// return static_cast<uint32_t>(mesh - data->meshes);
+			// return mesh - data->meshes;
 		}
 
 		static void Cast(glm::mat4 &matrix, float array[])
 		{
+#if 1
 			// column-major
 			matrix[0][0] = array[0]; matrix[0][1] = array[1]; matrix[0][2] = array[2]; matrix[0][3] = array[3];
 			matrix[1][0] = array[4]; matrix[1][1] = array[5]; matrix[1][2] = array[6]; matrix[1][3] = array[7];
 			matrix[2][0] = array[8]; matrix[2][1] = array[9]; matrix[2][2] = array[10]; matrix[2][3] = array[11];
 			matrix[3][0] = array[12]; matrix[3][1] = array[13]; matrix[3][2] = array[14]; matrix[3][3] = array[15];
+#else
+			matrix[0][0] = array[0]; matrix[0][1] = array[4]; matrix[0][2] = array[8]; matrix[0][3] = array[12];
+			matrix[1][0] = array[1]; matrix[1][1] = array[5]; matrix[1][2] = array[9]; matrix[1][3] = array[13];
+			matrix[2][0] = array[2]; matrix[2][1] = array[6]; matrix[2][2] = array[10]; matrix[2][3] = array[14];
+			matrix[3][0] = array[3]; matrix[3][1] = array[7]; matrix[3][2] = array[11]; matrix[3][3] = array[15];
+#endif
 		}
 
 		static void Cast(Math::Camera &camera, const cgltf_camera *gltfCamera)
@@ -1809,11 +1851,6 @@ namespace glTF
 			
 			uint32_t vertexOffset = static_cast<uint32_t>(meshes.vertices.size());
 			uint32_t indexOffset = static_cast<uint32_t>(meshes.indices.size());
-
-			// Remap 
-			{
-				// meshopt_generateVertexRemapMulti()
-			}
 			
 			for (uint32_t i = 0; i < numMeshes; ++i)
 			{
@@ -1832,6 +1869,7 @@ namespace glTF
 						cgltf_accessor_read_float(srcAttrib.data, )
 					}
 #else
+					// Vertices
 					auto vertexCount = static_cast<uint32_t>(srcPrimitive.attributes[0].data->count);
 					std::vector<Vertex> vertices(vertexCount);
 					{
@@ -1894,14 +1932,21 @@ namespace glTF
 							}
 						}
 					}
-					meshes.vertices.insert(meshes.vertices.cend(), vertices.begin(), vertices.end());
 
+					// Indices
 					auto indexCount = static_cast<uint32_t>(srcPrimitive.indices->count);
 					std::vector<uint32_t> indices(indexCount);
 					{
 						cgltf_size indexBytes = 4;
 						cgltf_accessor_unpack_indices(srcPrimitive.indices, indices.data(), indexBytes, indexCount);
 					}
+
+					// Optimize
+					// TODO: it gets slower???
+					// MeshOptWrapper::MeshOpt(indices, vertices);
+					vertexCount = static_cast<uint32_t>(vertices.size());
+					
+					meshes.vertices.insert(meshes.vertices.cend(), vertices.begin(), vertices.end());
 					meshes.indices.insert(meshes.indices.cend(), indices.begin(), indices.end());
 
 					auto& element = meshes.batchElements.emplace_back();
@@ -1915,7 +1960,7 @@ namespace glTF
 
 					// Material
 					ASSERT(srcPrimitive.material);
-					uint32_t materialIndex = gltfMaterialIndex(gltfData, srcPrimitive.material);
+					uint32_t materialIndex = static_cast<uint32_t>( gltfMaterialIndex(gltfData, srcPrimitive.material) );
 					element.materialIndex = materialIndex;
 #endif
 				}
@@ -1931,37 +1976,36 @@ namespace glTF
 		{
 			uint32_t instanceOffset = static_cast<uint32_t>(instances.size());
 			auto numNodes = gltfData->nodes_count;
+			cgltf_float worldMatrix[16];
 			for (uint32_t i = 0; i < numNodes; i++)
 			{
 				auto &node = gltfData->nodes[i];
-				cgltf_float worldMatrix[16];
 				cgltf_node_transform_world(&node, worldMatrix);
+				
 				// Mesh node
 				if (node.mesh)
 				{
 					const auto &srcMesh = node.mesh;					
-					uint32_t meshIndex = gltfMeshIndex(gltfData, srcMesh);
+					uint32_t meshIndex = static_cast<uint32_t>( gltfMeshIndex(gltfData, srcMesh) );
 					uint32_t primitiveOffset = meshPrimitiveOffsets[meshIndex];
 					for (uint32_t p = 0; p < srcMesh->primitives_count; p++)
 					{
-						const auto &srcPrimitive = srcMesh->primitives[p];
-						
+						const auto &srcPrimitive = srcMesh->primitives[p];						
 						auto &instance = instances.emplace_back();
 						Cast(instance.transform, worldMatrix);
 						instance.elementIndex = primitiveOffset + p;
-						instance.materialIndex = gltfMaterialIndex(gltfData, srcPrimitive.material); 
+						instance.materialIndex = static_cast<uint32_t>( gltfMaterialIndex(gltfData, srcPrimitive.material) ); 
 					}
-					
 				}
-				// TODO: camera node, light node...
 				// Camera node
 				if (node.camera)
 				{
 					Math::Camera cam;
-					cam.SetTransform(GetAffineTransform(node.matrix));
+					cam.SetTransform(GetAffineTransform(worldMatrix)); // node.matrix
 					Cast(cam, node.camera);
 					camera = cam;
 				}
+				// TODO: light node...
 			}
 		}
 

@@ -65,15 +65,20 @@ struct VSOutput
 [RootSignature(Common_RootSig)]
 VSOutput main( VSInput v )
 {
-	VSOutput o;
+	VSOutput o = (VSOutput) 0;
 
+#if 0
 	float4 wPos = mul(float4(v.position, 1.0), _WorldMat);
+#else
+	// worldMat is not transposed
+	float4 wPos = mul(_WorldMat, float4(v.position, 1.0));
+#endif
 	// wPos = float4(v.position, 1.0);
 	float4 cPos = mul(wPos, _ViewProjMat);
 
 	// float3 wNormal = normalize(mul((float3x3)_InvWorldMat, v.normal));
 	// No uniform scale here
-	float3 wNormal = normalize(mul(v.normal, (float3x3)_WorldMat));
+	float3 wNormal = normalize(mul((float3x3)_WorldMat, v.normal));
 	// TODO: no tangents yet
 	float3 wTangent = float3(0, 0, 0); // normalize(mul(v.tangent.xyz, (float3x3)_WorldMat));
 	float3 wBitangent = float3( 0, 0, 0); // cross(wNormal, wTangent) * v.tangent.w;
@@ -94,7 +99,7 @@ VSOutput main( VSInput v )
 	o.tangent = wTangent;
 	o.bitangent = wBitangent;
 	// TODO: no color yet
-	o.color = float4(0, 0, 0, 0); // v.color;
+	// o.color = float3(0, 0, 0); // v.color;
 
 	return o;
 }

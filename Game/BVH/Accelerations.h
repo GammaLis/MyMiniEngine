@@ -28,6 +28,52 @@ namespace rtrt
 	constexpr float kBVHFar = 1e30f;	// actual valid ieee range: 3.40282347E+38
 	constexpr double kBVHFarD = 1e300;	// actual valid ieee range: 1.797693134862315E+308
 
+	/// Some math here
+
+	inline float  Min(float a, float b) { return a < b ? a : b; }
+	inline float  Max(float a, float b) { return a > b ? a : b; }
+	inline float2 Min(const float2 &a, const float2 &b) { return float2(Min(a.x, a.y), Min(b.x, b.y)); }
+	inline float2 Max(const float2 &a, const float2 &b) { return float2(Max(a.x, a.y), Max(b.x, b.y)); }
+	inline float3 Min(const float3 &a, const float3 &b) { return float3(Min(a.x, b.x), Min(a.y, b.y), Min(a.z, b.z)); }
+	inline float3 Max(const float3 &a, const float3 &b) { return float3(Max(a.x, b.x), Max(a.y, b.y), Max(a.z, b.z)); }
+	inline float4 Min(const float4 &a, const float4 &b) { return float4(Min(a.x, b.x), Min(a.y, b.y), Min(a.z, b.z), Min(a.w, b.w)); }
+	inline float4 Max(const float4 &a, const float4 &b) { return float4(Max(a.x, b.x), Max(a.y, b.y), Max(a.z, b.z), Max(a.w, b.w)); }
+	
+	// inline float3 Min3(const float3 &a, const float3 &b, const float3 &c) { return Min(a, Min(b, c)); } 
+	// inline float3 Max3(const float3 &a, const float3 &b, const float3 &c) { return Max(a, Max(b, c)); }
+	// inline float4 Min3(const float4 &a, const float4 &b, const float4 &c) { return Min(a, Min(b, c)); } 
+	// inline float4 Max3(const float4 &a, const float4 &b, const float4 &c) { return Max(a, Max(b, c)); }
+	template <class T>
+	T Min3(const T &a, const T &b, const T &c)
+	{
+		return Min(Min(a, b), c);
+	}
+	template <class T>
+	T Max3(const T &a, const T &b, const T &c)
+	{
+		return Max(Max(a, b), c);
+	}
+
+	template <class T>
+	requires (requires (T a, T b) { a < b;})
+	T Clamp(T val, T min, T max)
+	{
+		if (val < min)
+			val = min;
+		else if (val > max)
+			val = max;
+		return val;
+	}
+
+	template <class T>
+	requires (std::is_trivially_copyable_v<T>)
+	void Swap(T &a, T &b)
+	{
+		T temp = a;
+		a = b;
+		b = temp;
+	}
+	
 	struct Triangle;
 	class Mesh;
 
@@ -101,35 +147,39 @@ namespace rtrt
 
 	struct Bounds
 	{
-		float3 bmin = float3(g_Max);
-		float3 bmax = float3(g_Min);
+		float3 bmin = float3(g_Max);	uint32 dummy0;
+		float3 bmax = float3(g_Min);	uint32 dummy1;
 
 		Bounds() = default;
 		Bounds(float3 c0, float3 c1)
 		{
-			if (c0.x > c1.x) std::swap(c0.x, c1.x);
-			if (c0.y > c1.y) std::swap(c0.y, c1.y);
-			if (c0.z > c1.z) std::swap(c0.z, c1.z);
+			if (c0.x > c1.x) Swap(c0.x, c1.x);
+			if (c0.y > c1.y) Swap(c0.y, c1.y);
+			if (c0.z > c1.z) Swap(c0.z, c1.z);
 
 			bmin = c0; bmax = c1;
 		}
 
 		float Area() const
 		{
-			const float3 extent = glm::max(bmax - bmin, float3(0.0f));
+#if 0
+			const float3 extent = Max(bmax - bmin, float3(0.0f));
+#else
+			const float3 extent = bmax - bmin;
+#endif
 			return (extent.x * extent.y + extent.y * extent.z + extent.x * extent.z) * 2.0f;
 		}
 
 		void Union(const Bounds & other)
 		{
-			bmin = glm::min(bmin, other.bmin);
-			bmax = glm::max(bmax, other.bmax);
+			bmin = Min(bmin, other.bmin);
+			bmax = Max(bmax, other.bmax);
 		}
 
 		void Union(const float3 &point)
 		{
-			bmin = glm::min(bmin, point);
-			bmax = glm::max(bmax, point);
+			bmin = Min(bmin, point);
+			bmax = Max(bmax, point);
 		}
 
 		void Union(const Triangle &tri);
@@ -139,7 +189,7 @@ namespace rtrt
 		float3 Center() const { return (bmin + bmax) * 0.5f; }
 		float3 Extent() const
 		{
-			return glm::max(bmax - bmin, float3(0.0f));
+			return Max(bmax - bmin, float3(0.0f));
 		}
 
 		void Reset()
@@ -200,7 +250,7 @@ namespace rtrt
 		}
 
 		void* operator new (size_t size);
-		void operator delete(void* ptr);
+		void operator delete (void* ptr);
 
 		union 
 		{
@@ -452,7 +502,7 @@ namespace rtrt
 			bool bRefittable = true;	// refits are safe only if the tree has no spatial splits
 			bool bFragMinFlipped = false;	// AVX builders flip aabb min
 			bool bMayHaveHolds = false;	// threads builds and MergeLeafs produce BVHs with unused nodes
-			bool bBVHOverAABB = false;;	// a BVH or AABBs is useful for e.g. TLAS traversal
+			bool bBVHOverAABB = false;	// a BVH or AABBs is useful for e.g. TLAS traversal
 
 			// Keep track of allocated buffer size to avoid repeated allocation during layout conversion
 			uint32 allocatedNodes = 0;	// number of allocated for the BVh
@@ -467,7 +517,11 @@ namespace rtrt
 			void IntersectTri(Ray &r, const uint32 triIdx) const;
 			static float Intersect(const Ray &ray, const float3 &bmin, const float3 &bmax);
 			static void PrecomputeTri(uint32 triIdx);
-			static float SA(const float3 &bmin, const float3 &bmax);
+			static float SA(const float3 &bmin, const float3 &bmax)
+			{
+				// TODO:
+				return 0; 
+			}
 
 			static void* AlignedAlloc(size_t size);
 			static void AlignedFree(void* ptr);
@@ -475,6 +529,12 @@ namespace rtrt
 
 		struct BLASInstance;
 		struct BVH_Verbose;
+
+		// Binned BVH building: bin count
+		constexpr uint32 kBVHBins = 8;
+		// SAH BVH building: heuristic parameters
+		constexpr uint32 kSAH_Int = 1;
+		constexpr uint32 kSAH_Trav = 1;
 	
 		struct BVH : public BVHBase
 		{
@@ -492,7 +552,7 @@ namespace rtrt
 				float3 bmax; uint32 triCount;	// 16 bytes, total 32 bytes
 				// Empty BVH leaves do not exist
 				bool IsLeaf() const { return triCount > 0; }
-				float Intersect(const Ray &ray) const { return IntersectAABB(ray, bmin, bmax); }
+				// float Intersect(const Ray &ray) const { return IntersectAABB(ray, bmin, bmax); }
 				float SurfaceArea() const { return SA(bmin, bmax); }
 			};
 			
@@ -500,7 +560,7 @@ namespace rtrt
 			
 			float SAHCost(uint32 nodeIdx = 0) const;
 			uint32 NodeCount() const;
-			uint32 PrimCount() const;
+			uint32 PrimCount(uint32 nodeIdx) const;
 			void Compact();
 
 			void BuildDefault(const float4 *vertices, uint32 primCount)
@@ -514,14 +574,25 @@ namespace rtrt
 			void Build(const Float4Slice &vertices);
 			void BuildHQ(const float4 *vertices, uint32 primCount);
 			void BuildHQ(const Float4Slice &vertices);
+			void BuildTLAS(const Bounds *bounds, uint32 count);
+			void Refit(uint32 nodeIdx = 0);
 			
 			void Intersect(Ray &ray) const;
 			void IntersectTLAS(Ray &ray) const;
 			bool IsOccluded(const Ray &ray) const;
+			void Intersect256Rays(Ray *first) const;
 
+		private:
+			bool ClipFrag(const Fragment &orig, Fragment &newFrag, const float3 &bmin, const float3 &bmax, const float3 &minDim) const;
+			uint32 FindBestNewPosition(uint32 Lid);
+			void ReInsertNodeVerbose(uint32 Lid, uint32 Nid, uint32 origin);
+			uint32 CountSubtreeTris(uint32 nodeIdx, uint32 *counters);
+			void MergeSubtree(uint32 nodeIdx, uint32 *newIdx, uint32 &newIdxPtr);
+
+		public:
 			// Basic BVH data
 			Float4Slice vertices{};		// pointer to input primitive array: 3x16 byte per tri
-			uint32 *indices{nullptr};	// primitive index array
+			uint32 *triIndices{nullptr};	// primitive index array
 			BVHNode *bvhNodes{nullptr};	// BVH node pool, 32-byte format. Root is always in node 0.
 			Fragment *fragments{nullptr};	// input primitive bounding boxes
 			EBuildFlag flag = EBuildFlag::None;	// hint to the builder
@@ -535,3 +606,18 @@ namespace rtrt
 		};
 	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

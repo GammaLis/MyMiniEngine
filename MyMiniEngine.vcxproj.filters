@@ -283,12 +283,6 @@
     <ClInclude Include="Effects\ForwardPlusLighting.h">
       <Filter>Effects</Filter>
     </ClInclude>
-    <ClInclude Include="Game\GameInput.h">
-      <Filter>Game</Filter>
-    </ClInclude>
-    <ClInclude Include="Game\CameraController.h">
-      <Filter>Game</Filter>
-    </ClInclude>
     <ClInclude Include="Core\ShadowBuffer.h">
       <Filter>Core</Filter>
     </ClInclude>
@@ -421,14 +415,8 @@
     <ClInclude Include="Effects\Denoiser.h">
       <Filter>Effects</Filter>
     </ClInclude>
-    <ClInclude Include="Game\UniformBuffers.h">
-      <Filter>Game</Filter>
-    </ClInclude>
     <ClInclude Include="Effects\ReSTIRGI.h">
       <Filter>Effects</Filter>
-    </ClInclude>
-    <ClInclude Include="Game\FrameDescriptorHeap.h">
-      <Filter>Game</Filter>
     </ClInclude>
     <ClInclude Include="Core\LinearAllocator.h">
       <Filter>Core</Filter>
@@ -460,9 +448,6 @@
     <ClInclude Include="Core\Utility.h">
       <Filter>Game\Utility</Filter>
     </ClInclude>
-    <ClInclude Include="Core\Threads\TheadPool.h">
-      <Filter>Game\Threads</Filter>
-    </ClInclude>
     <ClInclude Include="Core\Threads\Task.h">
       <Filter>Game\Threads</Filter>
     </ClInclude>
@@ -478,6 +463,13 @@
     <ClInclude Include="Common\CoreMinimal.h">
       <Filter>Common</Filter>
     </ClInclude>
+    <ClInclude Include="Core\Threads\ThreadPool.h" />
+    <ClInclude Include="Game\Common\CameraController.h" />
+    <ClInclude Include="Game\Common\FrameDescriptorHeap.h" />
+    <ClInclude Include="Game\Common\GameInput.h" />
+    <ClInclude Include="Game\Common\UniformBuffers.h" />
+    <ClInclude Include="Game\GLTF\glTFMesh.h" />
+    <ClInclude Include="Libraries\meshoptimizer\src\meshoptimizer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -597,12 +589,6 @@
     <ClCompile Include="Effects\ForwardPlusLighting.cpp">
       <Filter>Effects</Filter>
     </ClCompile>
-    <ClCompile Include="Game\GameInput.cpp">
-      <Filter>Game</Filter>
-    </ClCompile>
-    <ClCompile Include="Game\CameraController.cpp">
-      <Filter>Game</Filter>
-    </ClCompile>
     <ClCompile Include="Core\ShadowBuffer.cpp">
       <Filter>Core</Filter>
     </ClCompile>
@@ -693,14 +679,8 @@
     <ClCompile Include="Effects\Denoiser.cpp">
       <Filter>Effects</Filter>
     </ClCompile>
-    <ClCompile Include="Game\UniformBuffers.cpp">
-      <Filter>Game</Filter>
-    </ClCompile>
     <ClCompile Include="Effects\ReSTIRGI.cpp">
       <Filter>Effects</Filter>
-    </ClCompile>
-    <ClCompile Include="Game\FrameDescriptorHeap.cpp">
-      <Filter>Game</Filter>
     </ClCompile>
     <ClCompile Include="Core\Math\BoundingSphere.cpp">
       <Filter>Core\Math</Filter>
@@ -732,6 +712,29 @@
     <ClCompile Include="Utilities\FileUtility.cpp">
       <Filter>Game\Utility</Filter>
     </ClCompile>
+    <ClCompile Include="Core\Threads\ThreadPool.cpp" />
+    <ClCompile Include="Game\Common\CameraController.cpp" />
+    <ClCompile Include="Game\Common\FrameDescriptorHeap.cpp" />
+    <ClCompile Include="Game\Common\GameInput.cpp" />
+    <ClCompile Include="Game\Common\UniformBuffers.cpp" />
+    <ClCompile Include="Game\GLTF\gltfMesh.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\allocator.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\clusterizer.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\indexcodec.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\indexgenerator.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\overdrawanalyzer.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\overdrawoptimizer.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\quantization.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\simplifier.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\spatialorder.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\stripifier.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\vcacheanalyzer.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\vcacheoptimizer.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\vertexcodec.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\vertexfilter.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\vfetchanalyzer.cpp" />
+    <ClCompile Include="Libraries\meshoptimizer\src\vfetchoptimizer.cpp" />
+    <ClCompile Include="Utilities\GameUtility.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Core\Math\Functions.inl">

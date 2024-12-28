@@ -109,7 +109,9 @@ namespace MyDirectX
     {
         return GetVendorIdFromDevice(pDevice) == s_VendorID_Intel;
     }
+#pragma endregion
 
+#pragma region
     bool Graphics::IsRaytracingSupported(IDXGIAdapter1* pAdapter)
     {
         ComPtr<ID3D12Device> pDevice;
@@ -125,16 +127,30 @@ namespace MyDirectX
         return bSupported;
     }
 
-    bool IsVPAndRTArrayIndexSupported(IDXGIAdapter *pAdapter)
+    bool IsVPAndRTArrayIndexSupported(IDXGIAdapter* pAdapter)
     {
         ComPtr<ID3D12Device> pDevice;
         D3D12_FEATURE_DATA_D3D12_OPTIONS featureSupportData{};
 
         bool bSupported = true;
-        if (SUCCEEDED( D3D12CreateDevice(pAdapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&pDevice)) ))
+        if (SUCCEEDED(D3D12CreateDevice(pAdapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&pDevice))))
         {
             bSupported = SUCCEEDED(pDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &featureSupportData, sizeof(featureSupportData)));
             bSupported = bSupported && featureSupportData.VPAndRTArrayIndexFromAnyShaderFeedingRasterizerSupportedWithoutGSEmulation;
+        }
+        return bSupported;
+    }
+
+    bool IsStencilRefSupported(IDXGIAdapter* pAdapter) 
+    {
+        ComPtr<ID3D12Device> pDevice;
+        D3D12_FEATURE_DATA_D3D12_OPTIONS featureSupportData{};
+
+        bool bSupported = true;
+        if (SUCCEEDED(D3D12CreateDevice(pAdapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&pDevice))))
+        {
+            bSupported = SUCCEEDED( pDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &featureSupportData, sizeof(featureSupportData)));
+            bSupported = bSupported && featureSupportData.PSSpecifiedStencilRefSupported;
         }
         return bSupported;
     }
@@ -202,13 +218,12 @@ namespace MyDirectX
         m_DisplayWidth = newWidth;
         m_DisplayHeight = newHeight;
 
-        // 静态缓存 width height
         GfxStates::s_DisplayWidth = m_DisplayWidth;
         GfxStates::s_DisplayHeight = m_DisplayHeight;
 
         DEBUGPRINT("Changing display resolution to %ux%u", newWidth, newHeight);
 
-        // 以下，可以直接调用 CreateWindowSizeDependentResources
+        // Can be replaced by 'CreateWindowSizeDependentResources'
         // ...
         m_PreDisplayBuffer.Create(m_Device.Get(), L"PreDisplay Buffer", newWidth, newHeight, 1, m_SwapChainFormat);
 
@@ -253,7 +268,7 @@ namespace MyDirectX
         CommandContext::DestroyAllContexts();
         s_CommandManager.Shutdown();
 
-        // m_SwapChain->Release();  // 报错！ 不要直接调用 ComPtr->Release()
+        // m_SwapChain->Release();  // Error: don't directly call 'ComPtr->Release()'
         m_SwapChain.Reset();
         // or
         // m_SwapChain = nullptr;
@@ -283,7 +298,7 @@ namespace MyDirectX
         }
 #endif
 
-        // m_Device->Release();     // ComPtr->Release()报错, 不要直接调用 ComPtr->Release()
+        // m_Device->Release();     // Error: don't directly call 'ComPtr->Release()'
         m_Device.Reset();
         // or
         // m_Device = nullptr;
@@ -589,7 +604,7 @@ namespace MyDirectX
             // Suppress whole categories of messages
             //D3D12_MESSAGE_CATEGORY categories[] = {  };
 
-            // Suppress messages based on their severity level（严重等级）
+            // Suppress messages based on their severity level
             D3D12_MESSAGE_SEVERITY severities[] =
             {
                 D3D12_MESSAGE_SEVERITY_INFO
@@ -605,7 +620,7 @@ namespace MyDirectX
                 // 3dgep.com
                 // This occurs when a render target is cleared using a clear color that is not the optimized color
                 // specified during resource creation.
-                // 忽略 ClearRenderTargetView clearValue 与设置值不一的warning
+                // Ignore ClearRenderTargetView clearValue 与设置值不一的warning
                 D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
 
                 // This occurs when there are uninitialized descriptors in a descriptor table, even when a
@@ -637,7 +652,7 @@ namespace MyDirectX
             // d3dInfoQueue->PushStorageFilter(&filter);
         }
 #endif
-        // 缓存静态pDevice
+        // Cache static pDevice
         s_Device = d3d12Device.Get();
 
         return d3d12Device;
@@ -674,7 +689,7 @@ namespace MyDirectX
             }
         }
 
-        // 这个可以略去...
+        // Optional
         // feature level
         static const D3D_FEATURE_LEVEL s_featureLevels[] =
         {

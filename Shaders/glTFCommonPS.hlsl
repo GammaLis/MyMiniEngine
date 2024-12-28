@@ -149,5 +149,7 @@ float4 main(VSOutput i) : SV_TARGET
 	// ** debug indirectLighting **
 	// color.rgb = indirectLighting;
 
+	color.rgb = normal.xyz * 0.5f + 0.5f;
+	
 	return color;
 }

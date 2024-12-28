@@ -1147,6 +1147,37 @@ namespace rtrt
 			this->idxCount = other.idxCount;
 		}
 
+		// Determine the SAH cost of the tree. This provides an indication of the quality of the BVH.
+		// Lower is better.
+		float BVH::SAHCost(uint32 nodeIdx) const
+		{
+			const auto &node = bvhNodes[nodeIdx];
+			if (node.IsLeaf())
+				return kSAH_Int * node.SurfaceArea() * static_cast<float>(node.triCount);
+			float cost = kSAH_Trav * node.SurfaceArea() + SAHCost(node.leftFirst) + SAHCost(node.leftFirst + 1);
+			return nodeIdx == 0 ? (cost / node.SurfaceArea()) : cost;
+		}
+
+		// Determine the total number of primitives / fragments in leaf nodes
+		uint32 BVH::PrimCount(uint32 nodeIdx) const
+		{
+			const auto &node = bvhNodes[nodeIdx];
+			return node.IsLeaf() ?
+				node.triCount :
+				PrimCount(node.leftFirst) + PrimCount(node.leftFirst + 1);
+		}
+
+		// BVH builder entry point for arrays of aabbs
+		void BVH::BuildTLAS(const Bounds* bounds, uint32 count)
+		{
+			// The aabb array must be cache line aligned
+			ASSERT(count > 0);
+			ASSERT( (reinterpret_cast<intptr_t>(bounds) & 31) == 0);
+		}
+
+
+
+
 		/**
 		 * Basic single-function binned-SAH-builder
 		 * This is the reference builder; it yields a decent tree suitable for ray tracing on the CPU.
@@ -1172,13 +1203,100 @@ namespace rtrt
 			{
 				AlignedFree(bvhNodes);
 				AlignedFree(fragments);
-				AlignedFree(indices);
+				AlignedFree(triIndices);
 
 				bvhNodes = static_cast<BVHNode*>( AlignedAlloc(spaceNeeded * sizeof(BVHNode)) );
 				allocatedNodes = spaceNeeded;
 				memset(&bvhNodes[1], 0, /*sizeof(BVHNode)*/ 32);	// node 1 remains unused, for cache line alignment
 				
-				indices = static_cast<uint32*>( AlignedAlloc(primCount * sizeof(uint32)) );
+				triIndices = static_cast<uint32*>( AlignedAlloc(primCount * sizeof(uint32)) );
+
+				ASSERT(vertices, "ERROR::BVH::Build, vertices is null!");
+				if (vertices)
+				{
+					fragments = static_cast<Fragment*>( AlignedAlloc(primCount * sizeof(Fragment)) );
+				}
+			}
+			// Assert(bRebuildable)
+
+			this->vertices = vertices;
+			this->idxCount = this->triCount = primCount;
+			// Reset node pool
+			uint32 newNodePtr = 2;
+			// Assign all triangles to the root node
+			BVHNode &root = bvhNodes[0];
+			root.leftFirst = 0;
+			root.triCount = triCount;
+			root.bmin = float3(kBVHFar);
+			root.bmax = float3(-kBVHFar);
+			// Init fragments and init root node bounds
+			if (vertices)
+			{
+				// Build a BVH over triangles specified as three 16-byte vertices each.
+				for (uint32 i = 0; i < triCount; ++i)
+				{
+					const float4 &v0 = vertices[i * 3], &v1 = vertices[i * 3 + 1], &v2 = vertices[i * 3 + 2];
+										
+					auto &frag = fragments[i];
+					frag.bmin = Min3(v0, v1, v2);
+					frag.bmax = Max3(v0, v1, v2);
+
+					root.bmin = Min(root.bmin, frag.bmin);
+					root.bmax = Max(root.bmax, frag.bmax);
+
+					triIndices[i] = i;
+				}
+			}
+
+			static constexpr uint32 kBinMinusOne = kBVHBins-1;
+			
+			// Subdivide recursively
+			uint32 task[256], taskCount = 0, nodeIdx = 0;
+			float3 minDim = (root.bmax - root.bmin) * 1e-20f;
+			float3 bestLMin = float3(0), bestLMax = float3(0), bestRMin = float3(0), bestRMax = float3(0);
+			while (1)
+			{
+				while (1)
+				{
+					auto &node = bvhNodes[nodeIdx];
+					// Find optimal object split
+					float3 binMin[3][kBVHBins], binMax[3][kBVHBins];
+					uint32 countInBins[3][kBVHBins] = { 0 };
+					// For each axis: x, y, z
+					for (uint32 a = 0; a < 3; a++)
+					{
+						float at = minDim[a], dt = at / kBVHBins;
+						for (uint32 b = 0; b < kBVHBins; b++)
+						{
+							binMin[a][b] = float3(kBVHFar);
+							binMax[a][b] = float3(-kBVHFar);
+						}
+					}					
+					const float3 bext = node.bmax - node.bmin;
+					const float3 rpd3 = float3(kBVHBins / bext.x, kBVHBins / bext.y, kBVHBins / bext.z);
+					const float3 nmin3 = node.bmin;
+					for (uint32 i = 0; i < node.triCount; i++)
+					{
+						const uint32 fi = triIndices[ node.leftFirst + i];
+						const auto &frag = fragments[fi];
+						
+						float3 delta = (frag.bmin + frag.bmax) * 0.5f - nmin3;
+						int bix = Clamp(static_cast<uint32>(delta.x * rpd3.x), 0u, kBinMinusOne);
+						int biy = Clamp(static_cast<uint32>(delta.y * rpd3.y), 0u, kBinMinusOne);
+						int biz = Clamp(static_cast<uint32>(delta.z * rpd3.z), 0u, kBinMinusOne);
+
+						binMin[0][bix] = Min(binMin[0][bix], frag.bmin); binMax[0][bix] = Max(binMax[0][bix], frag.bmax); countInBins[0][bix]++;
+						binMin[1][biy] = Min(binMin[1][biy], frag.bmin); binMax[1][biy] = Max(binMax[1][biy], frag.bmax); countInBins[1][biy]++;
+						binMin[2][biz] = Min(binMin[2][biz], frag.bmin); binMax[2][biz] = Max(binMax[2][biz], frag.bmax); countInBins[2][biz]++;
+					}
+					// Calculate per-split totals
+					float splitCost = 1e30f;
+					uint32 bestAxis = 0, bestPos = 0;
+					for (uint32 a = 0; a < 3; a++)
+					{
+						
+					}
+				}
 			}
 		}
 
@@ -1187,3 +1305,21 @@ namespace rtrt
 	}
 	
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
