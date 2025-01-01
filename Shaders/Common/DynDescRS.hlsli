@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 // Ref: https://learn.microsoft.com/en-us/windows/win32/direct3d12/specifying-root-signatures-in-hlsl
 

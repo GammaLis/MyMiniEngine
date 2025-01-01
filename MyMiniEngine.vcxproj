@@ -843,7 +843,7 @@
       </AdditionalOptions>
       <LinkCompiled>true</LinkCompiled>
     </ClCompile>
-    <ClCompile Include="Game\GLTF\gltfMesh.cpp" />
+    <ClCompile Include="Game\GLTF\glTFMesh.cpp" />
     <ClCompile Include="Game\GLTF\glTFViewer.cpp">
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -979,6 +979,13 @@
     <ClCompile Include="Core\GfxCommon.cpp" />
     <ClCompile Include="Game\CubemapIBLApp.cpp" />
     <ClCompile Include="Effects\ParticleShaderStructs.cpp" />
+    <FxCompile Include="Shaders\Common\VertexShaderTemplate.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.6</ShaderModel>
+    </FxCompile>
     <FxCompile Include="Shaders\Misc\DepthOnlyDynDescVS.hlsl">
       <FileType>Document</FileType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.6</ShaderModel>
@@ -1045,6 +1052,8 @@
     <None Include="packages.config" />
     <None Include="Shaders\CommonCullingRS.hlsli" />
     <None Include="Shaders\CommonIndirectRS.hlsli" />
+    <None Include="Shaders\Common\glTFCommon.hlsli" />
+    <None Include="Shaders\Common\Visualization.hlsli" />
     <None Include="Shaders\FillLightGridCS.hlsli" />
     <None Include="Shaders\glTFCommonRS.hlsli" />
     <None Include="Shaders\IndirectGBufferRS.hlsli" />
@@ -1745,11 +1754,15 @@
     </FxCompile>
     <FxCompile Include="Shaders\glTFCommonPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.6</ShaderModel>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </FxCompile>
     <FxCompile Include="Shaders\glTFCommonVS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.6</ShaderModel>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </PreprocessorDefinitions>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </FxCompile>
     <FxCompile Include="Shaders\Raytracing\HitShaderLib.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>

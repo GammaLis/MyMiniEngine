@@ -1,3 +1,4 @@
+
 #ifndef PBRUTILITY_HLSLI
 #define PBRUTILITY_HLSLI
 
@@ -26,7 +27,7 @@ struct FLight
 	float falloffRadius;	// maximum distance of influence
 	float2 spotAttenScaleOffset;	// Dot(...) * scaleOffset.x + scaleOffset.y
 	// or float2 spotAngles;	// x - innerAngle, y - outerAngle
-	float2 padding;	// CPP里字节对齐，这里需要补齐
+	float2 padding;	// align with .cpp file
 };
 
 struct TMaterial
@@ -137,7 +138,7 @@ float V_Kelemen(float LdotH)
 // Neubelt and Pettineo 2013, "Crafting a Next-gen Material Pipeline for The Order: 1886"
 float V_Neubelt(float NdotV, float NdotL)
 {
-	return saturateMediump(1.0 / (4.0 * (NdotL + NdotV - NdotL * NdotV));
+	return saturateMediump(1.0 / (4.0 * (NdotL + NdotV - NdotL * NdotV)));
 }
 
 /// F
@@ -201,7 +202,7 @@ float Fd_Burley(float NdotV, float NdotL, float LdotH, float roughness)
 
 // Energy conserving wrap diffuse term, does *not* include the divide by pi
 float Fd_Wrap(float NoL, float w) {
-    return saturate((NoL + w) / ((1.0 + w) * (1.0 + w)));
+	return saturate((NoL + w) / ((1.0 + w) * (1.0 + w)));
 }
 
 // ************************************************************
@@ -226,7 +227,7 @@ float Fd_Wrap(float NoL, float w) {
 // ************************************************************
 // Remapping
 // 1. baseColor remapping
-// The base color of a material is affected by the “metallicness” of said material. Dielectrics have
+// The base color of a material is affected by the ?metallicness? of said material. Dielectrics have
 // achromatic specular reflectance but retain their base color as the diffuse color. Conductors on
 // the other hand use their base color as the specular color and do not have a diffuse component. 
 // 
@@ -419,7 +420,7 @@ float3 BRDF(float3 lightDir, float3 viewDir, float3 normal, const TMaterial mat)
 // SH
 struct SH9
 {
-    float c[9];
+	float c[9];
 };
 struct SH9Color
 {
@@ -427,22 +428,22 @@ struct SH9Color
 };
 SH9 SH9Basis(float3 s)
 {
-    float x = s.x, y = s.y,  z = s.z;
-    float x2= x*x, y2 = y*y, z2 = z*z;
-    SH9 sh;
-    sh.c[0] =  0.282095f;   // 1 / (2 * sqrt(pi))
+	float x = s.x, y = s.y,  z = s.z;
+	float x2= x*x, y2 = y*y, z2 = z*z;
+	SH9 sh;
+	sh.c[0] =  0.282095f;   // 1 / (2 * sqrt(pi))
 
-    sh.c[1] = -0.488603f * y;   // -sqrt(3)  / (2 * sqrt(pi))  * y
-    sh.c[2] =  0.488603f * z;   //  sqrt(3)  / (2 * sqrt(pi))  * z
-    sh.c[3] = -0.488603f * x;   // -sqrt(3)  / (2 * sqrt(pi))  * x
+	sh.c[1] = -0.488603f * y;   // -sqrt(3)  / (2 * sqrt(pi))  * y
+	sh.c[2] =  0.488603f * z;   //  sqrt(3)  / (2 * sqrt(pi))  * z
+	sh.c[3] = -0.488603f * x;   // -sqrt(3)  / (2 * sqrt(pi))  * x
 
-    sh.c[4] =  1.092548f * x * y;   //  sqrt(15) / (2 * sqrt(pi))  * xy
-    sh.c[5] = -1.092548f * y * z;   // -sqrt(15) / (2 * sqrt(pi))  * yz
-    sh.c[6] =  0.315392f * (3 * z2 - 1);    //  sqrt(5)  / (4 * sqrt(pi))  * (3z^2 - 1)
-    sh.c[7] = -1.092548f * z * x;   // -sqrt(15) / (2 * sqrt(pi))  * xz
-    sh.c[8] =  0.546274f * (x2 - y2);       //  sqrt(15) / (4 * sqrt(pi))  * (x^2 - y^2)
+	sh.c[4] =  1.092548f * x * y;   //  sqrt(15) / (2 * sqrt(pi))  * xy
+	sh.c[5] = -1.092548f * y * z;   // -sqrt(15) / (2 * sqrt(pi))  * yz
+	sh.c[6] =  0.315392f * (3 * z2 - 1);    //  sqrt(5)  / (4 * sqrt(pi))  * (3z^2 - 1)
+	sh.c[7] = -1.092548f * z * x;   // -sqrt(15) / (2 * sqrt(pi))  * xz
+	sh.c[8] =  0.546274f * (x2 - y2);       //  sqrt(15) / (4 * sqrt(pi))  * (x^2 - y^2)
 
-    return sh;
+	return sh;
 }
 float3 ApproximateDiffuseSH(SH9Color sh, float3 N, float3 diffuseColor)
 {
@@ -475,17 +476,17 @@ float3 ApproximateDiffuseSH(SH9Color sh, float3 N, float3 diffuseColor)
 // Precomputing
 float RadicalInverse_VdC(uint bits) 
 {
-    bits = (bits << 16u) | (bits >> 16u);
-    bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
-    bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
-    bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
-    bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
-    return float(bits) * 2.3283064365386963e-10; // / 0x100000000
+	bits = (bits << 16u) | (bits >> 16u);
+	bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
+	bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
+	bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
+	bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
+	return float(bits) * 2.3283064365386963e-10; // / 0x100000000
 }
 // a low-discrepancy sequence
 float2 Hammersley(uint i, uint N)
 {
-    return float2(float(i)/float(N), RadicalInverse_VdC(i));
+	return float2(float(i)/float(N), RadicalInverse_VdC(i));
 }
 
 #endif	// PBRUTILITY_HLSLI
@@ -514,18 +515,18 @@ float2 Hammersley(uint i, uint N)
  * 	** Material
  * 	a material defines the visual appearance of a surface. To completely describe
  * and render a surface,a material provides the following information:
- 	> material model
- 	> set of use-controllable named parameters
- 	> raster state(blending mode, backface culling, etc)
- 	> vertex shader code
- 	> fragment shader code
+	> material model
+	> set of use-controllable named parameters
+	> raster state(blending mode, backface culling, etc)
+	> vertex shader code
+	> fragment shader code
 
- 	## Material models
- 	> Lit (or standard)
- 	> Subsurface
- 	> Cloth
- 	> Unlit
- 	> Specular glossiness(legacy)
+	## Material models
+	> Lit (or standard)
+	> Subsurface
+	> Cloth
+	> Unlit
+	> Specular glossiness(legacy)
 	this material model can be used to describe a large number of non-metallic surfaces
 (dieletrics) or metallic surfaces(conductors)
 	

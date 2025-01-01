@@ -1,4 +1,4 @@
-#define Common_RootSig \
+﻿#define Common_RootSig \
 	"RootFlags(ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT)," \
 	"RootConstants(b0, num32BitConstants = 4)," \
 	"CBV(b1)," \
@@ -19,6 +19,100 @@
 
 #define GL_UV_STARTS_AT_BOTTOMLEFT
 #define USE_SIMPLE_VERTEX 1
+#define USE_DESCRIPTOR_HEAP_INDEX 1
+
+#define SHADING_MODEL_METALLIC_ROUGHNESS
+
+#if USE_SIMPLE_VERTEX
+
+struct VSInput
+{
+	float3 position : POSITION;
+	float2 uv0 : TEXCOORD0;
+	float3 normal : NORMAL;
+};
+
+// TODO: optimization
+struct VSOutput
+{
+	float4 pos : SV_POSITION;
+	float2 uv0 : TEXCOORD0;
+	float2 uv1 : TEXCOORD1;
+	float3 worldPos : TEXCOORD2;
+	float3 normal : NORMAL;
+	float3 tangent : TANGENT;
+	float3 bitangent : TEXCOORD3;
+	float3 color : COLOR0;
+};
+
+#else
+
+struct VSInput
+{
+	float3 position : POSITION;
+	float2 uv0		: TEXCOORD0;
+	float2 uv1		: TEXCOORD1;
+	float3 normal 	: NORMAL;
+	float4 tangent	: TANGENT;
+	float3 color	: COLOR0;
+};
+
+struct VSOutput
+{
+	float4 pos 	: SV_POSITION;
+	float2 uv0 	: TEXCOORD0;
+	float2 uv1	: TEXCOORD1;
+	float3 worldPos	: TEXCOORD2;
+	float3 normal 	: NORMAL;
+	float3 tangent 	: TANGENT;
+	float3 bitangent: TEXCOORD3;
+	float3 color 	: COLOR0;
+};
+#endif
+
+#if !USE_DESCRIPTOR_HEAP_INDEX
+
+cbuffer CBConstants : register(b0)
+{
+	float4 _Constants;
+};
+cbuffer CBPerObject : register(b1)
+{
+	matrix _WorldMat;
+	matrix _InvWorldMat;
+};
+cbuffer CBPerCamera : register(b2)
+{
+	matrix _ViewProjMat;
+	float3 _CamPos;
+};
+
+#endif
+
+static const uint kInstanceBufferMaxNum = 128u;
+static const uint kMaterialBufferMaxNum = 64u;
+
+struct CBPerObject
+{
+	float4x4 worldMat;
+	float4x4 invWorldMat;
+};
+
+struct CBObjects
+{
+	CBPerObject objs[kInstanceBufferMaxNum];
+};
+
+struct CBPerCamera
+{
+	float4x4 viewProjMat;
+	float4x4 camPos;
+};
+
+cbuffer CBConstants : register(b0, space1)
+{
+	float4 _Miscs;
+}
 
 // cbuffer CBConstants	: register(b0)
 // {
@@ -53,7 +147,7 @@
 	} ;
 	
  *	RootConstants - 2个必需的参数是cbuffer的num32BitConstants和bReg, space 和visibility是可选的
- *	RootCosntants(num32BitConstants = N, bReg[, space = 0, visibility = SHADER_VISIBILITY_ALL])
+ *	RootConstants(num32BitConstants = N, bReg[, space = 0, visibility = SHADER_VISIBILITY_ALL])
  *
  * 	Visibility - 可选参数
  * 	SHADER_VISIBILITY_ALL将根参数广播到所有着色器。在某些硬件上，此操作不会造成开销，但在其他硬件上，
@@ -89,5 +183,6 @@
  *  	visibility = ...])
  *
  * [RootSignature(MyRS)]
- * Output main(intput i) {...}
+ * Output main(input i) {...}
  */
+

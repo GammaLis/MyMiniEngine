@@ -424,9 +424,6 @@
     <ClInclude Include="Shaders\Common\DynDescRS.hlsli">
       <Filter>Shaders\Common</Filter>
     </ClInclude>
-    <ClInclude Include="Game\MSAAFilter.h">
-      <Filter>Shaders\Misc</Filter>
-    </ClInclude>
     <ClInclude Include="Game\BVH\BVHApp.h">
       <Filter>Game\BVH</Filter>
     </ClInclude>
@@ -470,6 +467,9 @@
     <ClInclude Include="Game\Common\UniformBuffers.h" />
     <ClInclude Include="Game\GLTF\glTFMesh.h" />
     <ClInclude Include="Libraries\meshoptimizer\src\meshoptimizer.h" />
+    <ClInclude Include="Game\MSAAFilter.h">
+      <Filter>Game</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -685,9 +685,6 @@
     <ClCompile Include="Core\Math\BoundingSphere.cpp">
       <Filter>Core\Math</Filter>
     </ClCompile>
-    <ClCompile Include="Game\MSAAFilter.cpp">
-      <Filter>Shaders\Misc</Filter>
-    </ClCompile>
     <ClCompile Include="Game\BVH\BVHApp.cpp">
       <Filter>Game\BVH</Filter>
     </ClCompile>
@@ -735,6 +732,9 @@
     <ClCompile Include="Libraries\meshoptimizer\src\vfetchanalyzer.cpp" />
     <ClCompile Include="Libraries\meshoptimizer\src\vfetchoptimizer.cpp" />
     <ClCompile Include="Utilities\GameUtility.cpp" />
+    <ClCompile Include="Game\MSAAFilter.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Core\Math\Functions.inl">
@@ -915,6 +915,10 @@
     <None Include="Shaders\VisibilityBuffer\VisibilityBufferCommon.hlsli">
       <Filter>Shaders\VisibilityBuffer</Filter>
     </None>
+    <None Include="Shaders\Common\glTFCommon.hlsli">
+      <Filter>Shaders\Common</Filter>
+    </None>
+    <None Include="Shaders\Common\Visualization.hlsli" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Core\Shaders\TextVS.hlsl">
@@ -1318,6 +1322,9 @@
     </FxCompile>
     <FxCompile Include="Shaders\Misc\ResolveCS.hlsl">
       <Filter>Shaders\Misc</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Common\VertexShaderTemplate.hlsl">
+      <Filter>Shaders\Common</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

@@ -22,10 +22,7 @@ namespace MyDirectX
 	class Texture : public GpuResource
 	{
 	public:
-		Texture()
-		{ 
-			m_hCpuDescriptorHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
-		}
+		Texture() { m_hCpuDescriptorHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN; }
 		Texture(D3D12_CPU_DESCRIPTOR_HANDLE handle) : m_hCpuDescriptorHandle(handle) {  }
 
 		// create a 1-level 2D texture
@@ -57,7 +54,7 @@ namespace MyDirectX
 		uint32_t m_Width = 0;
 		uint32_t m_Height = 0;
 		uint32_t m_Depth = 0;
-
+		
 		D3D12_CPU_DESCRIPTOR_HANDLE m_hCpuDescriptorHandle;
 	};
 
@@ -76,8 +73,10 @@ namespace MyDirectX
 		void Unload();
 
 		void SetDefault(EDefaultTexture defaultTex = EDefaultTexture::kMagenta2D);
+		void SetNull();
 		void SetToInvalidTexture();
 		bool IsValid() const { return m_IsValid; }
+		bool IsLoading() const { return m_IsLoading; }
 
 	private:
 		std::wstring m_MapKey;	// for deleting from the map later
@@ -131,6 +130,7 @@ namespace MyDirectX
 
 		std::pair<ManagedTexture*, bool> FindOrLoadTexture(const std::wstring& fileName, bool forceSRGB = false);
 		ManagedTexture* FindOrLoadTextureWithFallback(const std::wstring& fileName, EDefaultTexture fallback = EDefaultTexture::kMagenta2D, bool forceSRGB = false);
+		ManagedTexture* FindOrLoadTextureAsync(const std::wstring& fileName, EDefaultTexture fallback = EDefaultTexture::kMagenta2D, bool forceSRGB = false);
 
 		const ManagedTexture* LoadFromFile(ID3D12Device *pDevice, const std::wstring& fileName, bool sRGB = false);
 		const ManagedTexture* LoadDDSFromFile(ID3D12Device* pDevice, const std::wstring& fileName, bool sRGB = false);
@@ -142,28 +142,26 @@ namespace MyDirectX
 		{
 			return LoadFromFile(pDevice, MakeWStr(fileName), sRGB);
 		}
-
 		const ManagedTexture* LoadBySTB_IMAGE(ID3D12Device* pDevice, const std::string& fileName, bool sRGB = false)
 		{
 			return LoadBySTB_IMAGE(pDevice, MakeWStr(fileName), sRGB);
 		}
-
 		const ManagedTexture* LoadDDSFromFile(ID3D12Device* pDevice, const std::string& fileName, bool sRGB = false)
 		{
 			return LoadDDSFromFile(pDevice, MakeWStr(fileName), sRGB);
 		}
-
 		const ManagedTexture* LoadTGAFromFile(ID3D12Device* pDevice, const std::string& fileName, bool sRGB = false)
 		{
 			return LoadTGAFromFile(pDevice, MakeWStr(fileName), sRGB);
 		}
-
 		const ManagedTexture* LoadPIXImageFromFile(ID3D12Device* pDevice, const std::string& fileName)
 		{
 			return LoadPIXImageFromFile(pDevice, MakeWStr(fileName));
 		}
 
+		void DeferredUpdate();
 		void ReleaseTextures(const std::wstring fileName[], size_t numTex);
+		void BindUpdateCallback(std::function<bool(const ManagedTexture*)> callback);
 
 		// static members
 		static const Texture& GetBlackTex2D();
@@ -173,12 +171,16 @@ namespace MyDirectX
 		/// Default Textures
 		static std::wstring s_DefaultTextureName[EDefaultTexture::kNumDefaultTextures];
 		static Texture s_DefaultTexture[EDefaultTexture::kNumDefaultTextures];
-		static D3D12_CPU_DESCRIPTOR_HANDLE GetDefaultTexture(EDefaultTexture texID);
+		static D3D12_CPU_DESCRIPTOR_HANDLE GetDefaultTextureDescriptor(EDefaultTexture texID);
+		static Texture* GetDefaultTexture(EDefaultTexture texID);
 		static void DestroyDefaultTextures();
 
 	private:
 		std::wstring m_RootPath;
 		std::map<std::wstring, std::unique_ptr<ManagedTexture>> m_TextureCache;
 		std::mutex m_TexMutex;
+
+		std::list<const ManagedTexture*> m_TexturesToUpdate;
+		std::function<bool(const ManagedTexture*)> m_UpdateCallback = nullptr;
 	};
 }

@@ -24,6 +24,10 @@
 using namespace MyDirectX;
 using namespace DirectX;
 
+#ifndef USE_DESCRIPTOR_HEAP_INDEX
+#define USE_DESCRIPTOR_HEAP_INDEX 1
+#endif
+
 namespace
 {
 	// SIMDMemcpy needs 16-byte aligned, but not in StructuredBuffer, so we need padding
@@ -43,6 +47,7 @@ namespace
 	{
 		glTF::Matrix4x4 worldMat;
 		glTF::Matrix4x4 invWorldMat;
+		uint32_t materialIndex;
 	};
 
 	struct alignas(16) CBPerCamera
@@ -56,7 +61,7 @@ namespace
 		Math::Vector4 baseColorFactor { 1.0f, 1.0f, 1.0f, 1.0f };
 		DirectX::XMFLOAT3 emissiveFactor { 1.0f, 1.0f, 1.0f };
 		float alphaCutout { 0.5f };
-		DirectX::XMUINT4 texcoords[2];
+		DirectX::XMUINT4 textureIndices[2];
 #if defined(SHADING_MODEL_METALLIC_ROUGHNESS)
 		float metallic { 0.5f };
 		float roughness { 0.5f };
@@ -69,6 +74,29 @@ namespace
 		float normalScale { 1.0f };
 		float occlusionStrength { 1.0f };
 	};
+
+	using BaseMaterial = glTF::BaseMaterial;
+
+	static uint32_t GetTextureIndex(uint32_t index, uint32_t materialTextureStart, uint32_t defaultTextureStart)
+	{
+		bool bValid = BaseMaterial::IsTextureValid(index);
+		return bValid ?
+			index + materialTextureStart :
+			BaseMaterial::DecodeDefaultTextureIndex(index) + defaultTextureStart;
+	}
+
+	void Cast(PSConstants& dst, const glTF::BaseMaterial &src, uint32_t materialTextureStart, uint32_t defaultTextureStart = 0) 
+	{
+		// TODO...
+		dst.alphaCutout = src.alphaCutoff;
+		
+		// Textures
+		dst.textureIndices[0].x = GetTextureIndex(src.textures[0], materialTextureStart, defaultTextureStart); 
+		dst.textureIndices[0].y = GetTextureIndex(src.textures[1], materialTextureStart, defaultTextureStart); 
+		dst.textureIndices[0].z = GetTextureIndex(src.textures[2], materialTextureStart, defaultTextureStart); 
+		dst.textureIndices[0].w = GetTextureIndex(src.textures[3], materialTextureStart, defaultTextureStart); 
+		dst.textureIndices[1].x = GetTextureIndex(src.textures[4], materialTextureStart, defaultTextureStart); 
+	}
 }
 
 glTFViewer::glTFViewer(HINSTANCE hInstance, const std::string& glTFFileName, const wchar_t* title, UINT width, UINT height)
@@ -83,6 +111,12 @@ void glTFViewer::Update(float deltaTime)
 	static std::vector<std::string> s_ReadyImporters;
 	
 	IGameApp::Update(deltaTime);
+
+	// Update textures
+	if (!m_TextureIndexMap.empty())
+	{
+		Graphics::s_TextureManager.DeferredUpdate();
+	}
 
 	// Update mesh buffers
 	if (m_UpdateVertexBuffers.size())
@@ -128,7 +162,9 @@ void glTFViewer::Update(float deltaTime)
 				ASSERT(it != m_NameAndObjIndexMap.end());
 				m_DrawObjects[it->second] = std::move(drawObject);
 
-				UpdateMeshBuffers(std::pair{ fileName, &(m_DrawObjects[it->second]->mesh) }); 
+				UpdateMeshBuffers(std::pair{ fileName, &(m_DrawObjects[it->second]->mesh) });
+				// UpdateMeshDescriptors(fileName, m_DrawObjects[it->second]->materials);
+				UpdateTextures(fileName, m_DrawObjects[it->second]->textures);
 			}
 		}
 		s_ReadyImporters.clear();
@@ -167,6 +203,8 @@ void glTFViewer::Render()
 	}
 
 	gfx.Finish();
+
+	m_FrameDescriptorHeap.EndFrame();
 }
 
 bool glTFViewer::LoadFile(const std::string& fileName)
@@ -198,7 +236,7 @@ void glTFViewer::AddDrawObject(const std::string &name, const std::shared_ptr<gl
 	}
 
 	uint32_t index = static_cast<uint32_t>(m_DrawObjects.size());
-	m_DrawObjects.emplace_back(std::move(drawObject));
+	m_DrawObjects.emplace_back(drawObject);
 	m_VertexBuffers.emplace_back(nullptr);
 	m_IndexBuffers.emplace_back(nullptr);
 	m_NameAndObjIndexMap.insert({ name, index });
@@ -264,7 +302,7 @@ void glTFViewer::UpdateMeshBuffers(const std::pair<std::string, glTF::MeshBatch*
 	auto pVertexBuffer = std::make_shared<StructuredBuffer>();
 	{
 		auto numElements = static_cast<uint32_t>(srcMesh->vertices.size());
-		auto elementSize = sizeof(srcMesh->vertices[0]);
+		auto elementSize = static_cast<uint32_t>(sizeof(srcMesh->vertices[0]));
 		pVertexBuffer->Create(Graphics::s_Device, Utility::UTF8ToWideString(meshName+"_VB"), numElements, elementSize);
 		buffersToUpdate.emplace_back(std::tuple{pVertexBuffer.get(), reinterpret_cast<const uint8_t*>(srcMesh->vertices.data()), numElements * elementSize});
 	}
@@ -284,6 +322,89 @@ void glTFViewer::UpdateMeshBuffers(const std::pair<std::string, glTF::MeshBatch*
 	auto fenceValue = UpdateBuffersAsync(buffersToUpdate);
 	m_UpdateVertexBuffers.push_back( { fenceValue, std::move(pVertexBuffer), it->second } );
 	m_UpdateIndexBuffers.push_back( { fenceValue, std::move(pIndexBuffer), it->second } );
+}
+
+void glTFViewer::UpdateMeshDescriptors(const std::string &objName, const glTF::DrawObject &drawObject)
+{
+	// Update materials
+	const auto &materials = drawObject.materials;
+	
+	uint32_t start = 0;
+	uint32_t numDescriptors = static_cast<uint32_t>(materials.size()) * glTF::BaseMaterial::kTextureNum;
+	
+	auto iter = m_NameAndDescStartMap.find(objName);
+	if (iter != m_NameAndDescStartMap.end())
+	{
+		start = iter->second;
+	}
+	else
+	{
+		auto alloc = m_FrameDescriptorHeap.AllocPersistent(numDescriptors);
+		start = alloc.index;
+		// m_FrameDescriptorHeap.AllocAndCopyPersistentDescriptor()
+		m_NameAndDescStartMap.insert({ objName, start });
+	}
+
+	for (uint32_t i = 0; i < static_cast<uint32_t>(materials.size()); i++)
+	{
+		const auto &mat = materials[i];
+		std::vector<DescriptorHandle> descriptorHandles; 
+		for (auto tex : mat.textures)
+		{
+			// FIXME:
+			// descriptorHandles.emplace_back(tex->GetSRV());
+		}
+		m_FrameDescriptorHeap.UpdatePersistentDescriptors(Graphics::s_Device, start, descriptorHandles);
+		start += static_cast<uint32_t>( descriptorHandles.size() );
+	}
+}
+
+void glTFViewer::UpdateTextures(const std::string &name,  const std::vector<const ManagedTexture*>& textures)
+{
+	static constexpr uint32_t kMaxNumPerCopy = 8;
+
+	uint32_t numTextures = static_cast<uint32_t>(textures.size());
+	uint32_t N = DivideAndRoundUp(numTextures, kMaxNumPerCopy);
+
+	uint32_t start = 0;
+	if (auto iter = m_NameAndDescStartMap.find(name); iter != m_NameAndDescStartMap.end())
+	{
+		start = iter->second;
+	}
+	else
+	{
+		auto alloc = m_FrameDescriptorHeap.AllocPersistent(numTextures);
+		start = alloc.index;
+		m_NameAndDescStartMap.insert({ name, start });
+	}
+	
+	for (uint32_t p = 0 ; p < N; p++)
+	{
+		std::vector<DescriptorHandle> descriptorHandles;
+		uint32_t imin = p * kMaxNumPerCopy, imax = std::min(imin+kMaxNumPerCopy, numTextures);
+		for (uint32_t i = imin ; i < imax; i++)
+		{
+			// FIXME: need lock ???
+			if (textures[i]->IsLoading())
+			{
+				m_TextureIndexMap[textures[i]] = start + i;
+			}
+			descriptorHandles.emplace_back(textures[i]->GetSRV());
+		}
+		m_FrameDescriptorHeap.UpdatePersistentDescriptors(Graphics::s_Device, imin + start, descriptorHandles);
+	}
+}
+
+bool glTFViewer::UpdateTexture(const ManagedTexture* texture)
+{
+	auto iter = m_TextureIndexMap.find(texture); 
+	if (iter == m_TextureIndexMap.end())
+		return false;
+
+	uint32_t descIndex = iter->second;
+	m_FrameDescriptorHeap.UpdatePersistentDescriptor(Graphics::s_Device, descIndex, texture->GetSRV());
+	m_TextureIndexMap.erase(texture);
+	return true;
 }
 
 static std::vector<D3D12_INPUT_ELEMENT_DESC> s_InputElements =
@@ -315,13 +436,16 @@ bool glTFViewer::InitAssets()
 		return false;
 	}
 
+	auto pDevice = Graphics::s_Device;
+
 	// Init model
 	// ASSERT(m_Importer->Create(Graphics::s_Device));
-	Graphics::s_TextureManager.Init(L"Textures/");
+	// Need not init!  
+	// Graphics::s_TextureManager.Init(L"Textures/");
 
-	// root signature & pso
+	// Root signature & pso
 	{
-		// root signature
+		// Root signature
 		m_CommonRS.Reset(7, 2);
 		m_CommonRS[ERSId::Constants].InitAsConstants(0, 4);
 		m_CommonRS[ERSId::PerObject].InitAsConstantBuffer(1);
@@ -356,7 +480,11 @@ bool glTFViewer::InitAssets()
 		const auto& colorBuffer = Graphics::s_BufferManager.m_SceneColorBuffer;
 		const auto& depthBuffer = Graphics::s_BufferManager.m_SceneDepthBuffer;
 
+#if 0
 		m_ModelViewerPSO.SetRootSignature(m_CommonRS);
+#else
+		m_ModelViewerPSO.SetRootSignature(Graphics::s_CommonStates.GlobalBindlessRS);
+#endif
 		m_ModelViewerPSO.SetInputLayout(static_cast<uint32_t>(inputElements.size()), inputElements.data());
 		m_ModelViewerPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 		m_ModelViewerPSO.SetVertexShader(glTFCommonVS, sizeof(glTFCommonVS));
@@ -371,24 +499,23 @@ bool glTFViewer::InitAssets()
 
 		uint32_t bufferWidth = colorBuffer.GetWidth();
 		uint32_t bufferHeight = colorBuffer.GetHeight();
-		// viewport & scissor
-#if 0
-		m_MainViewport.TopLeftX = m_MainViewport.TopLeftY = 0.0f;
-		m_MainViewport.Width = (float)bufferWidth;
-		m_MainViewport.Height = (float)bufferHeight;
-		m_MainViewport.MinDepth = 0.0f;
-		m_MainViewport.MaxDepth = 1.0f;
-
-		m_MainScissor.left = 0;
-		m_MainScissor.top = 0;
-		m_MainScissor.right = (LONG)bufferWidth;
-		m_MainScissor.bottom = (LONG)bufferHeight;
-#else
+		// Viewport & scissor
 		UpdateViewportAndScissor(m_MainViewport, m_MainScissor, 0, 0, static_cast<float>(bufferWidth), static_cast<float>(bufferHeight));
-#endif
 	}
 
-	// camera
+	// Descriptors
+	m_FrameDescriptorHeap.Create(pDevice, L"FrameDescriptorHeap", kMaxDescriptorNum/2);
+
+	// Init textures
+	{
+		InitDefaultTextures();
+		Graphics::s_TextureManager.BindUpdateCallback([this](const ManagedTexture* texture)
+		{
+			return UpdateTexture(texture);
+		});
+	}
+
+	// Camera
 	{
 		glTF::BoundingBox boundingBox = m_SceneBoundingBox; // m_Importer->GetBoundingBox();
 		glTF::Vector3 center = (boundingBox.max + boundingBox.min) / 2.0f;
@@ -403,7 +530,7 @@ bool glTFViewer::InitAssets()
 		m_CameraController->SetStrafeSpeed(200.0f);
 	}
 
-	// lights
+	// Lights
 	{
 		std::vector<FLight> lights;
 		{
@@ -427,14 +554,11 @@ bool glTFViewer::InitAssets()
 
 		m_LightBuffer.Create(Graphics::s_Device, L"LightBuffer",
 			static_cast<uint32_t>(lights.size()), sizeof(FLight), lights.data());
+
+		m_LightBufferDescIndex = m_FrameDescriptorHeap.AllocAndCopyPersistentDescriptor(pDevice, m_LightBuffer.GetSRV());
 	}
 
 #pragma region SH
-	// SH
-	struct SH9Color
-	{
-		XMFLOAT3 c[9];
-	};
 	{
 		// root signature
 		{
@@ -463,55 +587,68 @@ bool glTFViewer::InitAssets()
 			m_SHPSO.Finalize(Graphics::s_Device);
 		}
 
-		// 		
-		constexpr UINT GroupSizeX = 32;
-		constexpr UINT GroupSizeY = 32;
-		UINT picWidth;
-		UINT picHeight;
-		{
-			// texture
-			std::wstring filePath = L"grasscube1024.dds";
-			auto pos = filePath.rfind('.');
-			if (pos != std::wstring::npos)
-				filePath = filePath.substr(0, pos);	// ȥ����չ��
-			const auto texture = Graphics::s_TextureManager.LoadFromFile(Graphics::s_Device, filePath);
-			m_SHsrv = texture->GetSRV();
-			auto desc = const_cast<ID3D12Resource*>(texture->GetResource())->GetDesc();
-			picWidth = (UINT)desc.Width;
-			picHeight = desc.Height;
-
-			UINT numGroupX = Math::DivideByMultiple(picWidth, GroupSizeX);
-			UINT numGroupY = Math::DivideByMultiple(picHeight, GroupSizeY);
-			// buffer
-			m_SHOutput.Create(Graphics::s_Device, L"SHBuffer", numGroupX * numGroupY, sizeof(SH9Color));
-		}
-
-		// precomputing SH coefs
-		{
-			auto& computeContext = ComputeContext::Begin(L"PreSH");
-
-			computeContext.TransitionResource(m_SHOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-			computeContext.SetRootSignature(m_SHRS);
-			computeContext.SetPipelineState(m_SHPSO);
-			computeContext.SetConstants(0, picWidth, picHeight);
-			computeContext.SetDynamicDescriptor(1, 0, m_SHsrv);
-			computeContext.SetDynamicDescriptor(2, 0, m_SHOutput.GetUAV());
-
-			computeContext.Dispatch2D(GroupSizeX, GroupSizeY, GroupSizeX, GroupSizeY);
-
-			computeContext.TransitionResource(m_SHOutput, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-			computeContext.Finish(true);
-		}
+		InitCustom();
 	}
 #pragma endregion
 
+	m_ViewBuffer.Create(pDevice, L"ViewUniformBuffer", 1, sizeof(CBPerCamera), true, true);
+	m_MaterialBuffer.Create(pDevice, L"MaterialBuffer", kMaxMaterialNum, sizeof(PSConstants), false, true);
+	m_InstanceBuffer.Create(pDevice, L"InstanceBuffer", kMaxInstanceNum, sizeof(CBPerObject), false, true);
+	
 	return true;
 }
 
 bool glTFViewer::InitCustom()
 {
+	auto pDevice = Graphics::s_Device;
+	
+	// SH
+	struct SH9Color
+	{
+		XMFLOAT3 c[9];
+	};
+	
+	constexpr UINT GroupSizeX = 32;
+	constexpr UINT GroupSizeY = 32;
+	UINT picWidth;
+	UINT picHeight;
+	{
+		// Texture
+		std::wstring filePath = L"Textures/grasscube1024.dds";
+		filePath = Utility::RemoveExtension(filePath);
+		const auto texture = Graphics::s_TextureManager.LoadFromFile(Graphics::s_Device, filePath);
+		m_SHsrv = texture->GetSRV();
+		auto desc = const_cast<ID3D12Resource*>(texture->GetResource())->GetDesc();
+		picWidth = (UINT)desc.Width;
+		picHeight = desc.Height;
+
+		UINT numGroupX = Math::DivideByMultiple(picWidth, GroupSizeX);
+		UINT numGroupY = Math::DivideByMultiple(picHeight, GroupSizeY);
+		// Buffer
+		m_SHOutput.Create(Graphics::s_Device, L"SHBuffer", numGroupX * numGroupY, sizeof(SH9Color));
+
+		m_SHBufferDescIndex = m_FrameDescriptorHeap.AllocAndCopyPersistentDescriptor(pDevice, m_SHOutput.GetSRV());
+	}
+	
+	// Precomputing SH coefficients
+	{
+		auto& computeContext = ComputeContext::Begin(L"PreSH");
+
+		computeContext.TransitionResource(m_SHOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		computeContext.SetRootSignature(m_SHRS);
+		computeContext.SetPipelineState(m_SHPSO);
+		computeContext.SetConstants(0, picWidth, picHeight);
+		computeContext.SetDynamicDescriptor(1, 0, m_SHsrv);
+		computeContext.SetDynamicDescriptor(2, 0, m_SHOutput.GetUAV());
+
+		computeContext.Dispatch2D(GroupSizeX, GroupSizeY, GroupSizeX, GroupSizeY);
+
+		computeContext.TransitionResource(m_SHOutput, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+		computeContext.Finish(true);
+	}
+	
 	return true;
 }
 
@@ -525,6 +662,8 @@ void glTFViewer::CleanCustom()
 		Graphics::s_CommandManager.WaitForFence(updateInfo.fenceValue);
 	}
 #endif
+
+	Graphics::s_TextureManager.BindUpdateCallback(nullptr);
 	
 	if (m_Importer)
 	{
@@ -566,12 +705,34 @@ void glTFViewer::CleanCustom()
 			buffer = nullptr;
 		}
 	}
+
+	m_ViewBuffer.Destroy();
+	m_MaterialBuffer.Destroy();
+	m_InstanceBuffer.Destroy();
 	
 	m_GlobalVertexBuffer.Destroy();
 	m_GlobalIndexBuffer.Destroy();
 
+	m_FrameDescriptorHeap.Destroy();
+
 	// SH
 	m_SHOutput.Destroy();
+}
+
+void glTFViewer::InitDefaultTextures()
+{
+	constexpr uint32_t numDefaultTextures = static_cast<uint32_t>(EDefaultTexture::kNumDefaultTextures);
+
+	// Alloc
+	auto alloc = m_FrameDescriptorHeap.AllocPersistent(numDefaultTextures);
+	m_DefaultTextureDescIndex = alloc.index;
+	// Copy
+	std::vector<DescriptorHandle> defaultTextureSRVs;
+	for (uint32_t i = 0; i < numDefaultTextures; i++)
+	{
+		defaultTextureSRVs.emplace_back( TextureManager::GetDefaultTextureDescriptor(static_cast<EDefaultTexture>(i)));
+	}
+	m_FrameDescriptorHeap.UpdatePersistentDescriptors(Graphics::s_Device, alloc.index, defaultTextureSRVs);
 }
 
 void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 &viewProjMat, ObjectFilter filter)
@@ -579,90 +740,120 @@ void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 &viewPr
 	const auto &drawObjects = m_DrawObjects;
 	if (drawObjects.empty())
 		return;
+
+	auto pDevice = Graphics::s_Device;
+
+	uint32_t frameFactor = m_Gfx->GetCurrentFrameIndex();
 		
+	// Note: 'SetDescriptorHeap' must be set before 'SetRootSignature' 
+	gfx.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_FrameDescriptorHeap.CurrentHeap()->GetHeapPointer());
+	gfx.SetRootSignature(Graphics::s_CommonStates.GlobalBindlessRS);
+
 	// camera
 	CBPerCamera cbPerCamera;
 	cbPerCamera.viewProjMat = Math::Transpose(viewProjMat);
 	cbPerCamera.camPos = m_Camera->GetPosition();
-	gfx.SetDynamicConstantBufferView(ERSId::PerCamera, sizeof(CBPerCamera), &cbPerCamera);
-	// constants
-	gfx.SetConstants(ERSId::Constants, 2, 0, 0, 0);	// root0
-	// lights
-	gfx.SetBufferSRV(ERSId::LightBuffer, m_LightBuffer);
-	// sh
-	gfx.SetBufferSRV(ERSId::GIBuffer, m_SHOutput);
+#if 0
+    gfx.SetDynamicConstantBufferView(ERSId::PerCamera, sizeof(CBPerCamera), &cbPerCamera);
+#else
+	m_ViewBuffer.CopyToGpu(&cbPerCamera, sizeof(cbPerCamera), 0, frameFactor);
+#endif
+	m_FrameDescriptorHeap.AllocAndCopyTemporaryDescriptor(pDevice, m_ViewBuffer.GetCBV(frameFactor));
+	
+    // Constants
+	// TODO: update some per frame data
+	constexpr uint32_t numConstants = 8;
+	float pushConstants[numConstants] = { };
+	pushConstants[4] = static_cast<float>(m_LightBufferDescIndex);
+	pushConstants[5] = static_cast<float>(m_SHBufferDescIndex);
+    // gfx.SetConstants(ERSId::Constants, _countof(lightBufferAndSH), lightBufferAndSH, destOffset);
+
+#if 0
+    // lights
+    gfx.SetBufferSRV(ERSId::LightBuffer, m_LightBuffer);
+    // sh
+    gfx.SetBufferSRV(ERSId::GIBuffer, m_SHOutput);
+#endif
 	
 	gfx.SetPipelineState(m_ModelViewerPSO);
 
 	CBPerObject cbPerObject;
 	PSConstants psConstants;
-
-#if 0
-	const auto& rMeshes = m_Importer->m_oMeshes;
-	for (size_t i = 0, imax = rMeshes.size(); i < imax; ++i)
-	{
-		const auto& curMesh = rMeshes[i];
-
-		int matIdx = curMesh.materialIndex;
-		if (m_Importer->IsValidMaterial(matIdx))
-		{
-			int activeMatIdx = m_Importer->m_ActiveMaterials[matIdx];
-			const auto& curMat = m_Importer->m_oMaterials[activeMatIdx];
-
-			// CBPerObject
-			glTF::Matrix4x4 trans(std::move(m_Importer->GetMeshTransform(curMesh)));
-			cbPerObject._WorldMat = glm::transpose(trans);
-			cbPerObject._InvWorldMat = glm::transpose(glm::inverse(trans));
-			gfx.SetDynamicConstantBufferView(1, sizeof(CBPerObject), &cbPerObject);
-
-			gfx.SetConstant(0, curMesh.enabledAttribs, 3);	// root0, 3 - enabledAttribs
-
-			// PSConstants
-			const auto& baseColorFactor = curMat.baseColorFactor;
-			psConstants._BaseColorFactor = Math::Vector4(baseColorFactor[0], baseColorFactor[1], baseColorFactor[2], baseColorFactor[3]);
-			const auto& emissiveFactor = curMat.emissiveFactor;
-			psConstants._EmissiveFactor = DirectX::XMFLOAT3(emissiveFactor[0], emissiveFactor[1], emissiveFactor[2]);
-			psConstants._AlphaCutout = curMat.alphaCutoff;
-			memcpy_s(psConstants._Texcoords, sizeof(psConstants._Texcoords), curMat.texcoords, sizeof(curMat.texcoords));
-
-			psConstants._NormalScale = curMat.normalScale;
-			psConstants._OcclusionStrength = curMat.occlusionStrength;
-#if defined(SHADING_MODEL_METALLIC_ROUGHNESS)
-			psConstants._Metallic = curMat.metallic;
-			psConstants._Roughness = curMat.roughness;
-			psConstants._F0 = 0.04f;
-#elif defined(SHADING_MODEL_SPECULAR_GLOSSINESS)
-			DirectX::XMFLOAT3 _SpecularColor;
-			float _Glossiness;
-#endif
-			gfx.SetDynamicConstantBufferView(3, sizeof(PSConstants), &psConstants);
-
-			// textures
-			gfx.SetDynamicDescriptors(4, 0, glTF::Material::TextureNum, m_Importer->GetSRVs(activeMatIdx));
-
-			if (curMesh.indexAccessor >= 0)
-			{
-				gfx.DrawIndexed(curMesh.indexCount, curMesh.indexDataByteOffset / sizeof(uint16_t), curMesh.vertexDataByteOffset / curMesh.vertexStride);
-			}
-			else
-			{
-				gfx.Draw(curMesh.vertexCount, curMesh.vertexDataByteOffset / curMesh.vertexStride);
-			}
-		}
-	}
-#else
-
+	
 	constexpr auto kTextureNum = glTF::Material::TextureNum;
 	static D3D12_CPU_DESCRIPTOR_HANDLE kDefaultTextures[kTextureNum] = {
-		TextureManager::GetDefaultTexture(EDefaultTexture::kMagenta2D),
-		TextureManager::GetDefaultTexture(EDefaultTexture::kBlackOpaque2D),
-		TextureManager::GetDefaultTexture(EDefaultTexture::kDefaultNormalMap),
-		TextureManager::GetDefaultTexture(EDefaultTexture::kWhiteOpaque2D),
-		TextureManager::GetDefaultTexture(EDefaultTexture::kBlackOpaque2D),
+		TextureManager::GetDefaultTextureDescriptor(EDefaultTexture::kMagenta2D),
+		TextureManager::GetDefaultTextureDescriptor(EDefaultTexture::kBlackOpaque2D),
+		TextureManager::GetDefaultTextureDescriptor(EDefaultTexture::kDefaultNormalMap),
+		TextureManager::GetDefaultTextureDescriptor(EDefaultTexture::kWhiteOpaque2D),
+		TextureManager::GetDefaultTextureDescriptor(EDefaultTexture::kBlackOpaque2D),
 	};
 	
 	ASSERT(drawObjects.size() >= m_VertexBuffers.size() && drawObjects.size() >= m_IndexBuffers.size());
 	ASSERT(m_VertexBuffers.size() == m_IndexBuffers.size());
+
+	uint32_t globalMaterialIndex = 0;
+	uint32_t globalInstanceIndex = 0;
+	uint32_t instanceMaterialOffset = 0;
+
+	// Update instances & materials
+	std::vector<PSConstants> materialData;
+	std::vector<CBPerObject> instanceData;
+
+	for (size_t i = 0, imax = drawObjects.size(); i < imax; ++i)
+	{
+		const auto pObject = drawObjects[i].get();
+		if (pObject == nullptr)
+			continue;
+
+		const auto pVB = m_VertexBuffers[i].get();
+		const auto pIB = m_IndexBuffers[i].get();
+		if (pVB == nullptr || pIB == nullptr)
+			continue;
+
+		auto iter = m_NameAndDescStartMap.find(pObject->name);
+		ASSERT(iter != m_NameAndDescStartMap.end());
+		uint32_t materialTextureStart = iter->second;
+
+		// Materials
+		for (const auto& mat : pObject->materials)
+		{
+			Cast(psConstants, mat, materialTextureStart, m_DefaultTextureDescIndex);
+			materialData.emplace_back(psConstants);
+
+			// Or
+			// m_MaterialBuffer.CopyToGpu(&psConstants, sizeof(psConstants), globalMaterialIndex, frameFactor);
+
+			globalMaterialIndex++;
+		}
+		
+		for (const auto& instance : pObject->instances)
+		{
+			const auto& batchElement = pObject->mesh.batchElements[instance.elementIndex];
+
+			// Per instance
+			const glTF::Matrix4x4& worldMatrix = instance.transform;
+			// Not use 'InvWorldMat'
+			// No transpose, use 'mul(mat, vec)' instead (matrix right mul)
+			cbPerObject.worldMat = /*glm::transpose */(worldMatrix);
+			cbPerObject.materialIndex = batchElement.materialIndex + instanceMaterialOffset;
+			instanceData.emplace_back(cbPerObject);
+
+			// Or
+			// m_InstanceBuffer.CopyToGpu(&cbPerObject, sizeof(cbPerObject), globalInstanceIndex, frameFactor);
+
+			globalInstanceIndex++;
+		}
+
+		instanceMaterialOffset += static_cast<uint32_t>(pObject->materials.size());
+	}
+	// Update materials
+	m_MaterialBuffer.CopyToGpu(materialData.data(), static_cast<uint32_t>(materialData.size() * sizeof(PSConstants)), 0, frameFactor);
+	m_InstanceBuffer.CopyToGpu(instanceData.data(), static_cast<uint32_t>(instanceData.size() * sizeof(CBPerObject)), 0, frameFactor);
+	m_FrameDescriptorHeap.AllocAndCopyTemporaryDescriptor(pDevice, m_MaterialBuffer.GetSRV(frameFactor));
+	m_FrameDescriptorHeap.AllocAndCopyTemporaryDescriptor(pDevice, m_InstanceBuffer.GetSRV(frameFactor));
+
+	globalInstanceIndex = 0;
 	for (size_t i = 0, imax = drawObjects.size(); i < imax; ++i)
 	{
 		const auto pObject = drawObjects[i].get();
@@ -677,33 +868,20 @@ void glTFViewer::RenderObjects(GraphicsContext& gfx, const Math::Matrix4 &viewPr
 		gfx.SetVertexBuffer(0, pVB->VertexBufferView());
 		gfx.SetIndexBuffer(pIB->IndexBufferView());
 
-		const auto &instances = pObject->instances;
-		for (const auto &instance : instances)
+		for (const auto &instance : pObject->instances)
 		{
 			const auto &batchElement = pObject->mesh.batchElements[ instance.elementIndex ];
-			
-			// Per instance
-			const glTF::Matrix4x4 &worldMatrix = instance.transform;
-			// Not use 'InvWorldMat'
-			// No transpose, use 'mul(mat, vec)' instead (matrix right mul)
-			cbPerObject.worldMat = /*glm::transpose */(worldMatrix);
-			gfx.SetDynamicConstantBufferView(ERSId::PerObject, sizeof(cbPerObject), &cbPerObject);
-
-			gfx.SetConstant(ERSId::Constants, 0, 3); // roo0, 3 - enabledAttribs (Note: not used yet)
-
-			// PS constants
-			gfx.SetDynamicConstantBufferView(ERSId::PerMaterial, sizeof(psConstants), &psConstants);
-
-			// Textures
-			gfx.SetDynamicDescriptors(ERSId::Textures, 0, kTextureNum, kDefaultTextures);
+	
+			// DrawId
+			pushConstants[0] = (float)globalInstanceIndex;
+			gfx.SetConstants(ERSId::Constants, numConstants, pushConstants);
 
 			// Draw
 			gfx.DrawIndexed(batchElement.indexCount, batchElement.indexOffset, batchElement.vertexOffset);
-		}
 
-		// Draw materials
+			globalInstanceIndex++;
+		}
 	}
-#endif
 }
 
 void glTFViewer::ResetCamera(const std::optional<Math::Vector3> &position, const std::optional<Math::AffineTransform> &transform)
@@ -722,16 +900,3 @@ void glTFViewer::ResetCamera(const Math::Camera& camera)
 {
 	*m_Camera = camera;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

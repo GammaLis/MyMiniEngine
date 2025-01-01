@@ -1,9 +1,72 @@
 ﻿#pragma once
 #include "CoreMinimal.h"
+#include "TextureManager.h"
 #include "glm/glm.hpp"
+
+namespace MyDirectX
+{
+    class Texture;
+}
 
 namespace glTF
 {
+    enum class EAlphaMode : uint8_t
+    {
+        Opaque,
+        Mask,
+        Transparent,
+    };
+
+    struct BaseMaterial
+    {
+        using Texture = MyDirectX::Texture;
+        using EDefaultTexture = MyDirectX::EDefaultTexture;
+
+        enum ETextureType : uint32_t
+        {
+            BaseColor,
+            MetallicRoughness,
+            Normal,
+            Emissive,
+            Occlusion,
+
+            Count,
+        };
+
+        static constexpr uint32_t kTextureNum = 5;
+        static constexpr EDefaultTexture kDefaultTexture[ETextureType::Count] = {
+            EDefaultTexture::kMagenta2D,
+            EDefaultTexture::kWhiteOpaque2D,
+            EDefaultTexture::kDefaultNormalMap,
+            EDefaultTexture::kBlackOpaque2D,
+            EDefaultTexture::kWhiteOpaque2D
+        };
+        static constexpr uint32_t kInvalidStart = 0x00010000;
+        static bool IsTextureValid(uint32_t index);
+        static uint32_t EncodeDefaultTexture(EDefaultTexture texture);
+        static EDefaultTexture DecodeDefaultTexture(uint32_t index);
+        static uint32_t DecodeDefaultTextureIndex(uint32_t index);
+
+        std::string name;
+        EAlphaMode alphaMode = EAlphaMode::Opaque;
+        float alphaCutoff = 0.5f;
+        bool bDoubleSided = false;
+
+#if 0
+        const Texture *baseColorTex = nullptr;
+        const Texture *metallicRoughnessTex = nullptr;
+        const Texture *normalTex = nullptr;
+        const Texture *occlusionTex = nullptr;
+        const Texture *emissiveTex = nullptr;
+#elif 0
+        const Texture* textures[ETextureType::Count] = {};
+#else
+        // TODO: optimize: use 'start + count' 
+        uint32_t textures[ETextureType::Count] = {};
+#endif
+        void ResetDefault();
+    };
+        
     struct Vertex
     {
         glm::vec3 p;
@@ -47,7 +110,12 @@ namespace glTF
 
     struct DrawObject
     {
+        std::string name;
+        
         MeshBatch mesh;
         std::vector<MeshInstance> instances;
+        // TODO: put materials elsewhere ???
+        std::vector<const MyDirectX::ManagedTexture*> textures;
+        std::vector<BaseMaterial> materials;
     };
 }

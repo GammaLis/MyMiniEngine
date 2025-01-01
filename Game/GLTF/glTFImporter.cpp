@@ -22,6 +22,7 @@
 namespace glTF
 {
 	using namespace rapidjson;
+	using namespace MyDirectX;
 
 	static int GetComponentSizeInBytes(glDataType componentType)
 	{
@@ -1708,6 +1709,19 @@ namespace glTF
 		}
 	};
 
+	std::string PathCombine(const std::string &sa, const std::string &sb)
+	{
+		using std::filesystem::path;
+		return (path(sa) /= path(sb)).string();
+	}
+
+	std::string GetDDSFilePath(const std::string &basePath, std::string fileName)
+	{
+		using std::filesystem::path;
+		fileName = Utility::RemoveExtension(fileName);
+		fileName += ".dds";
+		return (path(basePath) /= path(fileName)).string();
+	}
 	
 	/// cgltf
 	
@@ -1716,7 +1730,9 @@ namespace glTF
 	public:
 		CGLTFWrapper() = default;
 		CGLTFWrapper(std::string inFileName, const cgltf_options &inOptions) : fileName(std::move(inFileName)), options(inOptions)
-		{ }
+		{
+			basePath = Utility::GetBasePath(fileName);
+		}
 
 		// Compute indices from cgltf element pointers
 		static size_t gltfBufferIndex(const cgltf_data *data, const cgltf_buffer *buffer)
@@ -1788,6 +1804,16 @@ namespace glTF
 			// TODO: orthographic camera
 		}
 
+		static void Cast(EAlphaMode &dst, cgltf_alpha_mode src)
+		{
+			if (src == cgltf_alpha_mode_opaque)
+				dst = EAlphaMode::Opaque;
+			else if (src == cgltf_alpha_mode_mask)
+				dst = EAlphaMode::Mask;
+			else if (src == cgltf_alpha_mode_blend)
+				dst = EAlphaMode::Transparent;
+		}
+
 		static Math::AffineTransform GetAffineTransform(float array[16])
 		{
 			Math::AffineTransform transform;
@@ -1841,9 +1867,13 @@ namespace glTF
 
 		// Parse the gltf buffer definitions and start loading buffer blobs
 		void ParseBuffers() const { }
-		void ParseTextures() const
+		
+		void ParseTextures(std::vector<const ManagedTexture*> &textures, std::map<std::string, ManagedTexture*> &textureMap)
 		{
 			auto numTextures = static_cast<uint32_t>(gltfData->textures_count);
+			textures.reserve(numTextures);
+			
+			std::string textureFile;
 			for (uint32_t i = 0; i < numTextures; ++i)
 			{
 				const auto &texture = gltfData->textures[i];
@@ -1853,6 +1883,90 @@ namespace glTF
 				ASSERT(image->uri);
 
 				cgltf_decode_uri(image->uri);
+				textureFile = GetDDSFilePath(this->basePath, image->uri);
+				if (auto iter = textureMap.find(textureFile); iter != textureMap.end())
+					continue;
+				
+				Utility::Printf("Loading texture %s: %s\n", basePath.c_str(), textureFile.c_str());
+				auto tex = Graphics::s_TextureManager.FindOrLoadTextureAsync(Utility::UTF8ToWideString(textureFile), EDefaultTexture::kMagenta2D);
+
+				textureMap.insert(std::make_pair(textureFile, tex));
+				textures.emplace_back(tex);
+			}
+		}
+
+		const ManagedTexture* FindOrLoadTexture(std::map<std::string, ManagedTexture*> &textureMap, const cgltf_texture *texture, EDefaultTexture defaultType = EDefaultTexture::kMagenta2D)
+		{
+			ASSERT(texture != nullptr);
+			ASSERT(texture->image != nullptr);
+
+			if (auto iter = m_TextureMap.find(texture); iter != m_TextureMap.end())
+				return iter->second;
+
+			const auto *image = texture->image;
+			ASSERT(image->uri);
+
+			cgltf_decode_uri(image->uri);
+			std::string textureFile = GetDDSFilePath(this->basePath, image->uri);
+			if (auto iter = textureMap.find(textureFile); iter != textureMap.end())
+				return iter->second;
+				
+			Utility::Printf("Loading texture %s: %s\n", basePath.c_str(), textureFile.c_str());
+			auto tex = Graphics::s_TextureManager.FindOrLoadTextureAsync(Utility::UTF8ToWideString(textureFile), defaultType);
+
+			textureMap.insert(std::make_pair(textureFile, tex));
+			m_TextureMap[texture] = tex;
+
+			return tex;
+		}
+
+		void ParseMaterials(std::vector<BaseMaterial> &materials)
+		{
+			using ETextureType = BaseMaterial::ETextureType;
+						
+			auto numMaterials = static_cast<uint32_t>(gltfData->materials_count);
+			for (uint32_t i = 0; i < numMaterials; ++i)
+			{
+				const auto &mat = gltfData->materials[i];
+
+				auto &newMat = materials.emplace_back();
+				newMat.name = mat.name;
+				Cast(newMat.alphaMode, mat.alpha_mode);
+				newMat.alphaCutoff = mat.alpha_cutoff;
+				newMat.bDoubleSided = mat.double_sided;
+
+				newMat.ResetDefault();
+				if (mat.has_pbr_metallic_roughness)
+				{
+					if (mat.pbr_metallic_roughness.base_color_texture.texture != nullptr)
+					{
+						newMat.textures[ETextureType::BaseColor] = static_cast<uint32_t>( gltfTextureIndex(gltfData, mat.pbr_metallic_roughness.base_color_texture.texture) );
+					}
+
+					if (mat.pbr_metallic_roughness.metallic_roughness_texture.texture != nullptr)
+					{
+						newMat.textures[ETextureType::MetallicRoughness] = static_cast<uint32_t>(gltfTextureIndex(gltfData, mat.pbr_metallic_roughness.metallic_roughness_texture.texture));
+					}					
+				}
+				else if (mat.has_pbr_specular_glossiness)
+				{
+					if (mat.pbr_specular_glossiness.diffuse_texture.texture != nullptr)
+					{
+						newMat.textures[ETextureType::BaseColor] = static_cast<uint32_t>( gltfTextureIndex(gltfData, mat.pbr_specular_glossiness.diffuse_texture.texture) );
+					}
+				}
+				if (mat.normal_texture.texture != nullptr)
+				{
+					newMat.textures[ETextureType::Normal] = static_cast<uint32_t>( gltfTextureIndex(gltfData,  mat.normal_texture.texture) );
+				}
+				if (mat.emissive_texture.texture != nullptr)
+				{
+					newMat.textures[ETextureType::Emissive] = static_cast<uint32_t>( gltfTextureIndex(gltfData,  mat.emissive_texture.texture) );
+				}
+				if (mat.occlusion_texture.texture != nullptr)
+				{
+					newMat.textures[ETextureType::Occlusion] = static_cast<uint32_t>( gltfTextureIndex(gltfData,  mat.occlusion_texture.texture) );
+				}
 			}
 		}
 		
@@ -1982,8 +2096,6 @@ namespace glTF
 				primitiveOffset += numPrims;
 			}
 		}
-
-		void ParseMaterials() const { }
 		
 		void ParseNodes(std::vector<MeshInstance> &instances, std::optional<Math::Camera> &camera) const
 		{
@@ -2032,10 +2144,12 @@ namespace glTF
 		}
 
 		std::string fileName{};
+		std::string basePath{};
 		cgltf_options options{};
 		cgltf_data *gltfData{};
 		cgltf_result result{};
 		std::vector<uint32_t> meshPrimitiveOffsets;
+		std::map<const cgltf_texture*, const ManagedTexture*> m_TextureMap;
 	};
 
 	class ImporterImpl
@@ -2045,13 +2159,16 @@ namespace glTF
 		{
 			m_FileName = fileName;
 			
-			CGLTFWrapper wrapper;
-			
-			bool result = wrapper.ParseFile(fileName, {});
+			CGLTFWrapper wrapper{fileName, {}};
+			bool result = wrapper.Parse();
 			if (result)
 			{
 				m_DrawObject = std::make_shared<DrawObject>();
-				
+				m_DrawObject->name = fileName;
+
+				// TODO: delete 'TextureMap' ???
+				wrapper.ParseTextures(m_DrawObject->textures, m_TextureMap);
+				wrapper.ParseMaterials(m_DrawObject->materials);
 				wrapper.ParseMeshes(m_DrawObject->mesh);
 				wrapper.ParseNodes(m_DrawObject->instances, m_Camera);
 			}
@@ -2106,6 +2223,7 @@ namespace glTF
 		std::future<bool> m_FutureState;
 		std::atomic<uint32_t> m_LoadState{ 0 };
 		std::shared_ptr<DrawObject> m_DrawObject;
+		std::map<std::string, ManagedTexture*> m_TextureMap;
 		std::optional<Math::Camera> m_Camera;
 		CGLTFWrapper m_Wrapper;
 	};	

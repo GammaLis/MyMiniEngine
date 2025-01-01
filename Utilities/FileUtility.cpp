@@ -123,6 +123,6 @@ namespace Utility
 	concurrency::task<ByteArray> ReadFileAsync(const std::wstring& fileName)
 	{
 		shared_ptr<wstring> sharedPtr = make_shared<wstring>(fileName);
-		return create_task([=] {return ReadFileHelperEx(sharedPtr); });
+		return create_task([=] { return ReadFileHelperEx(sharedPtr); });
 	}
 }

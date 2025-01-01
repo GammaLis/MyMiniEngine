@@ -105,7 +105,7 @@ D3D12_INDEX_BUFFER_VIEW DynamicUploadBuffer::IndexBufferView(uint32_t numIndices
 	return ibv;
 }
 
-void DynamicUploadBuffer::CopyToGpu(void* pSrc, uint32_t memSize, uint32_t instanceIndex)
+void DynamicUploadBuffer::CopyToGpu(const void* pSrc, uint32_t memSize, uint32_t instanceIndex)
 {
 	if (pSrc == nullptr || memSize == 0)
 		return;
@@ -118,7 +118,9 @@ void DynamicUploadBuffer::CopyToGpu(void* pSrc, uint32_t memSize, uint32_t insta
 
 const D3D12_CPU_DESCRIPTOR_HANDLE& DynamicUploadBuffer::GetSRV(uint32_t frame, uint32_t offset, uint32_t size)
 {
-	if (!m_bDescriptorInited && !m_bConstantBuffer)
+	ASSERT(!m_bConstantBuffer);
+	
+	if (!m_bDescriptorInited)
 	{
 		if (size == INVALID_INDEX) size = m_NumElement;
 		uint32_t numFrames = m_bFramed ? MaxFrameBufferCount : 1;
@@ -133,6 +135,30 @@ const D3D12_CPU_DESCRIPTOR_HANDLE& DynamicUploadBuffer::GetSRV(uint32_t frame, u
 
 const D3D12_CPU_DESCRIPTOR_HANDLE& DynamicUploadBuffer::GetCBV(uint32_t frame, uint32_t offset, uint32_t size)
 {
+	ASSERT(m_bConstantBuffer);
+
+	if (size == INVALID_INDEX) size = m_NumElement;
+	uint32_t numFrames = m_bFramed ? MaxFrameBufferCount : 1;
+#if 1	
+	if (!m_bDescriptorInited)
+	{	
+		for (uint32_t i = 0; i < numFrames; i++)
+		{
+			m_CBV[i] = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		}
+		m_bDescriptorInited = true;
+	}
+
+	if (m_ViewDesc.offset != offset || m_ViewDesc.size != size)
+	{
+		for (uint32_t i = 0; i < numFrames ; i++)
+		{
+			UpdateConstantBufferView(Graphics::s_Device, offset + i * m_NumElement, size, m_CBV[i]);
+		}
+		m_ViewDesc.offset = offset;
+		m_ViewDesc.size = size;
+	}
+#else
 	if (!m_bDescriptorInited && m_bConstantBuffer)
 	{
 		if (size == INVALID_INDEX) size = m_NumElement;
@@ -143,10 +169,24 @@ const D3D12_CPU_DESCRIPTOR_HANDLE& DynamicUploadBuffer::GetCBV(uint32_t frame, u
 		}
 		m_bDescriptorInited = true;
 	}
+#endif
 	return m_CBV[frame];
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE DynamicUploadBuffer::CreateConstantBufferView(ID3D12Device* pDevice, uint32_t offset, uint32_t size) const
+{
+	D3D12_CPU_DESCRIPTOR_HANDLE hCBV = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	return UpdateShaderResourceView(pDevice, offset, size, hCBV);
+}
+
+// Dynamic StructuredBuffer
+D3D12_CPU_DESCRIPTOR_HANDLE DynamicUploadBuffer::CreateShaderResourceView(ID3D12Device* pDevice, uint32_t offset, uint32_t size) const
+{
+	D3D12_CPU_DESCRIPTOR_HANDLE hSRV = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	return UpdateShaderResourceView(pDevice, offset, size, hSRV);
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE DynamicUploadBuffer::UpdateConstantBufferView(ID3D12Device* pDevice, uint32_t offset, uint32_t size, D3D12_CPU_DESCRIPTOR_HANDLE handle) const
 {
 	uint32_t numElement = m_bFramed ? m_NumElement * MaxFrameBufferCount : m_NumElement;
 	ASSERT(offset + size <= numElement);
@@ -155,13 +195,11 @@ D3D12_CPU_DESCRIPTOR_HANDLE DynamicUploadBuffer::CreateConstantBufferView(ID3D12
 	cbvDesc.BufferLocation = m_GpuVirtualAddress + offset * m_ElementSize;
 	cbvDesc.SizeInBytes = size * m_ElementSize;
 
-	D3D12_CPU_DESCRIPTOR_HANDLE hCBV = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	pDevice->CreateConstantBufferView(&cbvDesc, hCBV);
-	return hCBV;
+	pDevice->CreateConstantBufferView(&cbvDesc, handle);
+	return handle;
 }
 
-// Dynamic StructuredBuffer
-D3D12_CPU_DESCRIPTOR_HANDLE DynamicUploadBuffer::CreateShaderResourceView(ID3D12Device* pDevice, uint32_t offset, uint32_t size) const
+D3D12_CPU_DESCRIPTOR_HANDLE DynamicUploadBuffer::UpdateShaderResourceView(ID3D12Device* pDevice, uint32_t offset, uint32_t size, D3D12_CPU_DESCRIPTOR_HANDLE handle) const
 {
 	uint32_t numElement = m_bFramed ? m_NumElement * MaxFrameBufferCount : m_NumElement;
 	ASSERT(offset + size <= numElement);
@@ -174,7 +212,6 @@ D3D12_CPU_DESCRIPTOR_HANDLE DynamicUploadBuffer::CreateShaderResourceView(ID3D12
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
-	D3D12_CPU_DESCRIPTOR_HANDLE hSRV = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	pDevice->CreateShaderResourceView(m_pResource.Get(), &srvDesc, hSRV);
-	return hSRV;
+	pDevice->CreateShaderResourceView(m_pResource.Get(), &srvDesc, handle);
+	return handle;
 }

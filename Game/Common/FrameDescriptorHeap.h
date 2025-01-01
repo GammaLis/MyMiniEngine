@@ -29,6 +29,7 @@ namespace MyDirectX
 	{
 	public:
 		FrameDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, uint32_t maxCount = 1024, bool shaderVisible = true)
+			: m_Type(type)
 		{
 			if (type == D3D12_DESCRIPTOR_HEAP_TYPE_RTV || type == D3D12_DESCRIPTOR_HEAP_TYPE_DSV)
 				shaderVisible = false;
@@ -45,16 +46,20 @@ namespace MyDirectX
 
 		void Destroy();
 
-		PersistentDescriptorAlloc AllocPersistent();
+		// TODO: currently only support one descriptor per allocation
+		// Use a more functional allocator
+		PersistentDescriptorAlloc AllocPersistent(uint32_t count = 1);
+		// FIXME: Do not use this now, it has bugs !!!
 		void FreePersistent(uint32_t &index);
 		void FreePersistent(DescriptorHandle &handle);
 
-		void AllocAndCopyPersistentDescriptor(ID3D12Device *pDevice, DescriptorHandle descriptor);
+		uint32_t AllocAndCopyPersistentDescriptor(ID3D12Device *pDevice, DescriptorHandle descriptor);
+		void UpdatePersistentDescriptor(ID3D12Device *pDevice, uint32_t index, DescriptorHandle descriptor);
+		void UpdatePersistentDescriptors(ID3D12Device *pDevice, uint32_t start, const std::span<DescriptorHandle> &descriptors);
 
 		TemporaryDescriptorAlloc AllocTemporary(uint32_t count = 1);
-		void AllocAndCopyTemporaryDescriptor(ID3D12Device *pDevice, DescriptorHandle descriptor);
-		
-		void AllocAndCopyTemporaryDescriptors(ID3D12Device *pDevice,  const std::span<DescriptorHandle> &descriptors);
+		uint32_t AllocAndCopyTemporaryDescriptor(ID3D12Device *pDevice, DescriptorHandle descriptor);		
+		uint32_t AllocAndCopyTemporaryDescriptors(ID3D12Device *pDevice,  const std::span<DescriptorHandle> &descriptors);
 
 		void EndFrame();
 
@@ -72,6 +77,7 @@ namespace MyDirectX
 
 	private:
 		std::unique_ptr<UserDescriptorHeap> m_DescriptorHeaps[MaxFrameBufferCount];
+		D3D12_DESCRIPTOR_HEAP_TYPE m_Type;
 
 		bool m_bShaderVisible{true};
 		uint32_t m_NumHeaps{0};

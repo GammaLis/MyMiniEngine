@@ -1,100 +1,76 @@
-#include "glTFCommonRS.hlsli"
+#include "Common/glTFCommon.hlsli"
 
-cbuffer CBConstants	: register(b0)
-{
-	float4 _Constants;
-};
-cbuffer CBPerObject	: register(b1)
-{
-	matrix _WorldMat;
-	matrix _InvWorldMat;
-};
-cbuffer CBPerCamera	: register(b2)
-{
-	matrix _ViewProjMat;
-	float3 _CamPos;
-};
-
-#if USE_SIMPLE_VERTEX
-
-struct VSInput
-{
-	float3 position : POSITION;
-	float2 uv0		: TEXCOORD0;
-	float3 normal 	: NORMAL;
-};
-
-// TODO: optimization
-struct VSOutput
-{
-	float4 pos 	: SV_POSITION;
-	float2 uv0 	: TEXCOORD0;
-	float2 uv1	: TEXCOORD1;
-	float3 worldPos	: TEXCOORD2;
-	float3 normal 	: NORMAL;
-	float3 tangent 	: TANGENT;
-	float3 bitangent: TEXCOORD3;
-	float3 color 	: COLOR0;
-};
-
-#else
-
-struct VSInput
-{
-	float3 position : POSITION;
-	float2 uv0		: TEXCOORD0;
-	float2 uv1		: TEXCOORD1;
-	float3 normal 	: NORMAL;
-	float4 tangent	: TANGENT;
-	float3 color	: COLOR0;
-};
-
-struct VSOutput
-{
-	float4 pos 	: SV_POSITION;
-	float2 uv0 	: TEXCOORD0;
-	float2 uv1	: TEXCOORD1;
-	float3 worldPos	: TEXCOORD2;
-	float3 normal 	: NORMAL;
-	float3 tangent 	: TANGENT;
-	float3 bitangent: TEXCOORD3;
-	float3 color 	: COLOR0;
-};
+#ifndef USE_DESCRIPTOR_HEAP_INDEX
+#define USE_DESCRIPTOR_HEAP_INDEX 1
 #endif
 
+#if USE_DESCRIPTOR_HEAP_INDEX
+#include "Common/DynDescRS.hlsli"
+#endif
+
+// Entry
+#if USE_DESCRIPTOR_HEAP_INDEX
+[RootSignature(DynResource_RootSig)]
+#else
 [RootSignature(Common_RootSig)]
+#endif
 VSOutput main( VSInput v )
 {
 	VSOutput o = (VSOutput) 0;
 
-#if 0
-	float4 wPos = mul(float4(v.position, 1.0), _WorldMat);
-#else
-	// worldMat is not transposed
-	float4 wPos = mul(_WorldMat, float4(v.position, 1.0));
-#endif
+	const uint DrawId = GetDrawId();
+	const uint slotInstanceBuffer = GetSlotInstanceBuffer();
+	const uint slotCamera = GetSlotCamera();
+
+	#if USE_DESCRIPTOR_HEAP_INDEX
+	
+		#if 0
+			// Instance buffer
+			ConstantBuffer<CBObjects> cbObjects = ResourceDescriptorHeap[0];
+			const CBPerObject cbPerObject = cbObjects.objs[DrawId];
+			const float4x4 WorldMat = cbPerObject.worldMat;
+		#else
+			StructuredBuffer<CBPerObject> cbObjects = ResourceDescriptorHeap[slotInstanceBuffer];
+			const CBPerObject cbPerObject = cbObjects[DrawId];
+			const float4x4 WorldMat = cbPerObject.worldMat;
+		#endif
+		
+		ConstantBuffer<CBPerCamera> cbPerCamera = ResourceDescriptorHeap[slotCamera];
+		const float4x4 ViewProjMat = cbPerCamera.viewProjMat;
+	#else
+		const float4x4 WorldMat = _WorldMat;
+		const float4x4 ViewProjMat = _ViewProjMat;
+	#endif
+
+	#if 0
+		float4 wPos = mul(float4(v.position, 1.0), _WorldMat);
+	#else
+		// worldMat is not transposed
+		float4 wPos = mul(WorldMat, float4(v.position, 1.0));
+	#endif
 	// wPos = float4(v.position, 1.0);
-	float4 cPos = mul(wPos, _ViewProjMat);
+	float4 cPos = mul(wPos, ViewProjMat);
 
 	// float3 wNormal = normalize(mul((float3x3)_InvWorldMat, v.normal));
 	// No uniform scale here
-	float3 wNormal = normalize(mul((float3x3)_WorldMat, v.normal));
+	float3 wNormal = normalize(mul((float3x3)WorldMat, v.normal));
 	// TODO: no tangents yet
-	float3 wTangent = float3(0, 0, 0); // normalize(mul(v.tangent.xyz, (float3x3)_WorldMat));
+	float3 wTangent = float3(0, 0, 0); // normalize(mul(v.tangent.xyz, (float3x3)WorldMat));
 	float3 wBitangent = float3( 0, 0, 0); // cross(wNormal, wTangent) * v.tangent.w;
 
 	o.pos = cPos;
 	o.worldPos = wPos.xyz;
-#ifdef GL_UV_STARTS_AT_BOTTOMLEFT	// (貌似不用反转y轴)
-	// o.uv0 = float2(v.uv0.x, 1.0 - v.uv0.y);
-	// o.uv1 = float2(v.uv1.x, 1.0 - v.uv1.y);
-	o.uv0 = v.uv0;
+	
+	float2 uv0 = v.uv0;
 	// TODO: no uv1 yet
-	o.uv1 = v.uv0; // v.uv1;
-#else
-	o.uv0 = v.uv0;
-	o.uv1 = v.uv1;
-#endif
+	float2 uv1 = v.uv0; // v.uv1;
+	#ifdef GL_UV_STARTS_AT_BOTTOMLEFT
+		// o.uv0 = float2(v.uv0.x, 1.0 - v.uv0.y);
+		// o.uv1 = float2(v.uv1.x, 1.0 - v.uv1.y
+	#endif
+	o.uv0 = uv0;
+	o.uv1 = uv1;
+	
 	o.normal = wNormal;
 	o.tangent = wTangent;
 	o.bitangent = wBitangent;

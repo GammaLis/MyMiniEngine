@@ -24,7 +24,11 @@ public:
 		return m_GpuVirtualAddress + offset;
 	}
 
-	void CopyToGpu(void* pSrc, uint32_t memSize, uint32_t instanceIndex = 0);
+	void CopyToGpu(const void* pSrc, uint32_t memSize, uint32_t instanceIndex = 0);
+	void CopyToGpu(const void* pSrc, uint32_t memSize, uint32_t instanceIndex, uint32_t frameIndex)
+	{
+		 CopyToGpu(pSrc, memSize, instanceIndex + (m_bFramed ? frameIndex * m_NumElement : 0));
+	}
 	D3D12_GPU_VIRTUAL_ADDRESS GetInstanceGpuPointer(uint32_t instanceIndex = 0) const
 	{
 		return m_GpuVirtualAddress + instanceIndex * m_ElementSize;
@@ -45,7 +49,16 @@ private:
 
 	D3D12_CPU_DESCRIPTOR_HANDLE CreateConstantBufferView(ID3D12Device* pDevice, uint32_t offset, uint32_t size) const;
 	D3D12_CPU_DESCRIPTOR_HANDLE CreateShaderResourceView(ID3D12Device* pDevice, uint32_t offset, uint32_t size) const;
+	D3D12_CPU_DESCRIPTOR_HANDLE UpdateConstantBufferView(ID3D12Device* pDevice, uint32_t offset, uint32_t size, D3D12_CPU_DESCRIPTOR_HANDLE handle) const;
+	D3D12_CPU_DESCRIPTOR_HANDLE UpdateShaderResourceView(ID3D12Device* pDevice, uint32_t offset, uint32_t size, D3D12_CPU_DESCRIPTOR_HANDLE handle) const;
 	D3D12_CPU_DESCRIPTOR_HANDLE m_CBV[MyDirectX::MaxFrameBufferCount] = { };
 	D3D12_CPU_DESCRIPTOR_HANDLE m_SRV[MyDirectX::MaxFrameBufferCount] = { };
 	bool m_bDescriptorInited = false;
+
+	struct BasicViewDesc
+	{
+		uint32_t offset;
+		uint32_t size;
+	};
+	BasicViewDesc m_ViewDesc{};
 };

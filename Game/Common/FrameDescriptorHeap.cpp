@@ -8,7 +8,7 @@ void FrameDescriptorHeap::Create(ID3D12Device *pDevice, const std::wstring &heap
 
 	auto maxCount = m_DescriptorHeaps[0]->GetCapacity();
 
-	if (numPersistent == uint32_t(-1))
+	if (numPersistent == INVALID_INDEX)
 		numPersistent = maxCount;
 
 	m_NumPersistent = numPersistent;
@@ -52,12 +52,12 @@ void FrameDescriptorHeap::Destroy()
 
 }
 
-PersistentDescriptorAlloc FrameDescriptorHeap::AllocPersistent()
+PersistentDescriptorAlloc FrameDescriptorHeap::AllocPersistent(uint32_t count)
 {
 	ASSERT(m_PersistentAllocated < m_NumPersistent);
 
 	uint32_t index = m_PersistentIndices[m_PersistentAllocated];
-	m_PersistentAllocated++;
+	m_PersistentAllocated += count;
 
 	PersistentDescriptorAlloc alloc;
 	alloc.index = index;
@@ -75,7 +75,7 @@ void FrameDescriptorHeap::FreePersistent(uint32_t& index)
 	ASSERT(index < m_NumPersistent && m_PersistentAllocated > 0);
 
 	m_PersistentIndices[--m_PersistentAllocated] = index;
-	index = uint32_t(-1);
+	index = INVALID_INDEX;
 }
 
 void FrameDescriptorHeap::FreePersistent(DescriptorHandle& handle)
@@ -89,12 +89,49 @@ void FrameDescriptorHeap::FreePersistent(DescriptorHandle& handle)
 	FreePersistent(index);
 }
 
-void FrameDescriptorHeap::AllocAndCopyPersistentDescriptor(ID3D12Device *pDevice, DescriptorHandle descriptor)
+uint32_t FrameDescriptorHeap::AllocAndCopyPersistentDescriptor(ID3D12Device *pDevice, DescriptorHandle descriptor)
 {
 	const auto type = m_DescriptorHeaps[0]->GetType();
 	auto alloc = AllocPersistent();
 	for (uint32_t i = 0; i < m_NumHeaps; i++)
 		pDevice->CopyDescriptorsSimple(1, alloc.handles[i], descriptor, type);
+	return alloc.index;
+}
+
+void FrameDescriptorHeap::UpdatePersistentDescriptor(ID3D12Device* pDevice, uint32_t index, DescriptorHandle descriptor)
+{
+	ASSERT(index < m_PersistentAllocated);
+	for (uint32_t i = 0; i < m_NumHeaps; i++)
+		pDevice->CopyDescriptorsSimple(1, m_DescriptorHeaps[i]->GetHandleAtOffset(index), descriptor, m_Type);
+}
+
+void FrameDescriptorHeap::UpdatePersistentDescriptors(ID3D12Device* pDevice, uint32_t start, const std::span<DescriptorHandle>& descriptors)
+{
+	static constexpr uint32_t kMaxDescriptorsPerCopy = 16;
+	
+	const uint32_t numDescriptors = static_cast<uint32_t>( descriptors.size() ); 
+	ASSERT(numDescriptors < kMaxDescriptorsPerCopy && start + numDescriptors <= m_PersistentAllocated);
+
+	static D3D12_CPU_DESCRIPTOR_HANDLE pSrcDescriptorRangeStarts[kMaxDescriptorsPerCopy];
+	static UINT pSrcDescriptorRangeSizes[kMaxDescriptorsPerCopy];
+	UINT numSrcDescriptorRanges = numDescriptors;
+
+	for (uint32_t i = 0; i < numDescriptors; i++)
+	{
+		pSrcDescriptorRangeStarts[i] = descriptors[i];
+		pSrcDescriptorRangeSizes[i] = 1;
+	}
+	
+	for (uint32_t i = 0; i < m_NumHeaps; i++)
+	{
+		D3D12_CPU_DESCRIPTOR_HANDLE pDstDescriptorRangeStarts[] = { m_DescriptorHeaps[i]->GetHandleAtOffset(start) };
+		UINT pDstDescriptorRangeSizes[] = { numDescriptors };
+		UINT numDstDescriptorRanges = 1;
+		pDevice->CopyDescriptors(
+			numDstDescriptorRanges, pDstDescriptorRangeStarts, pDstDescriptorRangeSizes,
+			numSrcDescriptorRanges, pSrcDescriptorRangeStarts, pSrcDescriptorRangeSizes, m_Type);
+		// pDevice->CopyDescriptorsSimple(numDescriptors, m_DescriptorHeaps[i]->GetHandleAtOffset(start), )
+	}
 }
 
 TemporaryDescriptorAlloc FrameDescriptorHeap::AllocTemporary(uint32_t count)
@@ -113,19 +150,21 @@ TemporaryDescriptorAlloc FrameDescriptorHeap::AllocTemporary(uint32_t count)
 	return alloc;
 }
 
-void FrameDescriptorHeap::AllocAndCopyTemporaryDescriptor(ID3D12Device* pDevice, DescriptorHandle descriptor)
+uint32_t FrameDescriptorHeap::AllocAndCopyTemporaryDescriptor(ID3D12Device* pDevice, DescriptorHandle descriptor)
 {
 	auto type = m_DescriptorHeaps[0]->GetType(); 
 	auto alloc = AllocTemporary();
 	pDevice->CopyDescriptorsSimple(1, alloc.startHandle, descriptor, type);
+	return alloc.startIndex;
 }
 
-void FrameDescriptorHeap::AllocAndCopyTemporaryDescriptors(ID3D12Device* pDevice, const std::span<DescriptorHandle> &descriptors)
+uint32_t FrameDescriptorHeap::AllocAndCopyTemporaryDescriptors(ID3D12Device* pDevice, const std::span<DescriptorHandle> &descriptors)
 {
 	auto type = m_DescriptorHeaps[0]->GetType();
 	auto count = static_cast<uint32_t>(descriptors.size());
 	auto alloc = AllocTemporary(count);
 	pDevice->CopyDescriptorsSimple(count, alloc.startHandle, descriptors[0], type);
+	return alloc.startIndex;
 }
 
 void FrameDescriptorHeap::EndFrame()

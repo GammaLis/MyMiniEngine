@@ -3,6 +3,7 @@
 #include "Graphics.h"
 #include "CommandContext.h"
 #include "Utilities/FileUtility.h"
+#include "Utilities/GameUtility.h"
 #include <thread>
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -131,7 +132,7 @@ namespace MyDirectX
 
 		ASSERT_SUCCEEDED(pDevice->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &texDesc, 
 			m_UsageState, nullptr, IID_PPV_ARGS(m_pResource.ReleaseAndGetAddressOf())));
-		m_pResource->SetName(L"Texture");
+		m_pResource->SetName(L"TextureCube");
 
 		D3D12_SUBRESOURCE_DATA texResource;
 		texResource.pData = pInitData;
@@ -294,7 +295,13 @@ namespace MyDirectX
 
 	void ManagedTexture::SetDefault(EDefaultTexture defaultTex)
 	{
-		m_hCpuDescriptorHandle = TextureManager::GetDefaultTexture(defaultTex);
+		m_hCpuDescriptorHandle = TextureManager::GetDefaultTextureDescriptor(defaultTex);
+	}
+
+	// Normally we'll set texture to default before loading, so when loading is done, make sure to reset the 'cpuDescriptorHandle'.
+	void ManagedTexture::SetNull()
+	{
+		m_hCpuDescriptorHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
 	}
 
 	// Default to 'Invalid'
@@ -312,20 +319,33 @@ namespace MyDirectX
 
 	void TextureManager::InitDefaultTextures(ID3D12Device* pDevice)
 	{
-		uint32_t MagentPixel = 0xFFFF00FF;
-		s_DefaultTexture[static_cast<uint32_t>(EDefaultTexture::kMagenta2D)].Create2D(pDevice, 4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &MagentPixel);
-		uint32_t BlackOpaqueTexel = 0xFF000000;
-		s_DefaultTexture[static_cast<uint32_t>(EDefaultTexture::kBlackOpaque2D)].Create2D(pDevice, 4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &BlackOpaqueTexel);
-		uint32_t BlackTransparentTexel = 0x00000000;
-		s_DefaultTexture[static_cast<uint32_t>(EDefaultTexture::kBlackTransparent2D)].Create2D(pDevice, 4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &BlackTransparentTexel);
-		uint32_t WhiteOpaqueTexel = 0xFFFFFFFF;
-		s_DefaultTexture[static_cast<uint32_t>(EDefaultTexture::kWhiteOpaque2D)].Create2D(pDevice, 4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &WhiteOpaqueTexel);
-		uint32_t WhiteTransparentTexel = 0x00FFFFFF;
-		s_DefaultTexture[static_cast<uint32_t>(EDefaultTexture::kWhiteTransparent2D)].Create2D(pDevice, 4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &WhiteTransparentTexel);
-		uint32_t FlatNormalTexel = 0x00FF8080;
-		s_DefaultTexture[static_cast<uint32_t>(EDefaultTexture::kDefaultNormalMap)].Create2D(pDevice, 4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &FlatNormalTexel);
+		auto InitDefaultTexture = [pDevice](EDefaultTexture type, const void *pInitValue, DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM)
+		{
+			auto &texture = s_DefaultTexture[static_cast<uint32_t>(type)]; 
+			texture.Create2D(pDevice, 4, 1, 1, format, pInitValue);
+			texture->SetName(s_DefaultTextureName[static_cast<uint32_t>(type)].c_str());
+		};
+		
+		constexpr uint32_t MagentPixel = 0xFFFF00FF;
+		InitDefaultTexture(EDefaultTexture::kMagenta2D, &MagentPixel);
+
+		constexpr uint32_t BlackOpaqueTexel = 0xFF000000;
+		InitDefaultTexture(EDefaultTexture::kBlackOpaque2D, &BlackOpaqueTexel);
+		
+		constexpr uint32_t BlackTransparentTexel = 0x00000000;
+		InitDefaultTexture(EDefaultTexture::kBlackTransparent2D, &BlackTransparentTexel);
+		
+		constexpr uint32_t WhiteOpaqueTexel = 0xFFFFFFFF;
+		InitDefaultTexture(EDefaultTexture::kWhiteOpaque2D, &WhiteOpaqueTexel);
+
+		constexpr uint32_t WhiteTransparentTexel = 0x00FFFFFF;
+		InitDefaultTexture(EDefaultTexture::kWhiteTransparent2D, &WhiteTransparentTexel);
+		
+		constexpr uint32_t FlatNormalTexel = 0x00FF8080;
+		InitDefaultTexture(EDefaultTexture::kDefaultNormalMap, &FlatNormalTexel);
+				
 		uint32_t BlackCubeTexels[6] = {};
-		s_DefaultTexture[static_cast<uint32_t>(EDefaultTexture::kBlackCubeMap)].CreateCube(pDevice, 4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, BlackCubeTexels);
+		s_DefaultTexture[static_cast<uint32_t>(EDefaultTexture::kBlackCubeMap)].CreateCube(pDevice, 4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &BlackCubeTexels);
 	}
 
 	void TextureManager::Shutdown()
@@ -404,8 +424,66 @@ namespace MyDirectX
 		}
 		tex->m_IsLoading = false;
 
-		return nullptr;
+		return tex;
 	}
+
+	ManagedTexture* TextureManager::FindOrLoadTextureAsync(const std::wstring& fileName, EDefaultTexture fallback, bool forceSRGB)
+	{
+		std::wstring key = fileName;
+		if (forceSRGB)
+			key += L"_SRGB";
+		
+		ManagedTexture* tex = nullptr;
+		{
+			std::lock_guard lock(m_TexMutex);
+
+			// Search for an existing managed texture
+			if (auto iter = m_TextureCache.find(key); iter!= m_TextureCache.end())
+			{
+				// If a texture was already created make sure it has finished loading before
+				// returning a point to it
+				tex = iter->second.get();
+				// Needn't wait
+				// tex->WaitForLoad();
+				return tex;
+			}
+			else
+			{
+				// If it's not found, create a new managed texture and start loading it
+				tex = new ManagedTexture(key);
+				m_TextureCache[key].reset(tex);
+			}
+		}
+		
+		tex->SetDefault(fallback);
+		Async(EAsyncExecution::ThreadPool, [this, tex, fileName, forceSRGB]()
+		{
+			// TODO: remove 'RootPath' ???
+			auto ba = Utility::ReadFileSync(m_RootPath + fileName);
+			if (ba->size() > 0)
+			{
+				// Reset first! The descriptor is from default
+				tex->SetNull();
+				
+				tex->CreateDDSFromMemory(Graphics::s_Device, ba->data(), ba->size(), forceSRGB);
+				tex->GetResource()->SetName(fileName.c_str());
+				tex->m_IsValid = true;
+				tex->m_IsLoading = false;
+				{
+					std::lock_guard lock(m_TexMutex);
+					m_TexturesToUpdate.emplace_back(tex);
+				}
+				// Utility::Printf("Load texture from %s\n successfully!", fileName.c_str());
+			}
+			else
+			{
+				Utility::Printf("Failed to load texture from %s\n", fileName.c_str());
+			}
+		});
+
+		return tex;
+	}
+
 
 	const ManagedTexture* TextureManager::LoadFromFile(ID3D12Device* pDevice, const std::wstring& fileName, bool sRGB)
 	{
@@ -560,6 +638,34 @@ namespace MyDirectX
 		return tex;
 	}
 
+	void TextureManager::DeferredUpdate()
+	{
+		static constexpr uint32_t kMaxUpdatePerFrame = 16;
+
+		if (m_UpdateCallback == nullptr)
+			return;
+
+		std::list<const ManagedTexture*> texturesToUpdate;
+		{
+			std::lock_guard lock(m_TexMutex);
+			
+			if (!m_TexturesToUpdate.empty())
+			{
+				auto iter = m_TexturesToUpdate.begin();
+				std::ranges::advance(iter, kMaxUpdatePerFrame, m_TexturesToUpdate.end());
+				texturesToUpdate.splice(texturesToUpdate.end(), m_TexturesToUpdate, m_TexturesToUpdate.begin(), iter);
+			}
+		}
+
+		if (!texturesToUpdate.empty())
+		{
+			for (const auto &tex : texturesToUpdate)
+			{
+				[[maybe_unused]] bool ret = m_UpdateCallback(tex);
+			}
+		}
+	}
+
 	void TextureManager::ReleaseTextures(const std::wstring fileName[], size_t numTex)
 	{
 		ASSERT(numTex > 0 && fileName != nullptr);
@@ -568,16 +674,19 @@ namespace MyDirectX
 
 		for (size_t i = 0; i < numTex; ++i)
 		{
-			auto iter = m_TextureCache.find(fileName[i]);
-			if (iter != m_TextureCache.end())
+			if (auto iter = m_TextureCache.find(fileName[i]); iter != m_TextureCache.end())
 			{
 				auto &pTex = iter->second;
 				pTex->Destroy();
 				pTex.release();
-
 				m_TextureCache.erase(fileName[i]);
 			}
 		}		
+	}
+
+	void TextureManager::BindUpdateCallback(std::function<bool(const ManagedTexture*)> callback)
+	{
+		m_UpdateCallback = callback;	
 	}
 
 #pragma region Default Textures
@@ -645,10 +754,16 @@ namespace MyDirectX
 		return *tex;
 	}
 
-	D3D12_CPU_DESCRIPTOR_HANDLE TextureManager::GetDefaultTexture(EDefaultTexture texID)
+	D3D12_CPU_DESCRIPTOR_HANDLE TextureManager::GetDefaultTextureDescriptor(EDefaultTexture texID)
 	{
 		ASSERT(texID < EDefaultTexture::kNumDefaultTextures);
 		return s_DefaultTexture[static_cast<uint32_t>(texID)].GetSRV();
+	}
+
+	Texture* TextureManager::GetDefaultTexture(EDefaultTexture texID)
+	{
+		ASSERT(texID < EDefaultTexture::kNumDefaultTextures);
+		return &s_DefaultTexture[static_cast<uint32_t>(texID)];
 	}
 
 	void TextureManager::DestroyDefaultTextures()
@@ -705,7 +820,7 @@ namespace MyDirectX
 		if (m_ref != nullptr)
 			return m_ref->GetSRV();
 		else 
-			return TextureManager::GetDefaultTexture(EDefaultTexture::kMagenta2D);
+			return TextureManager::GetDefaultTextureDescriptor(EDefaultTexture::kMagenta2D);
 	}
 
 	const Texture* TextureRef::Get() const

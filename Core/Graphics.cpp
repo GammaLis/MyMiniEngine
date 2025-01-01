@@ -961,7 +961,7 @@ namespace MyDirectX
         }
         else
         {
-            context.SetDynamicDescriptor(1, 1, TextureManager::GetDefaultTexture(EDefaultTexture::kBlackTransparent2D));
+            context.SetDynamicDescriptor(1, 1, TextureManager::GetDefaultTextureDescriptor(EDefaultTexture::kBlackTransparent2D));
             context.SetPipelineState(bNeedsScaling ? m_ScaleAndCompositeHDRPSO : m_PresentHDRPSO);
         }
 
